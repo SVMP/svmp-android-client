@@ -100,7 +100,7 @@ public class ClientTestView extends TestEventView  {
             this.client = new RemoteServerClient(new MessageCallback(this),host,port);
             this.client.execute();
             sendAuthenticationMessage();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

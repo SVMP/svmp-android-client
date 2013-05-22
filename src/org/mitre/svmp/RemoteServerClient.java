@@ -23,10 +23,15 @@ import java.io.StringWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+
+import javax.net.SocketFactory;
 
 import org.mitre.svmp.protocol.SVMPMessage;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
+import android.net.SSLCertificateSocketFactory;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Message;
@@ -48,16 +53,32 @@ public class RemoteServerClient extends AsyncTask<Void, SVMPMessage, Boolean> {
     private Handler callback;
     private boolean running;
 
+    private static boolean USE_SSL = true;
+    // for testing, set true to disable server cert validity checking
+    private static boolean SSL_DEBUG = false;
 
     public RemoteServerClient(final Handler callback, final String host, final int port)
-        throws IOException {
+        throws IOException, NoSuchAlgorithmException, KeyManagementException {
         this.host = host;
         this.port = port;
         this.callback = callback;
 
-        SocketAddress sockaddr = new InetSocketAddress(this.host, this.port);
-        socket = new Socket();
-        socket.connect(sockaddr, 5000); //5 second connection timeout
+        SocketFactory sf;
+
+        if (USE_SSL) {
+            if (SSL_DEBUG)
+                sf = SSLCertificateSocketFactory.getInsecure(0, null);
+            else
+                sf = SSLCertificateSocketFactory.getDefault(0, null);
+        } else {
+            sf = SocketFactory.getDefault();
+        }
+
+//        SocketAddress sockaddr = new InetSocketAddress(this.host, this.port);
+//        socket.connect(sockaddr, 5000); //5 second connection timeout
+
+        socket = sf.createSocket(host, port);
+
         Log.d(TAG, "Socket connected to " + host + ":" + port);
         out = socket.getOutputStream();
         out.flush();
