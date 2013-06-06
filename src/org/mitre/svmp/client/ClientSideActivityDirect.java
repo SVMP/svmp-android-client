@@ -15,9 +15,6 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
-import java.io.IOException;
-import java.util.Timer;
-
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
@@ -29,10 +26,13 @@ import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnPreparedListener;
-import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Timer;
 
 /**
  * @author Andy Pyles
@@ -41,7 +41,7 @@ import android.view.SurfaceHolder;
  */
 
 public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener {
-	
+
 	protected static final String TAG = "ClientSideActivityDirect";
 	private ClientTestView view;
 	private String host;
@@ -78,52 +78,53 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
         sh.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 	}
    
-	 private void cleanupvideo() {
+	private void cleanupvideo() {
 	    	player.stop();
 	        player.reset();
 	        player.release();
-	 }
+	}
 	 
-	 private void cleanupsensors() {
+	private void cleanupsensors() {
 		 // Only cleanup if client is running
-		 if(!view.ClientRunning()) 
+		if(!view.ClientRunning())
 			 return;
 		 
-		 Log.d(TAG,"cleanupsensors()");
-		 this.sm.unregisterListener(this, 
-				 sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-		 );
-		 this.sm.unregisterListener(this, 
-				 sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-		 );
-		 view.closeClient();
-	 }
+		Log.d(TAG,"cleanupsensors()");
+
+		List<Sensor> availableSensors = sm.getSensorList(Sensor.TYPE_ALL);
+		for(Sensor currentSensor : availableSensors) {
+			this.sm.unregisterListener(this,currentSensor);
+		}
+		view.setSensorSize(0);
+		view.closeClient();
+	}
 	 
 	private void init() {
 		// only init if client is running;
 		if (view.ClientRunning())
-			return;
+		    return;
 
 		Log.i(TAG, "Client is not running. Connecting now to " + host + ":" + port);
 		
 		view.startClient(this, host, port);
 
 		Log.d(TAG, "Starting sensors");
+        //queryForSensors();
 		initsensors();
 	}
 
-	 private void initsensors() {
-		 Log.d(TAG, "startClient started registering listener");
+	private void initsensors() {
+		Log.d(TAG, "startClient started registering listener");
 
-		 this.sm.registerListener(this, 
-				 sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-				 SensorManager.SENSOR_DELAY_NORMAL
-		 );
-		 this.sm.registerListener(this, 
-				 sm.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-				 SensorManager.SENSOR_DELAY_NORMAL
-		 );
-	 }
+		int maxTypeInt = -1;
+		List<Sensor> availableSensors = sm.getSensorList(Sensor.TYPE_ALL);
+		for(Sensor currentSensor : availableSensors) {
+			this.sm.registerListener(this, currentSensor, SensorManager.SENSOR_DELAY_NORMAL);
+			if(currentSensor.getType() > maxTypeInt)
+				maxTypeInt = currentSensor.getType();
+		}
+		view.setSensorSize(maxTypeInt);
+	}
 
 	public void initvideo(String url) {
 		Log.d(TAG,"initvideo()");

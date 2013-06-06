@@ -46,11 +46,14 @@ public class ClientTestView extends TestEventView  {
     private float xScaleFactor, yScaleFactor = 0;
     private RemoteServerClient client;
     private ClientSideActivityDirect clientActivity;
+
+    //private long lastAccelUpdate = 0;
+    //private long lastCompassUpdate = 0;
+    private int sensorSize = -1;
+    private long[] lastSensorUpdate;
     
-	private long lastAccelUpdate = 0;
-	private long lastCompassUpdate = 0;
-	// minimum allowed time between sensor updates in nanoseconds
-	private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
+    // minimum allowed time between sensor updates in nanoseconds
+    private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
 
     
     private static final int UNAUTHENTICATED = 0;
@@ -59,7 +62,12 @@ public class ClientTestView extends TestEventView  {
     private static final int GETSCREENINFO   = 3;
     private static final int PROXYREADY      = 4;
     private int protocolState = UNAUTHENTICATED;
-    
+
+    public void setSensorSize(int sensorSize) {
+        this.sensorSize = sensorSize;
+        lastSensorUpdate = new long[sensorSize];
+    }
+
     public ClientTestView(Context context) {
         super(context);
     }
@@ -143,22 +151,17 @@ public class ClientTestView extends TestEventView  {
     }
     
     public void onSensorEvent(SensorEvent event) {
-    	if (protocolState != PROXYREADY) return;
-    	
+		if (protocolState != PROXYREADY) return;
+
 		SVMPProtocol.SensorType type = null;
-		switch (event.sensor.getType()) {
-		case Sensor.TYPE_ACCELEROMETER:
-			if (event.timestamp < this.lastAccelUpdate + MIN_SENSOR_INTERVAL) return;
-			type = SensorType.ACCELEROMETER;
-			this.lastAccelUpdate = event.timestamp;
-			break;
-		case Sensor.TYPE_MAGNETIC_FIELD:
-			if (event.timestamp < this.lastCompassUpdate + MIN_SENSOR_INTERVAL) return;
-			type = SensorType.MAGNETIC_FIELD;
-			this.lastCompassUpdate = event.timestamp;
-			break;
-		default:
-			// something we don't handle but somehow were registered for
+		int sensorIndex = event.sensor.getType() - 1; // map sensor type to last sensor update array index
+
+		if( lastSensorUpdate != null && lastSensorUpdate.length > sensorIndex ) {
+			if (event.timestamp < lastSensorUpdate[sensorIndex] + MIN_SENSOR_INTERVAL) return;
+				type = SensorType.valueOf(sensorIndex  + 1);
+			lastSensorUpdate[sensorIndex] = event.timestamp;
+		}
+		else {
 			return;
 		}
 
@@ -166,7 +169,6 @@ public class ClientTestView extends TestEventView  {
 		SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
 		SVMPProtocol.SensorEvent.Builder e = SVMPProtocol.SensorEvent.newBuilder();
 		msg.setType(RequestType.SENSOREVENT);
-		
 		e.setType(type);
 		e.setAccuracy(event.accuracy);
 		e.setTimestamp(event.timestamp);
