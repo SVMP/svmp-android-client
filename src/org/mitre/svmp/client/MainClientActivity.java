@@ -63,9 +63,6 @@ public class MainClientActivity extends Activity {
 
         host.setText(host1);
         port.setText(Integer.toString(port1));
-        //START ccourtney
-        ((EditText)findViewById(R.id.server_port)).setText(Integer.toString(settings.getInt("server_port", 7777)));
-        //END ccourtney
         videointent = new Intent(getApplicationContext(), ClientSideActivityDirect.class);
        
         videostarted=false;
@@ -84,23 +81,6 @@ public class MainClientActivity extends Activity {
                     SharedPreferences.Editor editor = settings.edit();
                     editor.putString("host", h);
                     editor.putInt("port", actualPortNumer);
-                    
-                    //START ccourtney
-                    editor.putInt("server_port",
-                    		Integer.parseInt(((EditText)findViewById(R.id.server_port)).getText().toString()));
-                    editor.commit();
-                    
-                    Intent networkIntent = new Intent();
-                    networkIntent.putExtra("ip", h);
-                    networkIntent.putExtra("port", actualPortNumer);
-                    networkIntent.putExtra("server_port",
-                    		Integer.parseInt(((EditText)findViewById(R.id.server_port)).getText().toString()));
-                    Toast.makeText(context, "SENDING "+h+":"+Integer.valueOf(actualPortNumer).toString()+" and "+
-                    		networkIntent.getIntExtra("server_port",-1), Toast.LENGTH_SHORT).show();
-                    networkIntent.setComponent(new ComponentName("org.mitre.svmp_network_intents_client",
-                    		"org.mitre.svmp_network_intents_client.IntentActivity"));
-                    startActivity(networkIntent);
-                    //END ccourtney
 
                     // Launch the ClientSideActivity
                     AuthData.init( ((EditText)findViewById(R.id.username)).getText().toString(),
