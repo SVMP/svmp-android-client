@@ -59,13 +59,14 @@ public class ClientTestView extends TestEventView  {
     private float xScaleFactor, yScaleFactor = 0;
     private RemoteServerClient client;
     private ClientSideActivityDirect clientActivity;
-    
-	//private long lastAccelUpdate = 0;
-	//private long lastCompassUpdate = 0;
-	// minimum allowed time between sensor updates in nanoseconds
-	private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
 
-    
+    // track timestamp of the last update of each sensor we are tracking
+    private long[] lastSensorUpdate = new long[SvmpSensors.MAX_SENSOR_TYPE+1];
+
+    // minimum allowed time between sensor updates in nanoseconds
+    private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
+
+    // Protocol connection states
     private static final int UNAUTHENTICATED = 0;
     private static final int AUTHENTICATING  = 1;
     private static final int VMREADYWAIT     = 2;
@@ -73,14 +74,6 @@ public class ClientTestView extends TestEventView  {
     private static final int PROXYREADY      = 4;
     private int protocolState = UNAUTHENTICATED;
 
-    public void setSensorSize(int sensorSize) {
-        this.sensorSize = sensorSize;
-        lastSensorUpdate = new long[sensorSize];
-    }
-
-    private int sensorSize = -1;
-    private long[] lastSensorUpdate;
-    
     public ClientTestView(Context context) {
         super(context);
     }
@@ -166,23 +159,17 @@ public class ClientTestView extends TestEventView  {
     public void onSensorEvent(SensorEvent event) {
 		if (protocolState != PROXYREADY) return;
 
-		SVMPProtocol.SensorType type = null;
-		int sensorIndex = event.sensor.getType() - 1; // map sensor type to last sensor update array index
+		int type = event.sensor.getType();
 
-		if( lastSensorUpdate != null && lastSensorUpdate.length > sensorIndex ) {
-		if (event.timestamp < lastSensorUpdate[sensorIndex] + MIN_SENSOR_INTERVAL) return;
-			type = SensorType.valueOf(sensorIndex  + 1);
-			lastSensorUpdate[sensorIndex] = event.timestamp;
-		}
-		else {
+		if (event.timestamp < lastSensorUpdate[type] + MIN_SENSOR_INTERVAL)
 			return;
-		}
+		lastSensorUpdate[type] = event.timestamp;
 
 		// assemble the message
 		SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
 		SVMPProtocol.SensorEvent.Builder e = SVMPProtocol.SensorEvent.newBuilder();
 		msg.setType(RequestType.SENSOREVENT);
-		e.setType(type);
+		e.setType(SensorType.valueOf(type));
 		e.setAccuracy(event.accuracy);
 		e.setTimestamp(event.timestamp);
 		
@@ -193,6 +180,7 @@ public class ClientTestView extends TestEventView  {
 		msg.setSensor(e);
 		
 		sendInputMessage(msg.build());
+		//Log.d(TAG, "Sent sensor update for type " + SensorType.valueOf(type).name());
 	}
 
     // called when a LocationListener triggers, converts the data and sends it to the VM

@@ -34,15 +34,21 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
 
 /**
+ * Main remote view activity. 
+ * 
+ * Uses MediaPlayer directly for more flexibilyt versus VideoView as in earlier versions.
+ * 
+ * @author Dave Bryson
  * @author Andy Pyles
- * Based on the original ClientSideActivity by Dave Bryson
- * Use MediaPlayer directly instead of VideoView provides more flexibility. 
+ * @author David Keppler
+ * @author David Schoenheit
  */
 
 public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener {
@@ -58,7 +64,10 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 
 	private SensorManager sm;
 	private SurfaceHolder sh=null;
-    private LocationManager lm;
+
+	private LocationManager lm;
+	
+	private List<Sensor> registeredSensors = new ArrayList<Sensor>(SvmpSensors.MAX_SENSOR_TYPE);
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -98,11 +107,9 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		 
 		Log.d(TAG,"cleanupsensors()");
 
-		List<Sensor> availableSensors = sm.getSensorList(Sensor.TYPE_ALL);
-		for(Sensor currentSensor : availableSensors) {
+		for(Sensor currentSensor : registeredSensors) {
 			this.sm.unregisterListener(this,currentSensor);
 		}
-		view.setSensorSize(0);
 		view.closeClient();
 	}
 
@@ -126,7 +133,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		view.startClient(this, host, port);
 
 		Log.d(TAG, "Starting sensors");
-        //queryForSensors();
 		initsensors();
         initLocationUpdates();
 	}
@@ -134,14 +140,38 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 	private void initsensors() {
 		Log.d(TAG, "startClient started registering listener");
 
-		int maxTypeInt = 0;
-		List<Sensor> availableSensors = sm.getSensorList(Sensor.TYPE_ALL);
-		for(Sensor currentSensor : availableSensors) {
-			this.sm.registerListener(this, currentSensor, SensorManager.SENSOR_DELAY_NORMAL);
-			if(currentSensor.getType() > maxTypeInt)
-				maxTypeInt = currentSensor.getType();
+		initSensor(SvmpSensors.TYPE_ACCELEROMETER);
+		initSensor(SvmpSensors.TYPE_AMBIENT_TEMPERATURE);
+		initSensor(SvmpSensors.TYPE_GRAVITY);
+		initSensor(SvmpSensors.TYPE_GYROSCOPE);
+		initSensor(SvmpSensors.TYPE_LIGHT);
+		initSensor(SvmpSensors.TYPE_LINEAR_ACCELERATION);
+		initSensor(SvmpSensors.TYPE_MAGNETIC_FIELD);
+		initSensor(SvmpSensors.TYPE_ORIENTATION);
+		initSensor(SvmpSensors.TYPE_PRESSURE);
+		initSensor(SvmpSensors.TYPE_PROXIMITY);
+		initSensor(SvmpSensors.TYPE_RELATIVE_HUMIDITY);
+		initSensor(SvmpSensors.TYPE_ROTATION_VECTOR);
+		initSensor(SvmpSensors.TYPE_TEMPERATURE);
+		
+		// Virtual sensors created from inputs of others
+		//   TYPE_GRAVITY
+		//   TYPE_LINEAR_ACCELERATION
+		//   TYPE_ORIENTATION
+		//   TYPE_ROTATION_VECTOR
+	}
+	
+	private boolean initSensor(int type) {
+		Sensor s = sm.getDefaultSensor(type);
+		if (s != null) {
+			Log.i(TAG, "Registering for sensor: (type " + s.getType() + ") " + s.getVendor() + " " + s.getName());
+			sm.registerListener(this, s, SensorManager.SENSOR_DELAY_UI);
+			registeredSensors.add(s);
+			return true;
+		} else {
+			Log.e(TAG, "Failed registering listener for default sensor of type " + type);
+			return false;
 		}
-		view.setSensorSize(maxTypeInt);
 	}
 
     private void initLocationUpdates() {
