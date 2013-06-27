@@ -18,30 +18,17 @@ package org.mitre.svmp.client;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
-import android.location.LocationProvider;
-import android.os.Bundle;
-import android.os.Looper;
 import org.mitre.svmp.AuthData;
 import org.mitre.svmp.RemoteServerClient;
-import org.mitre.svmp.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationResponse;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationSubscribe;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationUnsubscribe;
-import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
-import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorType;
 
 import android.content.Context;
+import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.os.Handler;
 import android.os.Message;
@@ -59,11 +46,14 @@ public class ClientTestView extends TestEventView  {
     private float xScaleFactor, yScaleFactor = 0;
     private RemoteServerClient client;
     private ClientSideActivityDirect clientActivity;
+
+    //private long lastAccelUpdate = 0;
+    //private long lastCompassUpdate = 0;
+    private int sensorSize = -1;
+    private long[] lastSensorUpdate;
     
-	//private long lastAccelUpdate = 0;
-	//private long lastCompassUpdate = 0;
-	// minimum allowed time between sensor updates in nanoseconds
-	private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
+    // minimum allowed time between sensor updates in nanoseconds
+    private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
 
     
     private static final int UNAUTHENTICATED = 0;
@@ -78,9 +68,6 @@ public class ClientTestView extends TestEventView  {
         lastSensorUpdate = new long[sensorSize];
     }
 
-    private int sensorSize = -1;
-    private long[] lastSensorUpdate;
-    
     public ClientTestView(Context context) {
         super(context);
     }
@@ -170,8 +157,8 @@ public class ClientTestView extends TestEventView  {
 		int sensorIndex = event.sensor.getType() - 1; // map sensor type to last sensor update array index
 
 		if( lastSensorUpdate != null && lastSensorUpdate.length > sensorIndex ) {
-		if (event.timestamp < lastSensorUpdate[sensorIndex] + MIN_SENSOR_INTERVAL) return;
-			type = SensorType.valueOf(sensorIndex  + 1);
+			if (event.timestamp < lastSensorUpdate[sensorIndex] + MIN_SENSOR_INTERVAL) return;
+				type = SensorType.valueOf(sensorIndex  + 1);
 			lastSensorUpdate[sensorIndex] = event.timestamp;
 		}
 		else {
@@ -194,39 +181,7 @@ public class ClientTestView extends TestEventView  {
 		
 		sendInputMessage(msg.build());
 	}
-
-    // called when a LocationListener triggers, converts the data and sends it to the VM
-    public void onLocationChanged(Location location) {
-		if (protocolState != PROXYREADY) return;
-
-		SVMPProtocol.LocationUpdate locationUpdate = Utility.toLocationUpdate(location);
-		SVMPProtocol.Request request = Utility.toRequest(locationUpdate);
-
-		// send the Request to the VM
-		sendInputMessage(request);
-	}
-	// called when a onProviderEnabled or onProviderDisabled triggers, converts the data and sends it to the VM
-	public void onProviderEnabled(String s, boolean isEnabled) {
-		if (protocolState != PROXYREADY) return;
-
-		SVMPProtocol.LocationProviderEnabled providerEnabled = Utility.toLocationProviderEnabled(s, isEnabled);
-		SVMPProtocol.Request request = Utility.toRequest(providerEnabled);
-
-		// send the Request to the VM
-		sendInputMessage(request);
-	}
-	// called when a onStatusChanged triggers, converts the data and sends it to the VM
-	public void onStatusChanged(String s, int i, Bundle bundle) {
-		if (protocolState != PROXYREADY) return;
-
-		SVMPProtocol.LocationProviderStatus providerStatus = Utility.toLocationProviderStatus(s, i, bundle);
-		SVMPProtocol.Request request = Utility.toRequest(providerStatus);
-
-		// send the Request to the VM
-		sendInputMessage(request);
-	}
-
-
+    
     private void sendInputMessage(SVMPProtocol.Request message) {
     	if (client != null)
     		client.sendMessage(message);
@@ -246,7 +201,7 @@ public class ClientTestView extends TestEventView  {
     	
     	protocolState = AUTHENTICATING;
     }
-
+    
     private void sendScreenInfoMessage() {
     	SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
     	msg.setType(RequestType.SCREENINFO);
@@ -257,32 +212,12 @@ public class ClientTestView extends TestEventView  {
         protocolState = GETSCREENINFO;
     }
 
-    private void sendLocationProviderMessages() {
-		LocationManager lm = (LocationManager) clientActivity.getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
-
-		// loop through all location providers
-		List<String> providerNames = lm.getAllProviders();
-		for(String providerName : providerNames){
-            // skip the Passive provider
-            if( !providerName.equals(LocationManager.PASSIVE_PROVIDER) ) {
-                //get the provider information and package it into a Request
-                LocationProvider provider = lm.getProvider(providerName);
-                LocationProviderInfo providerInfo = Utility.toLocationProviderInfo(provider);
-                Request request = Utility.toRequest(providerInfo);
-
-                // send the Request to the VM
-                sendInputMessage(request);
-            }
-		}
-    }
-
     private void calcScaleFactor(final int toX, final int toY){
         this.xScaleFactor = (float)toX/(float)getWidth();
         this.yScaleFactor = (float)toY/(float)getHeight();
-        this.yScaleFactor = (float)toY/(float)getHeight();
-        Log.i(TAG, "Scalefactor: (" + xScaleFactor + "," + yScaleFactor + ")");
+        Log.i(TAG, "Scalefactor: ("+xScaleFactor+","+yScaleFactor+")");
     }
-
+    
     private boolean handleAuthenticationResponse(SVMPProtocol.Response msg) {
     	// check that we got an AUTHOK
     	switch (msg.getType()) {
@@ -309,9 +244,6 @@ public class ClientTestView extends TestEventView  {
     	// if so, update state to VMREADY and send ScreenInfo Request message
     	sendScreenInfoMessage();
 
-        // send the VM our location provider information
-        sendLocationProviderMessages();
-
     	return true;
     }
         
@@ -329,46 +261,7 @@ public class ClientTestView extends TestEventView  {
 
     	return true;
     }
-
-    protected void handleLocationResponse(Response response) {
-        LocationResponse locationResponse = response.getLocationResponse();
-        // get the location manager
-        LocationManager lm = (LocationManager) clientActivity.getSystemService(Context.LOCATION_SERVICE);
-
-        // a response can either be to subscribe or to unsubscribe
-        if( locationResponse.getType() == LocationResponse.LocationResponseType.SUBSCRIBE ) {
-            LocationSubscribe locationSubscribe = locationResponse.getSubscribe();
-            String provider = locationSubscribe.getProvider();
-            Looper looper = Looper.myLooper(); // TODO: find out if we should use myLooper or mainLooper?
-
-            // a subscribe request can either be one-time or long-term
-            if( locationSubscribe.getType() == LocationSubscribe.LocationSubscribeType.SINGLE_UPDATE ) {
-                LocationListener locationListener = clientActivity.getListenerSingle(provider);
-                lm.requestSingleUpdate(
-                        provider,
-                        locationListener,
-                        looper );
-            }
-            else if( locationSubscribe.getType() == LocationSubscribe.LocationSubscribeType.MULTIPLE_UPDATES ) {
-                LocationListener locationListener = clientActivity.getListenerLongTerm(provider);
-                lm.requestLocationUpdates(
-                        provider,
-                        locationSubscribe.getMinTime(),
-                        locationSubscribe.getMinDistance(),
-                        locationListener,
-                        looper );
-            }
-        }
-        else if( locationResponse.getType() == LocationResponse.LocationResponseType.UNSUBSCRIBE ) {
-            LocationUnsubscribe locationUnsubscribe = locationResponse.getUnsubscribe();
-
-            // unsubscribe from location updates for this provider
-            // (we only get unsubscribe requests for long-term subscriptions)
-            String provider = locationUnsubscribe.getProvider();
-            clientActivity.removeLUpdates(provider);
-        }
-    }
-
+    
     private static class MessageCallback extends Handler {
     	WeakReference<ClientTestView> ctvref;
     	
@@ -394,8 +287,6 @@ public class ClientTestView extends TestEventView  {
         		// expecting a screen info response
         		ctv.handleScreenInfoResponse(r);
         	case PROXYREADY:
-                if( r.getType() == ResponseType.LOCATION )
-                    ctv.handleLocationResponse(r);
         		// done hand shaking, everything should be one-way to the server from here on
         		// (at least until we wire Intents and Notifications into this too)
         		return;

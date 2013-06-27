@@ -23,9 +23,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnPreparedListener;
@@ -34,8 +31,6 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Timer;
 
@@ -58,7 +53,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 
 	private SensorManager sm;
 	private SurfaceHolder sh=null;
-    private LocationManager lm;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +65,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		port = i.getExtras().getInt("port");
 
 		sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		//dialogTimer = new Timer();
     	view = (ClientTestView)findViewById(R.id.clientview);  
         view.bringToFront();
@@ -105,19 +98,9 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		view.setSensorSize(0);
 		view.closeClient();
 	}
-
-    private void cleanupLocationUpdates(){
-        // loop through location listeners and remove subscriptions for each one
-        Iterator it = locationListeners.entrySet().iterator();
-        while (it.hasNext()) {
-            HashMap.Entry pairs = (HashMap.Entry)it.next();
-            lm.removeUpdates((LocationListener)pairs.getValue());
-            it.remove(); // avoids a ConcurrentModificationException
-        }
-    }
-
+	 
 	private void init() {
-		// only init if client is NOT running;
+		// only init if client is running;
 		if (view.ClientRunning())
 		    return;
 
@@ -128,13 +111,12 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		Log.d(TAG, "Starting sensors");
         //queryForSensors();
 		initsensors();
-        initLocationUpdates();
 	}
 
 	private void initsensors() {
 		Log.d(TAG, "startClient started registering listener");
 
-		int maxTypeInt = 0;
+		int maxTypeInt = -1;
 		List<Sensor> availableSensors = sm.getSensorList(Sensor.TYPE_ALL);
 		for(Sensor currentSensor : availableSensors) {
 			this.sm.registerListener(this, currentSensor, SensorManager.SENSOR_DELAY_NORMAL);
@@ -143,9 +125,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		}
 		view.setSensorSize(maxTypeInt);
 	}
-
-    private void initLocationUpdates() {
-    }
 
 	public void initvideo(String url) {
 		Log.d(TAG,"initvideo()");
@@ -199,7 +178,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
     	Log.d(TAG,"surfaceDestroyed()");
     	cleanupvideo();
     	cleanupsensors();
-        cleanupLocationUpdates();
     }
 
     @Override
@@ -213,71 +191,5 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 	public void onSensorChanged(SensorEvent event) {
 		view.onSensorEvent(event);
 	}
-
-    // keeps track of what LocationListeners there are for a given LocationProvider
-    private HashMap<String,SVMPLocationListener> locationListeners = new HashMap<String, SVMPLocationListener>();
-
-    protected SVMPLocationListener getListenerSingle(String provider) {
-        // generate a unique name for this key (each single subscription is disposed after receiving one update)
-        String uniqueName = provider + String.format("%.3f",  System.currentTimeMillis() / 1000.0);
-
-        // add a listener for this key
-        locationListeners.put( uniqueName, new SVMPLocationListener(uniqueName, true) );
-
-        return locationListeners.get(uniqueName);
-    }
-
-    protected SVMPLocationListener getListenerLongTerm(String provider) {
-        // if the HashMap doesn't contain a listener for this key, add one
-        if( !locationListeners.containsKey(provider) )
-            locationListeners.put( provider, new SVMPLocationListener(provider, false) );
-
-        return locationListeners.get(provider);
-    }
-
-    class SVMPLocationListener implements LocationListener {
-
-        private String key;
-        private boolean singleShot;
-
-        public SVMPLocationListener(String key, boolean singleShot) {
-            this.key = key;
-            this.singleShot = singleShot;
-        }
-
-        @Override
-        public void onLocationChanged(Location location) {
-            Log.d(TAG, "onLocationChanged: Provider(" + location.getProvider() + "), singleShot(" + singleShot + "), " + location.toString());
-            view.onLocationChanged(location);
-
-            // if this is a singleshot update, we don't need this listener anymore; remove it
-            if( singleShot ) {
-                lm.removeUpdates(this);
-                locationListeners.remove(key);
-            }
-        }
-
-        @Override
-        public void onStatusChanged(String s, int i, Bundle bundle) {
-            Log.d(TAG, "onStatusChanged: Provider(" + s + ") Status(" + i + ")");
-            view.onStatusChanged(s, i, bundle);
-        }
-
-        @Override
-        public void onProviderEnabled(String s) {
-            Log.d(TAG, "onProviderEnabled: Provider(" + s + ")");
-            view.onProviderEnabled(s, true);
-        }
-
-        @Override
-        public void onProviderDisabled(String s) {
-            Log.d(TAG, "onProviderDisabled: Provider(" + s + ")");
-            view.onProviderEnabled(s, false);
-        }
-    }
-
-    public void removeLUpdates(String provider) {
-        if( locationListeners.containsKey(provider) )
-            lm.removeUpdates(locationListeners.get(provider));
-    }
+	
 }
