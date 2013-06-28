@@ -15,9 +15,16 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
+import org.webrtc.videoengine.ViERenderer;
+import org.webrtc.videoengineapp.IViEAndroidCallback;
+import org.webrtc.videoengineapp.ViEAndroidJavaAPI;
+
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -30,8 +37,25 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.util.Log;
+import android.view.OrientationEventListener;
 import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.RadioGroup;
+import android.widget.Spinner;
+import android.widget.TabHost;
+import android.widget.TextView;
+import android.widget.TabHost.TabSpec;
+import android.net.wifi.WifiManager;
+import android.net.wifi.WifiManager.WifiLock;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -51,16 +75,17 @@ import java.util.Timer;
  * @author David Schoenheit
  */
 
-public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener {
-
+public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener, IViEAndroidCallback {
+	
 	protected static final String TAG = "ClientSideActivityDirect";
 	private ClientTestView view;
 	private String host;
 	private int port;
+	private String ip;
 
 	Timer dialogTimer = null;
 	Dialog dialog = null;
-	MediaPlayer player = null;
+//	MediaPlayer player = null;
 
 	private SensorManager sm;
 	private SurfaceHolder sh=null;
@@ -73,17 +98,39 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.client_side);
+		
+/*		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+
+        // acquire a WakeLock to keep the CPU running
+        WakeLock wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK,
+                "MyWakeLock");
+        if(!wakeLock.isHeld()){
+            wakeLock.acquire();
+        }
+        
+		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+		if (wifiManager != null)
+		{
+			WifiLock wifiLock = null;
+			wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL , "MyWifiLock");
+			wifiLock.acquire();
+		}
+		*/
+//		setContentView(R.layout.test);
 
 		// Get info passed to Intent
 		Intent i = getIntent();
 		host = i.getExtras().getString("host");
 		port = i.getExtras().getInt("port");
-
+		ip = i.getExtras().getString("ip");
 		sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 		//dialogTimer = new Timer();
-    	view = (ClientTestView)findViewById(R.id.clientview);  
-        view.bringToFront();
+		
+		System.out.println();
+		
+		view = (ClientTestView)findViewById(R.id.clientview1);  
+		view.bringToFront();
         view.requestFocus();
         view.requestFocusFromTouch();
         view.setClickable(true);
@@ -92,12 +139,13 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
         sh.addCallback(this);
 
         sh.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		
 	}
    
 	private void cleanupvideo() {
-	    	player.stop();
-	        player.reset();
-	        player.release();
+		//player.stop();
+		//player.reset();
+		//player.release();
 	}
 	 
 	private void cleanupsensors() {
@@ -134,7 +182,8 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 
 		Log.d(TAG, "Starting sensors");
 		initsensors();
-        initLocationUpdates();
+		initLocationUpdates();
+		//startCall();
 	}
 
 	private void initsensors() {
@@ -180,7 +229,9 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 	public void initvideo(String url) {
 		Log.d(TAG,"initvideo()");
 
-		Log.i(TAG, "Starting video from: " + url);
+		startCall(url);
+		
+/*		Log.i(TAG, "Starting video from: " + url);
 		try {
 			player.setDataSource(url);
 			player.prepareAsync();
@@ -191,14 +242,14 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
 	}
 	 
     public void onPrepared(MediaPlayer mediaplayer) {
         Log.d(TAG,"onPrepared()");
 
-        mediaplayer.start();
-        Log.d(TAG,"done with mediplayer.start()");
+    //    mediaplayer.start();
+   //     Log.d(TAG,"done with mediplayer.start()");
     }
 	
 	@Override
@@ -214,11 +265,11 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
         init();
         
 		try {
-			player = new MediaPlayer();
+	/*		player = new MediaPlayer();
 
 			player.setDisplay(holder);
 			player.setOnPreparedListener(this);
-			player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+			player.setAudioStreamType(AudioManager.STREAM_MUSIC);*/
 		} catch (IllegalStateException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -310,4 +361,309 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
         if( locationListeners.containsKey(provider) )
             lm.removeUpdates(locationListeners.get(provider));
     }
+	
+	
+	//BELOW IS THE WEBRTC CODE
+	//private String ipAddress = "192.168.0.107";
+	private static final int VID_PORT = 6000;
+	
+	
+	private ViEAndroidJavaAPI vieAndroidAPI = null;
+
+    // remote renderer
+    public SurfaceView remoteSurfaceView = null;
+
+    // channel number
+    private int channel = -1;
+    private int voiceChannel = -1;
+
+
+    // Constant
+    private static final int RECEIVE_CODEC_FRAMERATE = 15;
+    private static final int INIT_BITRATE = 500;
+    // Zero means don't automatically start/stop calls.
+    
+     
+    private LinearLayout mLlRemoteSurface = null;
+    private boolean enableVideoReceive = true;
+    private boolean enableVideo = true;
+    private CheckBox cbStats;
+    public enum RenderType {
+        OPENGL,
+        SURFACE,
+        MEDIACODEC
+    }
+    RenderType renderType = RenderType.SURFACE;
+
+    // Video settings
+    private int codecType = 0;
+    private int codecSizeWidth = 0;
+    private int codecSizeHeight = 0;
+    private int receivePortVideo = 11111;
+    private boolean enableNack = true;
+
+    int currentOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
+    int currentCameraOrientation = 0;
+    
+ // Stats variables
+    private int frameRateI;
+    private int bitRateI;
+    private int packetLoss;
+    private int frameRateO;
+    private int bitRateO;
+    private int numCalls = 0;
+
+    private int widthI;
+    private int heightI;
+
+   
+	public void startCall(String ipAddress) {
+        int ret = 0;
+
+        mLlRemoteSurface = (LinearLayout) findViewById(R.id.testView);
+        
+        if (null == vieAndroidAPI) {
+            vieAndroidAPI = new ViEAndroidJavaAPI(this);
+        }
+        
+        setupVoE();
+        startVoiceEngine(ipAddress);
+        
+        vieAndroidAPI.GetVideoEngine();
+        vieAndroidAPI.Init(true);
+        
+        codecType = 0;
+        int voiceCodecType = 0;
+
+        String sCodecSize = "320x240";
+        codecSizeWidth = 320;
+        codecSizeHeight = 240;
+
+        boolean loopbackMode = false;
+        boolean enableVoice = true;
+        boolean enableVideoSend = true;
+        enableVideoReceive = true;
+        enableVideo = true;
+
+        int destinationPortVideo = 11111;
+        receivePortVideo = 11111;
+
+        enableNack  = true;
+        boolean enableAGC = false;
+        boolean enableAECM = false;
+        boolean enableNS = false;
+        
+        SurfaceView svLocal = ViERenderer.CreateLocalRenderer(this);
+        
+
+          	channel = vieAndroidAPI.CreateChannel(voiceChannel);
+            ret = vieAndroidAPI.SetLocalReceiver(channel,
+                                                 VID_PORT);
+			ret = vieAndroidAPI.SetSendDestination(channel,
+			                destinationPortVideo,
+			                ipAddress);
+			        
+			
+            Log.v(TAG, "Create SurfaceView Render");
+            remoteSurfaceView = ViERenderer.CreateRenderer(this, false);
+                
+                
+                
+                if (mLlRemoteSurface != null) {
+                    mLlRemoteSurface.addView(remoteSurfaceView);
+                    System.out.println("Added view");
+                }
+                
+                ret = vieAndroidAPI.AddRemoteRenderer(channel, remoteSurfaceView);
+
+
+                ret = vieAndroidAPI.SetReceiveCodec(channel,
+                        codecType,
+                        INIT_BITRATE,
+                        codecSizeWidth,
+                        codecSizeHeight,
+                        RECEIVE_CODEC_FRAMERATE);
+                ret = vieAndroidAPI.StartRender(channel);
+                ret = vieAndroidAPI.StartReceive(channel);
+                
+
+     /*           currentCameraOrientation =
+                        vieAndroidAPI.GetCameraOrientation(true ? 1 : 0);
+                ret = vieAndroidAPI.SetSendCodec(channel, codecType, INIT_BITRATE,
+                        codecSizeWidth, codecSizeHeight, 10);
+                int camId = vieAndroidAPI.StartCamera(channel, true ? 1 : 0);
+
+                if (camId > 0) {
+                    int cameraId = camId;
+                    int neededRotation = 0;
+                    vieAndroidAPI.SetRotation(cameraId, neededRotation);
+                } else {
+                    ret = camId;
+                }
+                ret = vieAndroidAPI.StartSend(channel);*/
+
+            
+
+            // TODO(leozwang): Add more options besides PLI, currently use pli
+            // as the default. Also check return value.
+            ret = vieAndroidAPI.EnablePLI(channel, true);
+            ret = vieAndroidAPI.EnableNACK(channel, enableNack);
+            ret = vieAndroidAPI.SetCallback(channel, this);
+            System.out.println("Started Call");
+
+    }
+
+	
+	
+	private void stopVoiceEngine() {
+        // Stop send
+        if (0 != vieAndroidAPI.VoE_StopSend(voiceChannel)) {
+            Log.d(TAG, "VoE stop send failed");
+        }
+
+        // Stop listen
+        if (0 != vieAndroidAPI.VoE_StopListen(voiceChannel)) {
+            Log.d(TAG, "VoE stop listen failed");
+        }
+
+        // Stop playout
+        if (0 != vieAndroidAPI.VoE_StopPlayout(voiceChannel)) {
+            Log.d(TAG, "VoE stop playout failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_DeleteChannel(voiceChannel)) {
+            Log.d(TAG, "VoE delete channel failed");
+        }
+        voiceChannel = -1;
+
+        // Terminate
+        if (0 != vieAndroidAPI.VoE_Terminate()) {
+            Log.d(TAG, "VoE terminate failed");
+        }
+    }
+	
+    private boolean enableTrace = true;
+    private int receivePortVoice = 11113;
+    private int destinationPortVoice = 11113;
+
+    private int setupVoE() {
+        // Create VoiceEngine
+        // Error logging is done in native API wrapper
+        vieAndroidAPI.VoE_Create(getApplicationContext());
+
+        // Initialize
+        if (0 != vieAndroidAPI.VoE_Init(enableTrace)) {
+            Log.d(TAG, "VoE init failed");
+            return -1;
+        }
+
+        // Suggest to use the voice call audio stream for hardware volume controls
+        setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
+        return 0;
+    }
+
+    private int startVoiceEngine(String ipAddress) {
+        // Create channel
+        voiceChannel = vieAndroidAPI.VoE_CreateChannel();
+        if (0 > voiceChannel) {
+            Log.d(TAG, "VoE create channel failed");
+            return -1;
+        }
+
+        // Set local receiver
+        if (0 != vieAndroidAPI.VoE_SetLocalReceiver(voiceChannel,
+                        receivePortVoice)) {
+            Log.d(TAG, "VoE set local receiver failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_StartListen(voiceChannel)) {
+            Log.d(TAG, "VoE start listen failed");
+        }
+
+        // Route audio
+        routeAudio(true);
+
+        // set volume to default value
+        if (0 != vieAndroidAPI.VoE_SetSpeakerVolume(204)) {
+            Log.d(TAG, "VoE set speaker volume failed");
+        }
+
+        // Start playout
+        if (0 != vieAndroidAPI.VoE_StartPlayout(voiceChannel)) {
+            Log.d(TAG, "VoE start playout failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_SetSendDestination(voiceChannel,
+                                                      destinationPortVoice,
+                                                      ipAddress)) {
+            Log.d(TAG, "VoE set send  destination failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_SetSendCodec(voiceChannel, 0)) {
+            Log.d(TAG, "VoE set send codec failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_SetECStatus(false)) {
+            Log.d(TAG, "VoE set EC Status failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_SetAGCStatus(false)) {
+            Log.d(TAG, "VoE set AGC Status failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_SetNSStatus(false)) {
+            Log.d(TAG, "VoE set NS Status failed");
+        }
+
+        if (0 != vieAndroidAPI.VoE_StartSend(voiceChannel)) {
+            Log.d(TAG, "VoE start send failed");
+        }
+
+        return 0;
+    }
+
+    private void routeAudio(boolean enableSpeaker) {
+        if (0 != vieAndroidAPI.VoE_SetLoudspeakerStatus(enableSpeaker)) {
+            Log.d(TAG, "VoE set louspeaker status failed");
+        }
+    }
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	public int updateStats(int inFrameRateI, int inBitRateI,
+            int inPacketLoss, int inFrameRateO, int inBitRateO) {
+        frameRateI = inFrameRateI;
+        bitRateI = inBitRateI;
+        packetLoss = inPacketLoss;
+        frameRateO = inFrameRateO;
+        bitRateO = inBitRateO;
+        return 0;
+    }
+
+    public int newIncomingResolution(int width, int height) {
+	widthI = width;
+	heightI = height;
+	return 0;
+    }
+    
 }

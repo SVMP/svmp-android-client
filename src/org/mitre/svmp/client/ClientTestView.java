@@ -48,6 +48,7 @@ import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.SurfaceView;
 
 /**
  * Client View.  Shows a circle to visualize the motion events sent to the server.  The Associated
@@ -85,6 +86,11 @@ public class ClientTestView extends TestEventView  {
 
     public ClientTestView(Context context, AttributeSet attributeSet, int i) {
         super(context, attributeSet, i);
+    }
+    
+    public ClientTestView(Context context, SurfaceView sv)
+    {
+    	super(context);
     }
     
     /**
