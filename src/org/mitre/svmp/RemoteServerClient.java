@@ -28,7 +28,7 @@ import java.security.NoSuchAlgorithmException;
 
 import javax.net.SocketFactory;
 
-import org.mitre.svmp.protocol.SVMPMessage;
+//import org.mitre.svmp.protocol.SVMPMessage;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
 import android.net.SSLCertificateSocketFactory;
@@ -42,7 +42,8 @@ import android.util.Log;
  *
  * @author Dave Bryson
  */
-public class RemoteServerClient extends AsyncTask<Void, SVMPMessage, Boolean> {
+//public class RemoteServerClient extends AsyncTask<Void, SVMPMessage, Boolean> {
+public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> {
     private static final String TAG = "RemoteServerClient";
     private static final int BUFFER_SIZE = 8 * 1024;
     private OutputStream out = null;
