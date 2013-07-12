@@ -149,6 +149,12 @@ public class RemoteServerClientThread extends Thread {
 			}
 		});
 	}
+	
+	public String getlocalIP() {
+//		if (!socket.isConnected())
+//			return null;
+		return socket.getLocalAddress().getHostAddress();
+	}
 
 }
 

@@ -44,6 +44,8 @@ import android.util.Log;
 import android.view.OrientationEventListener;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -75,13 +77,15 @@ import java.util.Timer;
  * @author David Schoenheit
  */
 
-public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener, IViEAndroidCallback {
-	
+public class ClientSideActivityDirect extends Activity implements 
+SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallback {
+
 	protected static final String TAG = "ClientSideActivityDirect";
 	private ClientTestView view;
 	private String host;
 	private int port;
 	private String ip;
+	private String VM;
 
 	Timer dialogTimer = null;
 	Dialog dialog = null;
@@ -98,16 +102,13 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.client_side);
-		
-/*		PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
 
-        // acquire a WakeLock to keep the CPU running
-        WakeLock wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK,
-                "MyWakeLock");
-        if(!wakeLock.isHeld()){
-            wakeLock.acquire();
-        }
-        
+		// Full Wakelock unnecessary, this is the new recommended method.
+		Window w = getWindow(); // in Activity's onCreate() for instance
+		w.setFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+			
+
+		// Ensure WiFi doesn't go into sleep mode
 		WifiManager wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
 		if (wifiManager != null)
 		{
@@ -115,9 +116,8 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 			wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL , "MyWifiLock");
 			wifiLock.acquire();
 		}
-		*/
-//		setContentView(R.layout.test);
-
+		
+		
 		// Get info passed to Intent
 		Intent i = getIntent();
 		host = i.getExtras().getString("host");
@@ -226,30 +226,18 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
     private void initLocationUpdates() {
     }
 
-	public void initvideo(String url) {
+	public void initvideo(String ipaddr) {
 		Log.d(TAG,"initvideo()");
 
-		startCall(url);
-		
-/*		Log.i(TAG, "Starting video from: " + url);
-		try {
-			player.setDataSource(url);
-			player.prepareAsync();
+		VM = ipaddr;
+		startCall();
 
-		} catch (IllegalStateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
+
 	}
 	 
     public void onPrepared(MediaPlayer mediaplayer) {
         Log.d(TAG,"onPrepared()");
 
-    //    mediaplayer.start();
-   //     Log.d(TAG,"done with mediplayer.start()");
     }
 	
 	@Override
@@ -263,17 +251,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		
 		// connect to the server and other startup
         init();
-        
-		try {
-	/*		player = new MediaPlayer();
-
-			player.setDisplay(holder);
-			player.setOnPreparedListener(this);
-			player.setAudioStreamType(AudioManager.STREAM_MUSIC);*/
-		} catch (IllegalStateException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
     }
 
     public void surfaceDestroyed(SurfaceHolder holder) {
@@ -363,8 +340,7 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
     }
 	
 	
-	//BELOW IS THE WEBRTC CODE
-	//private String ipAddress = "192.168.0.107";
+	//BELOW IS THE WEBRTC CODE	
 	private static final int VID_PORT = 6000;
 	
 	
@@ -399,7 +375,7 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
     private int codecType = 0;
     private int codecSizeWidth = 0;
     private int codecSizeHeight = 0;
-    private int receivePortVideo = 11111;
+    private int receivePortVideo = 6000;
     private boolean enableNack = true;
 
     int currentOrientation = OrientationEventListener.ORIENTATION_UNKNOWN;
@@ -417,7 +393,7 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
     private int heightI;
 
    
-	public void startCall(String ipAddress) {
+	public void startCall() {
         int ret = 0;
 
         mLlRemoteSurface = (LinearLayout) findViewById(R.id.testView);
@@ -426,8 +402,10 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
             vieAndroidAPI = new ViEAndroidJavaAPI(this);
         }
         
+        
+        
         setupVoE();
-        startVoiceEngine(ipAddress);
+        //startVoiceEngine(VM);
         
         vieAndroidAPI.GetVideoEngine();
         vieAndroidAPI.Init(true);
@@ -445,71 +423,57 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
         enableVideoReceive = true;
         enableVideo = true;
 
-        int destinationPortVideo = 11111;
-        receivePortVideo = 11111;
+        int destinationPortVideo = 6000;
+        int receivePortVideo = 6000;
 
-        enableNack  = true;
+        enableNack  = false;
         boolean enableAGC = false;
         boolean enableAECM = false;
         boolean enableNS = false;
         
         SurfaceView svLocal = ViERenderer.CreateLocalRenderer(this);
+
+
+        Log.d(TAG,"!!!setting SEND destination to "+VM);
+        channel = vieAndroidAPI.CreateChannel(voiceChannel);        
+        ret = vieAndroidAPI.SetLocalReceiver(channel,
+        		VID_PORT);
+        ret = vieAndroidAPI.SetSendDestination(channel,
+        		destinationPortVideo,
+        		VM);
+
+
+        Log.v(TAG, "Create SurfaceView Render");
+        remoteSurfaceView = ViERenderer.CreateRenderer(this, false);
+
+
+
+        if (mLlRemoteSurface != null) {
+        	mLlRemoteSurface.addView(remoteSurfaceView);
+        	System.out.println("Added view");
+        }
+
+        ret = vieAndroidAPI.AddRemoteRenderer(channel, remoteSurfaceView);
+
+
+        ret = vieAndroidAPI.SetReceiveCodec(channel,
+        		codecType,
+        		INIT_BITRATE,
+        		codecSizeWidth,
+        		codecSizeHeight,
+        		RECEIVE_CODEC_FRAMERATE);
+        ret = vieAndroidAPI.StartRender(channel);
+        ret = vieAndroidAPI.StartReceive(channel);
+                
+
+        // TODO(leozwang): Add more options besides PLI, currently use pli
+        // as the default. Also check return value.
         
-
-          	channel = vieAndroidAPI.CreateChannel(voiceChannel);
-            ret = vieAndroidAPI.SetLocalReceiver(channel,
-                                                 VID_PORT);
-			ret = vieAndroidAPI.SetSendDestination(channel,
-			                destinationPortVideo,
-			                ipAddress);
-			        
-			
-            Log.v(TAG, "Create SurfaceView Render");
-            remoteSurfaceView = ViERenderer.CreateRenderer(this, false);
-                
-                
-                
-                if (mLlRemoteSurface != null) {
-                    mLlRemoteSurface.addView(remoteSurfaceView);
-                    System.out.println("Added view");
-                }
-                
-                ret = vieAndroidAPI.AddRemoteRenderer(channel, remoteSurfaceView);
-
-
-                ret = vieAndroidAPI.SetReceiveCodec(channel,
-                        codecType,
-                        INIT_BITRATE,
-                        codecSizeWidth,
-                        codecSizeHeight,
-                        RECEIVE_CODEC_FRAMERATE);
-                ret = vieAndroidAPI.StartRender(channel);
-                ret = vieAndroidAPI.StartReceive(channel);
-                
-
-     /*           currentCameraOrientation =
-                        vieAndroidAPI.GetCameraOrientation(true ? 1 : 0);
-                ret = vieAndroidAPI.SetSendCodec(channel, codecType, INIT_BITRATE,
-                        codecSizeWidth, codecSizeHeight, 10);
-                int camId = vieAndroidAPI.StartCamera(channel, true ? 1 : 0);
-
-                if (camId > 0) {
-                    int cameraId = camId;
-                    int neededRotation = 0;
-                    vieAndroidAPI.SetRotation(cameraId, neededRotation);
-                } else {
-                    ret = camId;
-                }
-                ret = vieAndroidAPI.StartSend(channel);*/
-
-            
-
-            // TODO(leozwang): Add more options besides PLI, currently use pli
-            // as the default. Also check return value.
-            ret = vieAndroidAPI.EnablePLI(channel, true);
-            ret = vieAndroidAPI.EnableNACK(channel, enableNack);
-            ret = vieAndroidAPI.SetCallback(channel, this);
-            System.out.println("Started Call");
+        // TODO(apyles): Allow this to be configurable for now just support PLI
+        ret = vieAndroidAPI.EnablePLI(channel, true);        
+        //ret = vieAndroidAPI.EnableNACK(channel, enableNack);
+        ret = vieAndroidAPI.SetCallback(channel, this);
+        System.out.println("Started Call");
 
     }
 

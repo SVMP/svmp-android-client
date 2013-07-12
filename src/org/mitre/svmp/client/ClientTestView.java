@@ -18,6 +18,7 @@ package org.mitre.svmp.client;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+
 import java.util.HashMap;
 import java.util.List;
 
@@ -25,10 +26,14 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Looper;
 import org.mitre.svmp.AuthData;
-import org.mitre.svmp.RemoteServerClientThread;
+//import org.mitre.svmp.RemoteServerClientThread;
+import org.mitre.svmp.RemoteSendThread;
+import org.mitre.svmp.RemoteListenThread;
 import org.mitre.svmp.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -45,6 +50,7 @@ import android.content.Context;
 import android.hardware.SensorEvent;
 import android.os.Handler;
 import android.os.Message;
+import android.text.format.Formatter;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -59,7 +65,9 @@ public class ClientTestView extends TestEventView  {
     private static final String TAG = "ClientTestView";
     private float xScaleFactor, yScaleFactor = 0;
     //private RemoteServerClient client;
-    private RemoteServerClientThread client;
+    //private RemoteServerClientThread client;
+    private RemoteSendThread client;
+    private RemoteListenThread listenclient;
     private ClientSideActivityDirect clientActivity;
 
     // track timestamp of the last update of each sensor we are tracking
@@ -74,6 +82,7 @@ public class ClientTestView extends TestEventView  {
     private static final int VMREADYWAIT     = 2;
     private static final int GETSCREENINFO   = 3;
     private static final int PROXYREADY      = 4;
+    private static final int VIDEOSTART	     = 5;
     private int protocolState = UNAUTHENTICATED;
 
     public ClientTestView(Context context) {
@@ -104,8 +113,16 @@ public class ClientTestView extends TestEventView  {
         this.clientActivity = clientActivity;
     	try {
         	protocolState = UNAUTHENTICATED;
-            this.client = new RemoteServerClientThread(new MessageCallback(this),host,port);
-            this.client.start();
+            //this.client = new RemoteServerClientThread(new MessageCallback(this),host,port);
+        	this.client = new RemoteSendThread(host,port);
+            Log.d(TAG, "RemoteServerClientThread before start");  
+            this.client = new RemoteSendThread(host,port);
+        	this.listenclient = new RemoteListenThread(new MessageCallback(this));
+        	this.listenclient.start();
+        	this.client.addListenThread(this.listenclient);        	
+        	this.client.start();
+            
+            Log.d(TAG, "RemoteServerClientThread has been started");          
             sendAuthenticationMessage();
         } catch (Exception e) {
             e.printStackTrace();
@@ -113,7 +130,8 @@ public class ClientTestView extends TestEventView  {
     }
 
     public void closeClient(){
-        this.client.stop();
+        this.client.requestStop();
+        this.listenclient.requestStop();
         protocolState = UNAUTHENTICATED;
     }
 
@@ -298,7 +316,7 @@ public class ClientTestView extends TestEventView  {
     	if (msg.getType() != ResponseType.VMREADY)
     		return false;
     	
-    	// get RTSP URL for the video and start playback
+    	// get VM IP for the video and start playback
     	clientActivity.initvideo(msg.getMessage());
     	
     	// if so, update state to VMREADY and send ScreenInfo Request message
@@ -363,7 +381,29 @@ public class ClientTestView extends TestEventView  {
             clientActivity.removeLUpdates(provider);
         }
     }
-
+   
+    
+    private void sendVideoInfoMessage() {
+    	SVMPProtocol.Request.Builder req = SVMPProtocol.Request.newBuilder();
+    	req.setType(RequestType.VIDEO_PARAMS);
+    	SVMPProtocol.VideoRequest.Builder video = SVMPProtocol.VideoRequest.newBuilder();
+    	String myip = client.getlocalIP();    	    	
+    	video.setIP(myip);
+    	video.setPort(6000);
+    	video.setBitrate(0);    	
+    	req.setVideoRequest(video);
+    	
+        sendInputMessage(req.build());
+        Log.d(TAG, "Sent VideoInfo request");
+    }
+    private boolean handleVMReady(SVMPProtocol.Response msg) {
+    	 if( msg.getType() == ResponseType.LOCATION )
+             handleLocationResponse(msg);
+    	 else
+    		 sendVideoInfoMessage();
+    	return true;    	    	
+    }
+    
     private static class MessageCallback extends Handler {
     	WeakReference<ClientTestView> ctvref;
     	
@@ -388,9 +428,8 @@ public class ClientTestView extends TestEventView  {
         	case GETSCREENINFO:
         		// expecting a screen info response
         		ctv.handleScreenInfoResponse(r);
-        	case PROXYREADY:
-                if( r.getType() == ResponseType.LOCATION )
-                    ctv.handleLocationResponse(r);
+        	case PROXYREADY:               
+        		ctv.handleVMReady(r);        	                
         		// done hand shaking, everything should be one-way to the server from here on
         		// (at least until we wire Intents and Notifications into this too)
         		return;
