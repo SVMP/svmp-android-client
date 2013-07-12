@@ -27,9 +27,7 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.net.SocketFactory;
-import javax.net.ssl.SSLException;
 
-import org.mitre.svmp.client.R;
 //import org.mitre.svmp.protocol.SVMPMessage;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
@@ -45,8 +43,8 @@ import android.util.Log;
  * @author Dave Bryson
  */
 //public class RemoteServerClient extends AsyncTask<Void, SVMPMessage, Boolean> {
-public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> implements Constants {
-    private static final String TAG = RemoteServerClient.class.getName();
+public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> {
+    private static final String TAG = "RemoteServerClient";
     private static final int BUFFER_SIZE = 8 * 1024;
     private OutputStream out = null;
     private InputStream in = null;
@@ -56,15 +54,15 @@ public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> implement
     private Handler callback;
     private boolean running;
 
-    public RemoteServerClient(final Handler callback, final String host, final int port, final int encryptionType)
+    private static boolean USE_SSL = true;
+    // for testing, set true to disable server cert validity checking
+    private static boolean SSL_DEBUG = false;
+
+    public RemoteServerClient(final Handler callback, final String host, final int port)
         throws IOException, NoSuchAlgorithmException, KeyManagementException {
         this.host = host;
         this.port = port;
         this.callback = callback;
-
-        // determine both booleans from the EncryptionType integer
-        boolean USE_SSL = (encryptionType == ENCRYPTION_SSLTLS || encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
-        boolean SSL_DEBUG = (encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
 
         SocketFactory sf;
 
@@ -80,23 +78,11 @@ public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> implement
 //        SocketAddress sockaddr = new InetSocketAddress(this.host, this.port);
 //        socket.connect(sockaddr, 5000); //5 second connection timeout
 
-        try {
         socket = sf.createSocket(host, port);
-        } catch( SSLException e ) {
-            // tried ENCRYPTION_SSLTLS when expecting none
-            fail(R.string.connectionList_toast_failSSL);
-            return;
-        }
 
         Log.d(TAG, "Socket connected to " + host + ":" + port);
-        try {
-            out = socket.getOutputStream();
-            out.flush();
-        } catch( SSLException e ) {
-            // tried ENCRYPTION_SSLTLS_UNTRUSTED when expecting none
-            fail(R.string.connectionList_toast_failSSL);
-            return;
-        }
+        out = socket.getOutputStream();
+        out.flush();
         in = socket.getInputStream();
         Log.d(TAG, "Object Streams created");
         this.running = true;
@@ -215,9 +201,4 @@ public class RemoteServerClient extends AsyncTask<Void, Void, Boolean> implement
         }
     }
 
-    private void fail(int resId) {
-        final Message message = Message.obtain(this.callback);
-        message.arg1 = resId;
-        message.sendToTarget();
-    }
 }

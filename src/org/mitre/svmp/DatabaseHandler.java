@@ -29,7 +29,7 @@ import java.util.List;
  */
 public class DatabaseHandler extends SQLiteOpenHelper {
     public static final String DB_NAME="org.mitre.svmp.db";
-    public static final int DB_VERSION = 2;
+    public static final int DB_VERSION = 1;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final String[] Tables = new String[]{
@@ -42,8 +42,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                     "Description TEXT NOT NULL, " +
                     "Username TEXT NOT NULL, " +
                     "Host TEXT NOT NULL, " +
-                    "Port INTEGER, " +
-                    "EncryptionType INTEGER" +
+                    "Port INTEGER" +
                     ");"
     };
 
@@ -95,7 +94,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         // prepared statement for speed and security
         Cursor cursor = db.query(
                 Tables[TABLE_CONNECTIONS], // table
-                null, // columns (null == "*")
+                new String[]{ // columns (null == "*")
+                        "ID",
+                        "Description",
+                        "Username",
+                        "Host",
+                        "Port"
+                },
                 null, // selection ('where' clause)
                 null, // selection args
                 null, // group by
@@ -107,11 +112,14 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         List<ConnectionInfo> connectionInfoList = new ArrayList<ConnectionInfo>();
         while (cursor.moveToNext()) {
             try {
-                // construct a new ConnectionInfo from the cursor
-                ConnectionInfo connectionInfo = makeConnectionInfo(cursor);
+                // get values from query
+                int id = cursor.getInt(0);
+                String description = cursor.getString(1);
+                String username = cursor.getString(2);
+                String host = cursor.getString(3);
+                int port = cursor.getInt(4);
 
-                // add the ConnectionInfo to the list
-                connectionInfoList.add( connectionInfo );
+                connectionInfoList.add( new ConnectionInfo(id, description, username, host, port) );
             }
             catch( Exception e ) {
                 e.printStackTrace();
@@ -128,26 +136,22 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return connectionInfoList;
     }
 
-    // returns a ConnectionInfo that matches the given ID (null if none found)
     public ConnectionInfo getConnectionInfo(int id) {
-        return _getConnectionInfo("ID=?", new String[]{ String.valueOf(id) });
-    }
-
-    // returns a ConnectionInfo that does NOT match the given ID, but matches the given description (null if none found)
-    public ConnectionInfo getConnectionInfo(int id, String description) {
-        return _getConnectionInfo("ID!=? AND LOWER(Description)=TRIM(LOWER(?))",
-                new String[]{ String.valueOf(id), description });
-    }
-
-    private ConnectionInfo _getConnectionInfo(String selection, String[] selectionArgs) {
         db = this.getWritableDatabase();
 
         // prepared statement for speed and security
         Cursor cursor = db.query(
                 Tables[TABLE_CONNECTIONS], // table
-                null, // columns (null == "*")
-                selection, // selection ('where' clause)
-                selectionArgs, // selection args
+                new String[]{ // columns (null == "*")
+                        "Description",
+                        "Username",
+                        "Host",
+                        "Port"
+                },
+                "ID=?", // selection ('where' clause)
+                new String[]{ // selection args
+                        String.valueOf(id)
+                },
                 null, // group by
                 null, // having
                 null // order by
@@ -157,8 +161,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         ConnectionInfo connectionInfo = null;
         if (cursor.moveToFirst()) {
             try {
-                // construct a new ConnectionInfo from the cursor
-                connectionInfo = makeConnectionInfo(cursor);
+                // get values from query
+                String description = cursor.getString(0);
+                String username = cursor.getString(1);
+                String host = cursor.getString(2);
+                int port = cursor.getInt(3);
+
+                connectionInfo = new ConnectionInfo(id, description, username, host, port);
             }
             catch( Exception e ) {
                 e.printStackTrace();
@@ -175,21 +184,64 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return connectionInfo;
     }
 
-    private ConnectionInfo makeConnectionInfo(Cursor cursor) {
-        // get values from query
-        int id = cursor.getInt(0);
-        String description = cursor.getString(1);
-        String username = cursor.getString(2);
-        String host = cursor.getString(3);
-        int port = cursor.getInt(4);
-        int encryptionType = cursor.getInt(5);
+    public ConnectionInfo getConnectionInfo(String description) {
+        db = this.getWritableDatabase();
 
-        return new ConnectionInfo(id, description, username, host, port, encryptionType);
+        // prepared statement for speed and security
+        Cursor cursor = db.query(
+                Tables[TABLE_CONNECTIONS], // table
+                new String[]{ // columns (null == "*")
+                        "ID",
+                        "Username",
+                        "Host",
+                        "Port"
+                },
+                "LOWER(Description)=TRIM(LOWER(?))", // selection ('where' clause)
+                new String[]{ // selection args
+                        description
+                },
+                null, // group by
+                null, // having
+                null // order by
+        );
+
+        // try to get results and make a ConnectionInfo object to return
+        ConnectionInfo connectionInfo = null;
+        if (cursor.moveToFirst()) {
+            try {
+                // get values from query
+                int id = cursor.getInt(0);
+                String username = cursor.getString(1);
+                String host = cursor.getString(2);
+                int port = cursor.getInt(3);
+
+                connectionInfo = new ConnectionInfo(id, description, username, host, port);
+            }
+            catch( Exception e ) {
+                e.printStackTrace();
+            }
+        }
+
+        // cleanup
+        try {
+            cursor.close();
+        } catch( Exception e ) {
+            // don't care
+        }
+
+        return connectionInfo;
     }
 
     protected long insertConnectionInfo( ConnectionInfo connectionInfo ) {
+        // construct ContentValues for insert
+        ContentValues contentValues = new ContentValues();
+        contentValues.put( "Description", connectionInfo.getDescription().trim() );
+        contentValues.put( "Username", connectionInfo.getUsername().trim() );
+        contentValues.put( "Host", connectionInfo.getHost().trim() );
+        contentValues.put( "Port", connectionInfo.getPort() );
+
         // attempt insert
-        return insertRecord( TABLE_CONNECTIONS, makeContentValues(connectionInfo) );
+        return insertRecord( TABLE_CONNECTIONS, contentValues );
     }
 
     private long insertRecord( int tableId, ContentValues contentValues ) {
@@ -210,10 +262,17 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
 
     protected long updateConnectionInfo( ConnectionInfo connectionInfo ) {
+        // construct ContentValues for insert
+        ContentValues contentValues = new ContentValues();
+        contentValues.put( "Description", connectionInfo.getDescription() );
+        contentValues.put( "Username", connectionInfo.getUsername() );
+        contentValues.put( "Host", connectionInfo.getHost() );
+        contentValues.put( "Port", connectionInfo.getPort() );
+
         // attempt insert
         return updateRecord(
                 TABLE_CONNECTIONS,
-                makeContentValues(connectionInfo),
+                contentValues,
                 "ID=?",
                 new String[]{ String.valueOf( connectionInfo.getID() ) }
         );
@@ -233,20 +292,6 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
         // return result
         return result;
-    }
-
-    private ContentValues makeContentValues(ConnectionInfo connectionInfo) {
-        ContentValues contentValues = new ContentValues();
-
-        if( connectionInfo != null ) {
-            contentValues.put( "Description", connectionInfo.getDescription() );
-            contentValues.put( "Username", connectionInfo.getUsername() );
-            contentValues.put( "Host", connectionInfo.getHost() );
-            contentValues.put( "Port", connectionInfo.getPort() );
-            contentValues.put( "EncryptionType", connectionInfo.getEncryptionType() );
-        }
-
-        return contentValues;
     }
 
     protected long deleteConnectionInfo( int id ) {

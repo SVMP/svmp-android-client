@@ -23,7 +23,6 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.Toast;
 import org.mitre.svmp.client.R;
 
@@ -43,7 +42,6 @@ public class ConnectionDetails extends Activity implements Constants {
             usernameView,
             hostView,
             portView;
-    private Spinner encryptionView;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,11 +53,10 @@ public class ConnectionDetails extends Activity implements Constants {
         dbHandler = new DatabaseHandler(this);
 
         // get views
-        descriptionView = (EditText) findViewById(R.id.connectionDetails_editText_description);
-        usernameView = (EditText) findViewById(R.id.connectionDetails_editText_username);
-        hostView = (EditText) findViewById(R.id.connectionDetails_editText_host);
-        portView = (EditText) findViewById(R.id.connectionDetails_editText_port);
-        encryptionView = (Spinner) findViewById(R.id.connectionDetails_spinner_encryption);
+        descriptionView = (EditText) findViewById(R.id.editText_description);
+        usernameView = (EditText) findViewById(R.id.editText_username);
+        hostView = (EditText) findViewById(R.id.editText_host);
+        portView = (EditText) findViewById(R.id.editText_port);
 
         // create listeners for buttons
         Button saveView = (Button) findViewById(R.id.button_save),
@@ -88,7 +85,6 @@ public class ConnectionDetails extends Activity implements Constants {
                 usernameView.setText(connectionInfo.getUsername());
                 hostView.setText(connectionInfo.getHost());
                 portView.setText(String.valueOf(connectionInfo.getPort()));
-                encryptionView.setSelection(connectionInfo.getEncryptionType());
 
                 // flag so we know this is an update, not insert
                 updateID = connectionInfo.getID();
@@ -113,7 +109,6 @@ public class ConnectionDetails extends Activity implements Constants {
             } catch( NumberFormatException e ) {
                 // don't care
             }
-            int encryptionType = encryptionView.getSelectedItemPosition();
 
             // validate input
             if( port < 1 || port > 65535 )
@@ -128,7 +123,7 @@ public class ConnectionDetails extends Activity implements Constants {
                 doToast("Host must not be blank");
             else {
                 // create a new ConnectionInfo object
-                ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port, encryptionType);
+                ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port);
 
                 // insert or update the ConnectionInfo in the database
                 long result;
@@ -137,13 +132,16 @@ public class ConnectionDetails extends Activity implements Constants {
                 else
                     result = dbHandler.insertConnectionInfo(connectionInfo);
 
-                // exit and resume previous activity, report results in the intent
+                // report results in the intent
                 if( result > -1 && updateID > 0 )
-                    finishMessage(R.string.connectionList_toast_updated);
+                    setResult(RESULT_UPDATED);
                 else if( result > -1 )
-                    finishMessage(R.string.connectionList_toast_added);
+                    setResult(RESULT_ADDED);
                 else
-                    finishMessage(R.string.connectionList_toast_error);
+                    setResult(RESULT_ERROR);
+
+                // exit and resume previous activity
+                finish();
             }
         }
     };
@@ -151,19 +149,13 @@ public class ConnectionDetails extends Activity implements Constants {
     // cancel button is clicked
     View.OnClickListener cancelHandler = new View.OnClickListener() {
         public void onClick(View v) {
+            setResult(RESULT_CANCELED);
             finish();
         }
     };
 
     private boolean ambiguousDescription(String description) {
-        return dbHandler.getConnectionInfo(updateID, description) != null;
-    }
-
-    private void finishMessage(int resId) {
-        Intent intent = new Intent();
-        intent.putExtra("message", resId);
-        setResult(RESULT_OK, intent);
-        finish();
+        return dbHandler.getConnectionInfo(description) != null;
     }
 
     private void doToast(String text) {

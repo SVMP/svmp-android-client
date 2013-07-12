@@ -53,11 +53,10 @@ import java.util.Timer;
 
 public class ClientSideActivityDirect extends Activity implements SensorEventListener, SurfaceHolder.Callback, OnPreparedListener {
 
-	protected static final String TAG = ClientSideActivityDirect.class.getName();
+	protected static final String TAG = "ClientSideActivityDirect";
 	private ClientTestView view;
 	private String host;
 	private int port;
-    private int encryptionType;
 
 	Timer dialogTimer = null;
 	Dialog dialog = null;
@@ -79,7 +78,6 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 		Intent i = getIntent();
 		host = i.getExtras().getString("host");
 		port = i.getExtras().getInt("port");
-        encryptionType = i.getExtras().getInt("encryptionType");
 
 		sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -132,7 +130,7 @@ public class ClientSideActivityDirect extends Activity implements SensorEventLis
 
 		Log.i(TAG, "Client is not running. Connecting now to " + host + ":" + port);
 		
-		view.startClient(this, host, port, encryptionType);
+		view.startClient(this, host, port);
 
 		Log.d(TAG, "Starting sensors");
 		initsensors();
