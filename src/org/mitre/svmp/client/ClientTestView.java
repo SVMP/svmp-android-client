@@ -28,7 +28,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import org.mitre.svmp.AuthData;
-import org.mitre.svmp.RemoteServerClient;
+import org.mitre.svmp.RemoteServerClientThread;
 import org.mitre.svmp.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -57,7 +57,8 @@ import android.view.MotionEvent;
 public class ClientTestView extends TestEventView  {
     private static final String TAG = "ClientTestView";
     private float xScaleFactor, yScaleFactor = 0;
-    private RemoteServerClient client;
+    //private RemoteServerClient client;
+    private RemoteServerClientThread client;
     private ClientSideActivityDirect clientActivity;
 
     // track timestamp of the last update of each sensor we are tracking
@@ -97,8 +98,8 @@ public class ClientTestView extends TestEventView  {
         this.clientActivity = clientActivity;
     	try {
         	protocolState = UNAUTHENTICATED;
-            this.client = new RemoteServerClient(new MessageCallback(this),host,port);
-            this.client.execute();
+            this.client = new RemoteServerClientThread(new MessageCallback(this),host,port);
+            this.client.start();
             sendAuthenticationMessage();
         } catch (Exception e) {
             e.printStackTrace();
