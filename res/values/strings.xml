@@ -16,4 +16,34 @@ limitations under the License.
 -->
 <resources>
     <string name="app_name">SVMP Test Client</string>
+
+    <!-- Connection List layout resources -->
+    <string name="connectionList_textView_title_text">SVMP Connections</string>
+    <string name="connectionList_button_temporary_text">Connect Now</string>
+    <string name="connectionList_button_new_text">New</string>
+    <string name="connectionList_button_exit_text">Exit</string>
+
+    <!-- Connection Details layout resources -->
+    <string name="connectionDetails_textView_title_text">SVMP Connection Details</string>
+    <string name="connectionDetails_textView_description_text">Description</string>
+    <string name="connectionDetails_textView_username_text">Username</string>
+    <string name="connectionDetails_textView_host_text">Host</string>
+    <string name="connectionDetails_textView_port_text">Port</string>
+    <string name="connectionDetails_textView_encryption_text">Encryption</string>
+    <string name="connectionDetails_button_save_text">Save</string>
+    <string name="connectionDetails_button_cancel_text">Cancel</string>
+
+    <!-- ConnectionList toast resources -->
+    <string name="connectionList_toast_added">New connection created</string>
+    <string name="connectionList_toast_updated">Connection updated</string>
+    <string name="connectionList_toast_error">Error creating new connection</string>
+    <string name="connectionList_toast_removed">Connection removed</string>
+    <string name="connectionList_toast_failSSL">Error connecting (check your encryption settings)</string>
+
+    <!-- ConnectionList dialog resources -->
+    <string name="connectionList_dialog_passwordPrompt_title">Password required</string>
+    <string name="connectionList_dialog_passwordPrompt_message">Enter a password to proceed</string>
+    <string name="connectionList_dialog_passwordPrompt_positiveButton">Submit</string>
+    <string name="connectionList_dialog_passwordPrompt_negativeButton">Cancel</string>
+
 </resources>

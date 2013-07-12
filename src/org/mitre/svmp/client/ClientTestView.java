@@ -15,12 +15,12 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
-import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
+import android.app.Activity;
+import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -28,6 +28,7 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import org.mitre.svmp.AuthData;
+import org.mitre.svmp.Constants;
 import org.mitre.svmp.RemoteServerClient;
 import org.mitre.svmp.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
@@ -54,8 +55,8 @@ import android.view.MotionEvent;
  * Activity (clientsideactivity) call "startClient" to initiate message exchanges
  * @author Dave Bryson
  */
-public class ClientTestView extends TestEventView  {
-    private static final String TAG = "ClientTestView";
+public class ClientTestView extends TestEventView implements Constants {
+    private static final String TAG = ClientTestView.class.getName();
     private float xScaleFactor, yScaleFactor = 0;
     private RemoteServerClient client;
     private ClientSideActivityDirect clientActivity;
@@ -67,12 +68,7 @@ public class ClientTestView extends TestEventView  {
     private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
 
     // Protocol connection states
-    private static final int UNAUTHENTICATED = 0;
-    private static final int AUTHENTICATING  = 1;
-    private static final int VMREADYWAIT     = 2;
-    private static final int GETSCREENINFO   = 3;
-    private static final int PROXYREADY      = 4;
-    private int protocolState = UNAUTHENTICATED;
+    private int protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
 
     public ClientTestView(Context context) {
         super(context);
@@ -93,11 +89,11 @@ public class ClientTestView extends TestEventView  {
      * @param host
      * @param port
      */
-    public void startClient(ClientSideActivityDirect clientActivity, final String host, final int port) {
+    public void startClient(ClientSideActivityDirect clientActivity, final String host, final int port, final int encryptionType) {
         this.clientActivity = clientActivity;
     	try {
-        	protocolState = UNAUTHENTICATED;
-            this.client = new RemoteServerClient(new MessageCallback(this),host,port);
+        	protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
+            this.client = new RemoteServerClient(new MessageCallback(this), host, port, encryptionType);
             this.client.execute();
             sendAuthenticationMessage();
         } catch (Exception e) {
@@ -107,7 +103,7 @@ public class ClientTestView extends TestEventView  {
 
     public void closeClient(){
         this.client.stop();
-        protocolState = UNAUTHENTICATED;
+        protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
     }
 
     public Boolean ClientRunning(){
@@ -118,7 +114,7 @@ public class ClientTestView extends TestEventView  {
     }
     
     public boolean onTouchEvent(final MotionEvent event) {
-    	if (protocolState != PROXYREADY) return false;
+    	if (protocolState != PROTOCOLSTATE_PROXYREADY) return false;
 
         // SEND REMOTE EVENT
     	SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
@@ -157,7 +153,7 @@ public class ClientTestView extends TestEventView  {
     }
     
     public void onSensorEvent(SensorEvent event) {
-		if (protocolState != PROXYREADY) return;
+		if (protocolState != PROTOCOLSTATE_PROXYREADY) return;
 
 		int type = event.sensor.getType();
 
@@ -185,7 +181,7 @@ public class ClientTestView extends TestEventView  {
 
     // called when a LocationListener triggers, converts the data and sends it to the VM
     public void onLocationChanged(Location location) {
-		if (protocolState != PROXYREADY) return;
+		if (protocolState != PROTOCOLSTATE_PROXYREADY) return;
 
 		SVMPProtocol.LocationUpdate locationUpdate = Utility.toLocationUpdate(location);
 		SVMPProtocol.Request request = Utility.toRequest(locationUpdate);
@@ -195,7 +191,7 @@ public class ClientTestView extends TestEventView  {
 	}
 	// called when a onProviderEnabled or onProviderDisabled triggers, converts the data and sends it to the VM
 	public void onProviderEnabled(String s, boolean isEnabled) {
-		if (protocolState != PROXYREADY) return;
+		if (protocolState != PROTOCOLSTATE_PROXYREADY) return;
 
 		SVMPProtocol.LocationProviderEnabled providerEnabled = Utility.toLocationProviderEnabled(s, isEnabled);
 		SVMPProtocol.Request request = Utility.toRequest(providerEnabled);
@@ -205,7 +201,7 @@ public class ClientTestView extends TestEventView  {
 	}
 	// called when a onStatusChanged triggers, converts the data and sends it to the VM
 	public void onStatusChanged(String s, int i, Bundle bundle) {
-		if (protocolState != PROXYREADY) return;
+		if (protocolState != PROTOCOLSTATE_PROXYREADY) return;
 
 		SVMPProtocol.LocationProviderStatus providerStatus = Utility.toLocationProviderStatus(s, i, bundle);
 		SVMPProtocol.Request request = Utility.toRequest(providerStatus);
@@ -232,7 +228,7 @@ public class ClientTestView extends TestEventView  {
     	sendInputMessage(req.build());
     	Log.d(TAG, "Sent authentication request");
     	
-    	protocolState = AUTHENTICATING;
+    	protocolState = PROTOCOLSTATE_AUTHENTICATING;
     }
 
     private void sendScreenInfoMessage() {
@@ -242,7 +238,7 @@ public class ClientTestView extends TestEventView  {
         sendInputMessage(msg.build());
         Log.d(TAG, "Sent screen info request");
         
-        protocolState = GETSCREENINFO;
+        protocolState = PROTOCOLSTATE_GETSCREENINFO;
     }
 
     private void sendLocationProviderMessages() {
@@ -275,7 +271,7 @@ public class ClientTestView extends TestEventView  {
     	// check that we got an AUTHOK
     	switch (msg.getType()) {
     	case AUTHOK:
-    		protocolState = VMREADYWAIT;
+    		protocolState = PROTOCOLSTATE_VMREADYWAIT;
     		return true;
     	case ERROR:
     		// TODO: some kind of dialog popup
@@ -313,7 +309,7 @@ public class ClientTestView extends TestEventView  {
     	Log.d(TAG, "Got the ServerInfo: xsize=" + x + " ; ysize=" + y);
     	calcScaleFactor(x,y);
     	Log.d(TAG, "Scale factor: " + xScaleFactor + " ; " + yScaleFactor);
-    	protocolState = PROXYREADY;
+    	protocolState = PROTOCOLSTATE_PROXYREADY;
 
     	return true;
     }
@@ -366,28 +362,35 @@ public class ClientTestView extends TestEventView  {
     	
         @Override
         public void handleMessage(final Message msg) {
-        	SVMPProtocol.Response r = (SVMPProtocol.Response)msg.obj;
-        	ClientTestView ctv = ctvref.get();
-        	switch (ctv.protocolState) {
-        	case UNAUTHENTICATED:
-        		// we haven't sent anything to the server yet, shouldn't be anything to receive
-        		return;
-        	case AUTHENTICATING:
-        		ctv.handleAuthenticationResponse(r);
-        		// expecting and AUTHOK or ERROR response
-        	case VMREADYWAIT:
-        		// Got the authentication response, but have to wait for VMREADY before doing anything else
-        		ctv.handleReadyResponse(r);
-        	case GETSCREENINFO:
-        		// expecting a screen info response
-        		ctv.handleScreenInfoResponse(r);
-        	case PROXYREADY:
-                if( r.getType() == ResponseType.LOCATION )
-                    ctv.handleLocationResponse(r);
-        		// done hand shaking, everything should be one-way to the server from here on
-        		// (at least until we wire Intents and Notifications into this too)
-        		return;
-        	}
+            ClientTestView ctv = ctvref.get();
+            if( msg.arg1 > 0 ) { // error message
+                Intent intent = new Intent();
+                intent.putExtra("message", msg.arg1);
+                ctv.clientActivity.setResult(Activity.RESULT_CANCELED, intent);
+                ctv.clientActivity.finish();
+            } else { // normal message
+                SVMPProtocol.Response r = (SVMPProtocol.Response)msg.obj;
+                switch (ctv.protocolState) {
+                case PROTOCOLSTATE_UNAUTHENTICATED:
+                    // we haven't sent anything to the server yet, shouldn't be anything to receive
+                    return;
+                case PROTOCOLSTATE_AUTHENTICATING:
+                    ctv.handleAuthenticationResponse(r);
+                    // expecting and AUTHOK or ERROR response
+                case PROTOCOLSTATE_VMREADYWAIT:
+                    // Got the authentication response, but have to wait for VMREADY before doing anything else
+                    ctv.handleReadyResponse(r);
+                case PROTOCOLSTATE_GETSCREENINFO:
+                    // expecting a screen info response
+                    ctv.handleScreenInfoResponse(r);
+                case PROTOCOLSTATE_PROXYREADY:
+                    if( r.getType() == ResponseType.LOCATION )
+                        ctv.handleLocationResponse(r);
+                    // done hand shaking, everything should be one-way to the server from here on
+                    // (at least until we wire Intents and Notifications into this too)
+                    return;
+                }
+            }
         }
     }
 

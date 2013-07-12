@@ -19,12 +19,20 @@ package org.mitre.svmp;
  * @author Joe Portner
  */
 public interface Constants {
-    public static final String PREFS_NAME = "SVMP_PREFERENCES";
     public static final int DEFAULT_PORT = 8002;
+    public static final int DEFAULT_ENCRYPTION_TYPE = 0; // ENCRYPTION_NONE
+    public static final String PREFS_NAME = "SVMP_PREFERENCES";
 
-    // used to report results from ConnectionDetails activity
-    public static final int RESULT_ADDED = 2;
-    public static final int RESULT_UPDATED = 3;
-    public static final int RESULT_TEMPORARY = 4;
-    public static final int RESULT_ERROR = 5;
+    // used to determine the state of the connection to the Proxy server
+    public static final int PROTOCOLSTATE_ERROR = -1;
+    public static final int PROTOCOLSTATE_UNAUTHENTICATED = 0;
+    public static final int PROTOCOLSTATE_AUTHENTICATING = 1;
+    public static final int PROTOCOLSTATE_VMREADYWAIT = 2;
+    public static final int PROTOCOLSTATE_GETSCREENINFO = 3;
+    public static final int PROTOCOLSTATE_PROXYREADY = 4;
+
+    // used to determine what the EncryptionType for each connection is
+    public static final int ENCRYPTION_NONE = 0;
+    public static final int ENCRYPTION_SSLTLS = 1;
+    public static final int ENCRYPTION_SSLTLS_UNTRUSTED = 2;
 }

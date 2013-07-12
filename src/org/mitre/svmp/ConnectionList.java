@@ -31,6 +31,7 @@ import android.view.View;
 import android.widget.*;
 import org.mitre.svmp.client.ClientSideActivityDirect;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.widgets.ConnectionInfoArrayAdapter;
 
 import java.util.List;
 
@@ -39,7 +40,8 @@ import java.util.List;
  */
 public class ConnectionList extends Activity implements Constants {
     private static String TAG = ConnectionList.class.getName();
-    private static final int REQUEST_CODE = 100;
+    private static final int REQUESTCODE_VIDEO = 100;
+    private static final int REQUESTCODE_CONNECTIONDETAILS = 101;
 
     private DatabaseHandler dbHandler;
     private List<ConnectionInfo> connectionInfoList;
@@ -55,12 +57,12 @@ public class ConnectionList extends Activity implements Constants {
         dbHandler = new DatabaseHandler(this);
 
         // get views
-        listView = (ListView)findViewById(R.id.listView_connections);
+        listView = (ListView)findViewById(R.id.connectionList_listView_connections);
 
         // create listeners for buttons
-        Button temporaryView = (Button) findViewById(R.id.button_temporary),
-                newView = (Button) findViewById(R.id.button_new),
-                exitView = (Button) findViewById(R.id.button_exit);
+        Button temporaryView = (Button) findViewById(R.id.connectionList_button_temporary),
+                newView = (Button) findViewById(R.id.connectionList_button_new),
+                exitView = (Button) findViewById(R.id.connectionList_button_exit);
         temporaryView.setOnClickListener(temporaryHandler);
         newView.setOnClickListener(newHandler);
         exitView.setOnClickListener(exitHandler);
@@ -89,6 +91,7 @@ public class ConnectionList extends Activity implements Constants {
 
             // Check preferences
             final SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+            final String tempSubnet = "192.168.42.";
             final String tempHostOctet = settings.getString("tempHostOctet", "");
 
             // create the password input
@@ -99,9 +102,9 @@ public class ConnectionList extends Activity implements Constants {
             // show a dialog
             new AlertDialog.Builder(ConnectionList.this)
                     .setTitle("Enter last octet of IP")
-                    .setMessage("192.168.42.")
+                    .setMessage(tempSubnet)
                     .setView(input)
-                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                    .setPositiveButton("Submit", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             // get value
                             Editable value = input.getText();
@@ -112,10 +115,13 @@ public class ConnectionList extends Activity implements Constants {
                             editor.commit();
 
                             startVideo(
-                                    "FAKEUSERNAME",
-                                    "FAKEPASSWORD",
-                                    "192.168.42." + value.toString(),
-                                    DEFAULT_PORT);
+                                    new ConnectionInfo(
+                                            "FAKEDESCRIPTION",
+                                            "FAKEUSERNAME",
+                                            tempSubnet + value.toString(),
+                                            DEFAULT_PORT,
+                                            DEFAULT_ENCRYPTION_TYPE ),
+                                    "FAKEPASSWORD");
                         }
                     }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                 public void onClick(DialogInterface dialog, int whichButton) {
@@ -128,8 +134,8 @@ public class ConnectionList extends Activity implements Constants {
     // new button is clicked
     View.OnClickListener newHandler = new View.OnClickListener() {
         public void onClick(View v) {
-            Intent intent = new Intent(ConnectionList.this, ConnectionDetails.class);
-            startActivityForResult(intent, REQUEST_CODE);
+            // start a ConnectionDetails activity for creating a new connection
+            startConnectionDetails();
         }
     };
 
@@ -140,28 +146,23 @@ public class ConnectionList extends Activity implements Constants {
         }
     };
 
+    // ConnectionDetails activity returns
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if( requestCode == REQUEST_CODE ) {
-            switch(resultCode) {
-                case RESULT_ADDED:
-                    doToast("New connection created");
-                    break;
-                case RESULT_UPDATED:
-                    doToast("Connection updated");
-                    break;
-                case RESULT_ERROR:
-                    doToast("Error creating new connection");
-                    break;
+        if( requestCode == REQUESTCODE_VIDEO || requestCode == REQUESTCODE_CONNECTIONDETAILS ) {
+            // if this result has an intent, and the intent has a message, display a Toast
+            if( data != null && data.hasExtra("message") ) {
+                int resId = data.getIntExtra("message", 0);
+                if( resId > 0 )
+                    doToast(resId);
             }
 
-            if( resultCode == RESULT_ADDED || resultCode == RESULT_UPDATED) {
-                // repopulate the ListView
-                populateConnections();
-            }
+            // repopulate the ListView in case the list has changed
+            populateConnections();
         }
     }
 
+    // Dialog for entering a password when a connection is opened
     private void passwordPrompt(final ConnectionInfo connectionInfo) {
         if( connectionInfo == null ) {
             Log.d(TAG, "Selected ConnectionInfo is null");
@@ -173,20 +174,18 @@ public class ConnectionList extends Activity implements Constants {
 
             // show a dialog
             new AlertDialog.Builder(ConnectionList.this)
-                    .setTitle("Password required")
-                    .setMessage("Enter a password to proceed")
+                    .setTitle( R.string.connectionList_dialog_passwordPrompt_title )
+                    .setMessage( R.string.connectionList_dialog_passwordPrompt_message )
                     .setView(input)
-                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                        public void onClick(DialogInterface dialog, int whichButton) {
-                            Editable value = input.getText();
+                    .setPositiveButton(R.string.connectionList_dialog_passwordPrompt_positiveButton,
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    Editable value = input.getText();
 
-                            startVideo(
-                                    connectionInfo.getUsername(),
-                                    value.toString(),
-                                    connectionInfo.getHost(),
-                                    connectionInfo.getPort());
-                        }
-                    }).setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                                    startVideo(connectionInfo, value.toString());
+                                }
+                            }).setNegativeButton( R.string.connectionList_dialog_passwordPrompt_negativeButton,
+                            new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
                             // Do nothing.
                         }
@@ -194,9 +193,10 @@ public class ConnectionList extends Activity implements Constants {
         }
     }
 
+    // Context Menu handles long-pressing (prompt allows user to edit or remove connections)
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
-        if(v.getId() == R.id.listView_connections){
+        if(v.getId() == R.id.connectionList_listView_connections){
             AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
             menu.setHeaderTitle(connectionInfoList.get(info.position).getDescription());
             String[] menuItems = getResources().getStringArray(R.array.connection_list_context_items);
@@ -210,35 +210,61 @@ public class ConnectionList extends Activity implements Constants {
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
         switch(item.getItemId()){
             case 0:
-                Intent intent = new Intent(ConnectionList.this, ConnectionDetails.class);
-                intent.putExtra("id", connectionInfoList.get(info.position).getID());
-                startActivityForResult(intent, REQUEST_CODE);
+                // start a ConnectionDetails activity for editing an existing connection
+                startConnectionDetails( connectionInfoList.get(info.position).getID() );
                 break;
             case 1:
                 dbHandler.deleteConnectionInfo(connectionInfoList.get(info.position).getID());
                 populateConnections();
-                doToast("Connection removed");
+                doToast(R.string.connectionList_toast_removed);
                 break;
         }
         return true;
     }
 
-    private void startVideo(String username, String password, String host, int port) {
-        AuthData.init(username, password);
+    // starts a ClientSideActivityDirect activity for connecting to a server
+    private void startVideo(ConnectionInfo connectionInfo, String password) {
+        // authorize user credentials
+        AuthData.init(connectionInfo.getUsername(), password);
+
+        // create explicit intent
         Intent intent = new Intent(ConnectionList.this, ClientSideActivityDirect.class);
-        intent.putExtra("host", host);
-        intent.putExtra("port", port);
-        startActivity(intent);
+
+        // add data to intent
+        intent.putExtra("host", connectionInfo.getHost());
+        intent.putExtra("port", connectionInfo.getPort());
+        intent.putExtra("encryptionType", connectionInfo.getEncryptionType());
+
+        // start the activity without expecting a result
+        startActivityForResult(intent, REQUESTCODE_VIDEO);
     }
 
+    // starts a ConnectionDetails activity for editing an existing connection or creating a new connection
+    private void startConnectionDetails(int id) {
+        // create explicit intent
+        Intent intent = new Intent(ConnectionList.this, ConnectionDetails.class);
+
+        // if the given ID is valid (i.e. greater than zero), we are editing an existing connection
+        if( id > 0 )
+            intent.putExtra("id", id);
+
+        // start the activity and expect a result intent when it is finished
+        startActivityForResult(intent, REQUESTCODE_CONNECTIONDETAILS);
+    }
+    // overload, starts a ConnectionDetails activity for creating a new connection
+    private void startConnectionDetails() { startConnectionDetails(0); }
+
+    // queries the database for the list of connections and populates the ListView in the layout
     private void populateConnections() {
         // get the list of ConnectionInfo objects
         connectionInfoList = dbHandler.getConnectionInfoList();
         // populate the items in the ListView
-        listView.setAdapter(new ArrayAdapter<ConnectionInfo>(getApplicationContext(), android.R.layout.simple_list_item_1, connectionInfoList));
+        //listView.setAdapter(new ArrayAdapter<ConnectionInfo>(getApplicationContext(), android.R.layout.simple_list_item_1, connectionInfoList));
+        listView.setAdapter(new ConnectionInfoArrayAdapter(this,
+                connectionInfoList.toArray(new ConnectionInfo[connectionInfoList.size()]))); // use two-line list items
     }
 
-    private void doToast(String text) {
-        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
+    private void doToast(int resId) {
+        Toast.makeText(this, resId, Toast.LENGTH_LONG).show();
     }
 }
