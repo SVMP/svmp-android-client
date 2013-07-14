@@ -31,9 +31,7 @@ import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Looper;
 import org.mitre.svmp.AuthData;
-//import org.mitre.svmp.RemoteServerClientThread;
-import org.mitre.svmp.RemoteSendThread;
-import org.mitre.svmp.RemoteListenThread;
+import org.mitre.svmp.RemoteServerClient;
 import org.mitre.svmp.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -65,9 +63,7 @@ public class ClientTestView extends TestEventView  {
     private static final String TAG = "ClientTestView";
     private float xScaleFactor, yScaleFactor = 0;
     //private RemoteServerClient client;
-    //private RemoteServerClientThread client;
-    private RemoteSendThread client;
-    private RemoteListenThread listenclient;
+    private RemoteServerClient client;
     private ClientSideActivityDirect clientActivity;
 
     // track timestamp of the last update of each sensor we are tracking
@@ -113,16 +109,11 @@ public class ClientTestView extends TestEventView  {
         this.clientActivity = clientActivity;
     	try {
         	protocolState = UNAUTHENTICATED;
-            //this.client = new RemoteServerClientThread(new MessageCallback(this),host,port);
-        	this.client = new RemoteSendThread(host,port);
-            Log.d(TAG, "RemoteServerClientThread before start");  
-            this.client = new RemoteSendThread(host,port);
-        	this.listenclient = new RemoteListenThread(new MessageCallback(this));
-        	this.listenclient.start();
-        	this.client.addListenThread(this.listenclient);        	
+            this.client = new RemoteServerClient(new MessageCallback(this),host,port);
+            Log.d(TAG, "RemoteServerClient before start");  
         	this.client.start();
             
-            Log.d(TAG, "RemoteServerClientThread has been started");          
+            Log.d(TAG, "RemoteServerClient has been started");          
             sendAuthenticationMessage();
         } catch (Exception e) {
             e.printStackTrace();
@@ -130,8 +121,7 @@ public class ClientTestView extends TestEventView  {
     }
 
     public void closeClient(){
-        this.client.requestStop();
-        this.listenclient.requestStop();
+        this.client.Stop();
         protocolState = UNAUTHENTICATED;
     }
 
@@ -387,8 +377,8 @@ public class ClientTestView extends TestEventView  {
     	SVMPProtocol.Request.Builder req = SVMPProtocol.Request.newBuilder();
     	req.setType(RequestType.VIDEO_PARAMS);
     	SVMPProtocol.VideoRequest.Builder video = SVMPProtocol.VideoRequest.newBuilder();
-    	String myip = client.getlocalIP();    	    	
-    	video.setIP(myip);
+    	String myip = client.getLocalIP();
+    	video.setIp(myip);
     	video.setPort(6000);
     	video.setBitrate(0);    	
     	req.setVideoRequest(video);
