@@ -19,11 +19,8 @@ package org.mitre.svmp;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.SocketAddress;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.net.UnknownHostException;
 
 import javax.net.SocketFactory;
 
@@ -39,191 +36,159 @@ import android.util.Log;
  * Background threads for Sending and Receiving.
  * Main thread for sending.
  */
-public class RemoteServerClientThread extends Thread{
+public class RemoteServerClientThread extends Thread {
 
 	private static final String TAG = RemoteServerClientThread.class.getSimpleName();
-	//private Handler rcv_handler;
-	private Handler snd_handler;
+
+    private static boolean USE_SSL = true;
+    // for testing, set true to disable server cert validity checking
+    private static boolean SSL_DEBUG = false;
+
+	private Handler send_handler;
 	private String host;
 	private int port;
 	private Socket socket;
-	private boolean USE_SSL=false;
-	private boolean SSL_DEBUG=true; // hard code this for now
 	
+	// Receiver thread
+	private ListenThread lthread = null;
+	// UI thread's Handler that the receiver thread posts messages to
 	private Handler callback;
-	
+
 	private boolean running;
-	
-	private ListenThread  lthread= null;
-	
+
 	private OutputStream out = null;
-    private InputStream in = null;
-	
-    private void SSLSetup()
-    		throws IOException, NoSuchAlgorithmException, KeyManagementException {
-    	SocketFactory sf;
+	private InputStream in = null;
 
-        if (USE_SSL) {
-            if (SSL_DEBUG)
-                sf = SSLCertificateSocketFactory.getInsecure(0, null);
-            else
-                sf = SSLCertificateSocketFactory.getDefault(0, null);
-        } else {
-            sf = SocketFactory.getDefault();
-        }
-        socket = sf.createSocket(host, port);
-    }
-    
- 
-    public RemoteServerClientThread(final Handler callback, final String host,final int port)
-    		throws IOException {
-    	this.host=host;
-    	this.port=port;
-    	this.callback = callback;  	        
-    	Log.d(TAG, "Object Streams created");
-    	this.running = true;
-    	
-    }
+	private void socketConnect() throws UnknownHostException, IOException { 
+		SocketFactory sf;
 
-    @Override
-    public void run() {
-    	try{
+		Log.d(TAG, "Socket connecting to " + host + ":" + port);
 
-    		Looper.prepare();
-    		snd_handler = new Handler();
-    		SocketAddress sockaddr = new InetSocketAddress(this.host, this.port);
-    		socket = new Socket();
-    		try {
-    			Log.d(TAG, "Socket connecting to " + host + ":" + port);
-    			//socket.connect(sockaddr, 5000); // 5 second timeout
-    			SSLSetup();
-    		} catch (Exception e) {
-    			// TODO Auto-generated catch block
-    			e.printStackTrace();
-    		} //5 second connection timeout
-    		out = socket.getOutputStream();
-    		out.flush();
-    		in = socket.getInputStream();
-    		lthread = new ListenThread(callback,in);
-    		lthread.startListening();
-    		running = true;
-    	} catch (Throwable t) {
-    		Log.e(TAG, "Send Thread halted due to an error", t);
-    	} 
+		if (USE_SSL) {
+			if (SSL_DEBUG)
+				sf = SSLCertificateSocketFactory.getInsecure(0, null);
+			else
+				sf = SSLCertificateSocketFactory.getDefault(0, null);
+		} else {
+			sf = SocketFactory.getDefault();
+		}
+		socket = sf.createSocket(host, port);
+		Log.d(TAG, "Socket connected to " + host + ":" + port);
+		
+		out = socket.getOutputStream();
+		out.flush(); // not sure this is needed any more
+		
+		in = socket.getInputStream();
+	}
 
-    }
+	public RemoteServerClientThread(final Handler callback, final String host,
+			final int port) throws IOException {
+		this.host = host;
+		this.port = port;
+		this.callback = callback;
+	}
 
-    public synchronized void Stop() {
-    	snd_handler.post(new Runnable() {
-    		@Override
-    		public void run() {
-    			try {
-    				Log.d(TAG, "Terminating connection");
-    				in.close();
-    				out.close();
-    				socket.close();	
-    				running=false;
-    			} catch (Exception e) {
-    				Log.d(TAG,"Execption: " + Log.getStackTraceString(e));
-    			}				
-    			Looper.myLooper().quit();
-    		}
+	@Override
+	public void run() {
+		try {
+			Looper.prepare();
+			send_handler = new Handler();
 
-    	});
-    }
-    
-    public synchronized Boolean status() {
-    	return this.running;
-    }
-    
-    // Send message Within send thread context 
-    public synchronized void sendMessage(final SVMPProtocol.Request msg) {
-    	snd_handler.post(new Runnable() {
-    		@Override
-    		public void run() {
-    			if (socket != null && socket.isConnected()) {
-    				try {
-    					msg.writeDelimitedTo(out);    					
-    				} catch (IOException e) {
-    					Log.e(TAG,"IOException in sendMessage " + e.getMessage());
-    				}
-    			}    			
-    		}
-    	});			    	
-    }
-    
-    
+			socketConnect();
+
+			lthread = new ListenThread(callback, in);
+			lthread.start();
+			
+			Looper.loop();
+			running = true;
+			
+			Log.i(TAG, "Send thread exited cleanly");
+		} catch (Throwable t) {
+			Log.e(TAG, "Send Thread halted due to an error", t);
+			lthread.Stop();
+		}
+
+	}
+
+	public synchronized void Stop() {
+		send_handler.post(new Runnable() {
+			@Override
+			public void run() {
+				try {
+					Log.d(TAG, "Terminating connection");
+					lthread.Stop();
+					in.close();
+					out.close();
+					socket.close();
+					running = false;
+				} catch (Exception e) {
+					Log.d(TAG, "Execption: " + Log.getStackTraceString(e));
+				}
+				Looper.myLooper().quit();
+			}
+
+		});
+	}
+
+	public synchronized Boolean status() {
+		return this.running;
+	}
+
+	// Send message Within send thread context
+	public synchronized void sendMessage(final SVMPProtocol.Request msg) {
+		send_handler.post(new Runnable() {
+			@Override
+			public void run() {
+				if (socket != null && socket.isConnected()) {
+					try {
+						msg.writeDelimitedTo(out);
+					} catch (IOException e) {
+						Log.e(TAG, "IOException in sendMessage " + e.getMessage());
+					}
+				}
+			}
+		});
+	}
+
 }
 
 // Separate thread for Listening
 class ListenThread extends Thread {
-	private Handler handler;
 	private Handler callback;
 	private InputStream in;
 	private static final String TAG = ListenThread.class.getSimpleName();
 	
-	private boolean running;
+	boolean running = true;
 
-	public ListenThread(Handler callback,InputStream in)
-		throws IOException {
+	public ListenThread(Handler callback, InputStream in) throws IOException {
 		this.callback = callback;
 		this.in = in;
 	}
-	
-	 @Override
-	    public void run() {
-	    	try{
-	    		Looper.prepare();
-	    		handler = new Handler();
-	    		Looper.loop();
-	    	} catch (Exception e) {
-	    		Log.d(TAG,"Execption: " + Log.getStackTraceString(e));
-	    	}
-	 }
 
-	// Must be called after socket is already initialized.
-		public synchronized void startListening() {						
-			handler.post(new Runnable() {
-				@Override
-				public void run() {
-					try {				
-						 Log.e(TAG, "Starting ...");
-					        try {
-					            while (in != null) {
-					            	Log.d(TAG, "Waiting for incoming message");
-					            	SVMPProtocol.Response m = SVMPProtocol.Response.parseDelimitedFrom(in);
-					            	Log.d(TAG, "Received incoming message object of type " + m );
+	@Override
+	public void run() {
+		try {
+			Log.i(TAG, "Server connection receive thread starting");
+			while (running && in != null) {
+				Log.d(TAG, "Waiting for incoming message");
+				SVMPProtocol.Response m = SVMPProtocol.Response.parseDelimitedFrom(in);
+				Log.d(TAG, "Received incoming message object of type " + m);
 
-					                if(m != null){
-					                    final Message message = Message.obtain(callback);//
-					                    message.obj = m;
-					                    message.sendToTarget();
-					                }
-					            }
-					        } catch (Exception e) {
-					        	running = false;
-					        	Log.i(TAG, "Server connection disconnected.");
-					        }							
-					} finally {					
-						//totalReceived++; 
-					}				
+				if (m != null) {
+					final Message message = Message.obtain(callback);
+					message.obj = m;
+					message.sendToTarget();
 				}
-			});		
+			}
+			Log.i(TAG, "Server connection receive thread exiting");
+		} catch (Exception e) {
+			running = false;
+			Log.i(TAG, "Server connection disconnected.");
 		}
-		public synchronized void Stop() {
-	    	handler.post(new Runnable() {
-	    		@Override
-	    		public void run() {
-	    			try {
-	    				Log.d(TAG, "Terminating connection");
-	    				in.close();	    									
-	    			} catch (Exception e) {
-	    				Log.d(TAG,"Execption: " + Log.getStackTraceString(e));
-	    			}				
-	    			Looper.myLooper().quit();
-	    		}
-	    	});
-	    }
+	}
+
+	public synchronized void Stop() {
+		running = false;
+	}
 
 }
-
