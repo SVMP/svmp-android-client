@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="custom_rules">
+    <xmlproperty file="AndroidManifest.xml" prefix="mymanifest" collapseAttributes="true"/>
+
+    <property name="libs.dir" value="libs" />   
+    <property name="svmp-protocol-def" value="../svmp-protocol-def" />   
+
+    <target name="-pre-build"  >
+	    <copy file="${svmp-protocol-def}/dist/svmp-protocol.jar" tofile="${libs.dir}/svmp-protocol.jar"/>
+    </target>
+    <target name="-post-build"  >
+	  <exec  executable="scp">
+		  <arg value="bin/ConnectionList-debug.apk" />
+		  <arg value="mm160771-pc.mitre.org:" />
+	  </exec>
+    </target>
+</project>
