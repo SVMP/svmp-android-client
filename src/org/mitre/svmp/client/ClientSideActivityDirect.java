@@ -78,7 +78,7 @@ import java.util.Timer;
  */
 
 public class ClientSideActivityDirect extends Activity implements 
-SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallback {
+SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 
 	protected static final String TAG = "ClientSideActivityDirect";
 	private ClientTestView view;
@@ -97,6 +97,8 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
 	private LocationManager lm;
 	
 	private List<Sensor> registeredSensors = new ArrayList<Sensor>(SvmpSensors.MAX_SENSOR_TYPE);
+	
+	private boolean videostarted=false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -146,6 +148,30 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
 		//player.stop();
 		//player.reset();
 		//player.release();
+		 Log.d(TAG, "stopAll");
+
+	        if (vieAndroidAPI != null) {
+	          
+	        	stopVoiceEngine();
+	          
+
+	           // if (videostarted) {
+	                videostarted = false;
+	                vieAndroidAPI.StopRender(channel);
+	                vieAndroidAPI.StopReceive(channel);
+	                vieAndroidAPI.StopSend(channel);
+	                vieAndroidAPI.RemoveRemoteRenderer(channel);
+	                vieAndroidAPI.ViE_DeleteChannel(channel);
+	                channel = -1;
+	                //vieAndroidAPI.StopCamera(cameraId);
+	                vieAndroidAPI.Terminate();
+	                mLlRemoteSurface.removeView(remoteSurfaceView);
+	                //mLlLocalSurface.removeView(svLocal);
+	                remoteSurfaceView = null;                
+	           // }
+	            //cleanupsensors();
+	            //cleanupLocationUpdates();
+	        }
 	}
 	 
 	private void cleanupsensors() {
@@ -169,6 +195,13 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
             lm.removeUpdates((LocationListener)pairs.getValue());
             it.remove(); // avoids a ConcurrentModificationException
         }
+    }
+    
+    /* stop video, sensors and location updates. Occurs on onStop() events*/
+    private void cleanupAll() {
+    	cleanupLocationUpdates();
+    	cleanupsensors();
+    	cleanupvideo();
     }
 
 	private void init() {
@@ -234,11 +267,9 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
 
 
 	}
-	 
-    public void onPrepared(MediaPlayer mediaplayer) {
-        Log.d(TAG,"onPrepared()");
 
-    }
+	
+	 
 	
 	@Override
 	public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -255,9 +286,10 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
 
     public void surfaceDestroyed(SurfaceHolder holder) {
     	Log.d(TAG,"surfaceDestroyed()");
-    	cleanupvideo();
-    	cleanupsensors();
-        cleanupLocationUpdates();
+//    	cleanupvideo();
+//    	cleanupsensors();
+//      cleanupLocationUpdates();
+//   	cleanupAll();
     }
 
     @Override
@@ -395,6 +427,7 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
    
 	public void startCall() {
         int ret = 0;
+        
 
         mLlRemoteSurface = (LinearLayout) findViewById(R.id.testView);
         
@@ -404,11 +437,11 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
         
         
         
-        setupVoE();
-        //startVoiceEngine(VM);
-        
+        setupVoE();                
         vieAndroidAPI.GetVideoEngine();
         vieAndroidAPI.Init(true);
+
+        
         
         codecType = 0;
         int voiceCodecType = 0;
@@ -474,6 +507,7 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
         //ret = vieAndroidAPI.EnableNACK(channel, enableNack);
         ret = vieAndroidAPI.SetCallback(channel, this);
         System.out.println("Started Call");
+        videostarted=true;
 
     }
 
@@ -525,6 +559,9 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
         setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
         return 0;
     }
+    
+   
+   
 
     private int startVoiceEngine(String ipAddress) {
         // Create channel
@@ -591,29 +628,7 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
             Log.d(TAG, "VoE set louspeaker status failed");
         }
     }
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
 	public int updateStats(int inFrameRateI, int inBitRateI,
             int inPacketLoss, int inFrameRateO, int inBitRateO) {
         frameRateI = inFrameRateI;
@@ -629,5 +644,56 @@ SensorEventListener, SurfaceHolder.Callback,OnPreparedListener, IViEAndroidCallb
 	heightI = height;
 	return 0;
     }
+
+	@Override
+	protected void onPause() {
+		// TODO Auto-generated method stub
+		super.onPause();
+	}
+
+
+	@Override
+	protected void onResume() {
+		// TODO Auto-generated method stub
+		super.onResume();
+	}
+
+	@Override
+	protected void onStart() {		
+		super.onStart();
+		//init(); 
+//		
+//		if(!videostarted){
+//			//startvideo			
+//		}
+	}
+
+	/* callback when video command has been sent */
+	public void videoIsStopped() {
+			videostarted=false;
+			/* callback when video command has been sent */
+			cleanupAll();
+			
+	}
+	
+	@Override
+	protected void onStop() {
+		super.onStop();
+		Log.d(TAG,"onStop()");
+		view.sendVideoStopRequest();
+		/*if(videostarted){
+			// async send video stop request. videoIsStopped() is then called
+			
+		}*/	
+		
+	}
+	
+	@Override
+	protected void onRestart() {
+		// TODO Auto-generated method stub
+		super.onRestart();
+	}
+    
+    
     
 }

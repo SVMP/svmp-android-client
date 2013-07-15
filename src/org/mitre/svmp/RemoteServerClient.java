@@ -43,9 +43,9 @@ public class RemoteServerClient extends Thread {
 
     private static final String TAG = RemoteServerClient.class.getSimpleName();
 
-    private static boolean USE_SSL = true;
+    private static boolean USE_SSL = false;
     // for testing, set true to disable server cert validity checking
-    private static boolean SSL_DEBUG = false;
+    private static boolean SSL_DEBUG = true;
 
     private OutputStream out = null;
     private InputStream in = null;
@@ -80,7 +80,7 @@ public class RemoteServerClient extends Thread {
 
         socket = sf.createSocket(host, port);
 
-        Log.d(TAG, "Socket connected successfully");
+       
 
         out = socket.getOutputStream();
         in = socket.getInputStream();
@@ -95,10 +95,13 @@ public class RemoteServerClient extends Thread {
             socketConnect();
 
             lthread = new ListenThread(callback, in);
-            lthread.start();
-
-            Looper.loop();
+            lthread.start();                      
+            // fire off empty message to send an auth request
+            final Message message = Message.obtain(callback);         
+            message.sendToTarget();
             running = true;
+            Log.i(TAG, "!!! Connected successfully");
+            Looper.loop();                   
 
             Log.i(TAG, "Send thread exited cleanly");
         } catch (Throwable t) {
@@ -118,6 +121,8 @@ public class RemoteServerClient extends Thread {
                     out.close();
                     socket.close();
                     running = false;
+                    //empty message for now.
+                    
                 } catch (Exception e) {
                     Log.d(TAG, "Exception: " + Log.getStackTraceString(e));
                 }

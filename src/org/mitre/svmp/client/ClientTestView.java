@@ -79,6 +79,8 @@ public class ClientTestView extends TestEventView  {
     private static final int GETSCREENINFO   = 3;
     private static final int PROXYREADY      = 4;
     private static final int VIDEOSTART	     = 5;
+    private static final int VIDEOSTOP	     = 6;
+    
     private int protocolState = UNAUTHENTICATED;
 
     public ClientTestView(Context context) {
@@ -114,7 +116,7 @@ public class ClientTestView extends TestEventView  {
         	this.client.start();
             
             Log.d(TAG, "RemoteServerClient has been started");          
-            sendAuthenticationMessage();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -373,6 +375,19 @@ public class ClientTestView extends TestEventView  {
         }
     }
    
+    public void sendVideoStopRequest() {
+    	SVMPProtocol.Request.Builder req = SVMPProtocol.Request.newBuilder();
+    	req.setType(RequestType.VIDEO_STOP);
+    	SVMPProtocol.VideoRequest.Builder video = SVMPProtocol.VideoRequest.newBuilder();
+    	String myip = client.getLocalIP();
+    	video.setIp(myip);
+    	video.setPort(6000);
+    	video.setBitrate(0);    	
+    	req.setVideoRequest(video);    	
+        sendInputMessage(req.build());
+        Log.d(TAG, "Sent VideoSTOP request!!!");        
+          	
+    }
     
     private void sendVideoInfoMessage() {
     	SVMPProtocol.Request.Builder req = SVMPProtocol.Request.newBuilder();
@@ -382,8 +397,7 @@ public class ClientTestView extends TestEventView  {
     	video.setIp(myip);
     	video.setPort(6000);
     	video.setBitrate(0);    	
-    	req.setVideoRequest(video);
-    	
+    	req.setVideoRequest(video);    	
         sendInputMessage(req.build());
         Log.d(TAG, "Sent VideoInfo request");
     }
@@ -397,6 +411,11 @@ public class ClientTestView extends TestEventView  {
         case LOCATION:
             handleLocationResponse(msg);
             break;
+            // This is an ACK to the video STOP request.
+        case VIDEOSTOP: // should add a new response type. 
+        	clientActivity.videoIsStopped();  
+        	break;
+        	
         default:
             Log.i(TAG, "Ignoring unknown message type from VM. " + msg.getType());
         }
@@ -415,6 +434,8 @@ public class ClientTestView extends TestEventView  {
         	ClientTestView ctv = ctvref.get();
         	switch (ctv.protocolState) {
         	case UNAUTHENTICATED:
+                Log.d(TAG, "Received empty request: sending authentication message");
+        		ctv.sendAuthenticationMessage();
         		// we haven't sent anything to the server yet, shouldn't be anything to receive
         		break;
         	case AUTHENTICATING:
@@ -430,6 +451,8 @@ public class ClientTestView extends TestEventView  {
         		ctv.handleScreenInfoResponse(r);
         		break;
         	case PROXYREADY:
+        	case VIDEOSTART:
+        	case VIDEOSTOP:
         		ctv.handleEverythingElse(r);
         		// done hand shaking, everything should be one-way to the server from here on
         		// (at least until we wire Intents and Notifications into this too)
