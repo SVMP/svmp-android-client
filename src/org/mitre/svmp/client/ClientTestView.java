@@ -330,6 +330,7 @@ public class ClientTestView extends TestEventView  {
     	Log.d(TAG, "Scale factor: " + xScaleFactor + " ; " + yScaleFactor);
     	protocolState = PROXYREADY;
 
+    	sendVideoInfoMessage();
     	return true;
     }
 
@@ -386,12 +387,19 @@ public class ClientTestView extends TestEventView  {
         sendInputMessage(req.build());
         Log.d(TAG, "Sent VideoInfo request");
     }
-    private boolean handleVMReady(SVMPProtocol.Response msg) {
-    	 if( msg.getType() == ResponseType.LOCATION )
-             handleLocationResponse(msg);
-    	 else
-    		 sendVideoInfoMessage();
-    	return true;    	    	
+
+    /**
+     * Handler for anything we receive from the VM while in PROXYREADY state.
+     * E.g., location, intent, and notification messages.
+     */
+    private void handleEverythingElse(SVMPProtocol.Response msg) {
+        switch(msg.getType()) {
+        case LOCATION:
+            handleLocationResponse(msg);
+            break;
+        default:
+            Log.i(TAG, "Ignoring unknown message type from VM. " + msg.getType());
+        }
     }
     
     private static class MessageCallback extends Handler {
@@ -408,21 +416,24 @@ public class ClientTestView extends TestEventView  {
         	switch (ctv.protocolState) {
         	case UNAUTHENTICATED:
         		// we haven't sent anything to the server yet, shouldn't be anything to receive
-        		return;
+        		break;
         	case AUTHENTICATING:
-        		ctv.handleAuthenticationResponse(r);
         		// expecting and AUTHOK or ERROR response
+        		ctv.handleAuthenticationResponse(r);
+        		break;
         	case VMREADYWAIT:
         		// Got the authentication response, but have to wait for VMREADY before doing anything else
         		ctv.handleReadyResponse(r);
+        		break;
         	case GETSCREENINFO:
-        		// expecting a screen info response
+        		// expecting a screen info response, then send the video info message
         		ctv.handleScreenInfoResponse(r);
-        	case PROXYREADY:               
-        		ctv.handleVMReady(r);        	                
+        		break;
+        	case PROXYREADY:
+        		ctv.handleEverythingElse(r);
         		// done hand shaking, everything should be one-way to the server from here on
         		// (at least until we wire Intents and Notifications into this too)
-        		return;
+        		break;
         	}
         }
     }
