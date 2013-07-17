@@ -80,10 +80,11 @@ import java.util.Timer;
 public class ClientSideActivityDirect extends Activity implements 
 SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 
-	protected static final String TAG = "ClientSideActivityDirect";
+	protected static final String TAG = ClientSideActivityDirect.class.getName();
 	private ClientTestView view;
 	private String host;
 	private int port;
+    private int encryptionType;
 	private String ip;
 	private String VM;
 
@@ -124,6 +125,7 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 		Intent i = getIntent();
 		host = i.getExtras().getString("host");
 		port = i.getExtras().getInt("port");
+        encryptionType = i.getExtras().getInt("encryptionType");
 		ip = i.getExtras().getString("ip");
 		sm = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
@@ -211,7 +213,7 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 
 		Log.i(TAG, "Client is not running. Connecting now to " + host + ":" + port);
 		
-		view.startClient(this, host, port);
+		view.startClient(this, host, port, encryptionType);
 
 		Log.d(TAG, "Starting sensors");
 		initsensors();

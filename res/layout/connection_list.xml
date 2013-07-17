@@ -23,7 +23,7 @@
     <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SVMP Connections"
+            android:text="@string/connectionList_textView_title_text"
             android:layout_gravity="center_horizontal"
             android:textSize="@dimen/textSize_xlarge"/>
 
@@ -32,8 +32,8 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content">
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.0" />
-        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="Connect Now"
-                android:id="@+id/button_temporary" android:layout_gravity="center_horizontal" android:layout_weight="2.0"
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionList_button_temporary_text"
+                android:id="@+id/connectionList_button_temporary" android:layout_gravity="center_horizontal" android:layout_weight="2.0"
                 android:textSize="@dimen/textSize_large"/>
         <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.0" />
     </LinearLayout>
@@ -41,7 +41,7 @@
     <ListView
             android:layout_width="fill_parent"
             android:layout_height="0dp"
-            android:id="@+id/listView_connections" android:layout_weight="1.0" android:clickable="true"/>
+            android:id="@+id/connectionList_listView_connections" android:layout_weight="1.0" android:clickable="true"/>
     <LinearLayout
             android:orientation="horizontal"
             android:layout_width="fill_parent"
@@ -49,11 +49,11 @@
         <Button
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="New"
-                android:id="@+id/button_new" android:layout_gravity="center_horizontal"
+                android:text="@string/connectionList_button_new_text"
+                android:id="@+id/connectionList_button_new" android:layout_gravity="center_horizontal"
                 android:textSize="@dimen/textSize_large" android:layout_weight="1.0"/>
-        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="Exit"
-                android:id="@+id/button_exit" android:layout_gravity="center_horizontal"
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionList_button_exit_text"
+                android:id="@+id/connectionList_button_exit" android:layout_gravity="center_horizontal"
                 android:textSize="@dimen/textSize_large" android:layout_weight="1.0"/>
     </LinearLayout>
 </LinearLayout>

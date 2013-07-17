@@ -24,21 +24,24 @@ public class ConnectionInfo {
     private String username;
     private String host;
     private int port;
+    private int encryptionType;
 
     // overload constructor for a new ConnectionInfo that does not have an ID yet
-    public ConnectionInfo(String description, String username, String host, int port) {
-        this(0, description, username, host, port);
+    public ConnectionInfo(String description, String username, String host, int port, int encryptionType) {
+        this(0, description, username, host, port, encryptionType);
     }
 
     // constructor
-    public ConnectionInfo(int ID, String description, String username, String host, int port) {
+    public ConnectionInfo(int ID, String description, String username, String host, int port, int encryptionType) {
         this.ID = ID;
         this.description = description;
         this.username = username;
         this.host = host;
         this.port = port;
+        this.encryptionType = encryptionType;
     }
 
+    // getters
     public int getID() {
         return ID;
     }
@@ -59,7 +62,16 @@ public class ConnectionInfo {
         return port;
     }
 
+    public int getEncryptionType() {
+        return encryptionType;
+    }
+
+    // used to describe each ConnectionInfo in ConnectionList activity
     public String toString() {
         return description;
+    }
+
+    public String toString2() {
+        return username + "@" + host + ":" + port;
     }
 }

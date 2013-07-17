@@ -39,13 +39,9 @@ import android.util.Log;
  * @author Dave Keppler
  */
 //public class RemoteServerClient extends AsyncTask<Void, SVMPMessage, Boolean> {
-public class RemoteServerClient extends Thread {
+public class RemoteServerClient extends Thread implements Constants {
 
-    private static final String TAG = RemoteServerClient.class.getSimpleName();
-
-    private static boolean USE_SSL = false;
-    // for testing, set true to disable server cert validity checking
-    private static boolean SSL_DEBUG = true;
+    private static final String TAG = RemoteServerClient.class.getName();
 
     private OutputStream out = null;
     private InputStream in = null;
@@ -57,11 +53,16 @@ public class RemoteServerClient extends Thread {
     private ListenThread lthread;
     private Handler callback;
     private boolean running = false;
+    private boolean useSsl;
+    private boolean sslDebug;
 
-    public RemoteServerClient(final Handler callback, final String host, final int port) {
+    public RemoteServerClient(final Handler callback, final String host, final int port, final int encryptionType) {
         this.host = host;
         this.port = port;
         this.callback = callback;
+        // determine both booleans from the EncryptionType integer
+        useSsl = (encryptionType == ENCRYPTION_SSLTLS || encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
+        sslDebug = (encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
     }
 
     private void socketConnect() throws UnknownHostException, IOException {
@@ -69,8 +70,8 @@ public class RemoteServerClient extends Thread {
 
         Log.d(TAG, "Socket connecting to " + host + ":" + port);
 
-        if (USE_SSL) {
-            if (SSL_DEBUG)
+        if (useSsl) {
+            if (sslDebug)
                 sf = SSLCertificateSocketFactory.getInsecure(0, null);
             else
                 sf = SSLCertificateSocketFactory.getDefault(0, null);
