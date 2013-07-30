@@ -23,8 +23,10 @@ import java.net.UnknownHostException;
 
 import javax.net.SocketFactory;
 
+import org.mitre.svmp.client.NetIntentsClient;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
+import android.content.Context;
 import android.net.SSLCertificateSocketFactory;
 import android.os.Handler;
 import android.os.Looper;
@@ -43,23 +45,25 @@ public class RemoteServerClient extends Thread implements Constants {
 
     private static final String TAG = RemoteServerClient.class.getName();
 
-    private OutputStream out = null;
+    private static OutputStream out = null;
     private InputStream in = null;
-    private Socket socket;
+    private static Socket socket;
     private String host;
     private int port;
 
-    private Handler send_handler;
+    private static Handler send_handler;
     private ListenThread lthread;
     private Handler callback;
+    private Context parent;
     private boolean running = false;
     private boolean useSsl;
     private boolean sslDebug;
 
-    public RemoteServerClient(final Handler callback, final String host, final int port, final int encryptionType) {
+    public RemoteServerClient(final Handler callback, final Context parent,final String host, final int port, final int encryptionType) {
         this.host = host;
         this.port = port;
         this.callback = callback;
+        this.parent = parent;
         // determine both booleans from the EncryptionType integer
         useSsl = (encryptionType == ENCRYPTION_SSLTLS || encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
         sslDebug = (encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
@@ -95,7 +99,7 @@ public class RemoteServerClient extends Thread implements Constants {
 
             socketConnect();
 
-            lthread = new ListenThread(callback, in);
+            lthread = new ListenThread(callback,parent,in);
             lthread.start();                      
             // fire off empty message to send an auth request
             final Message message = Message.obtain(callback);         
@@ -107,7 +111,8 @@ public class RemoteServerClient extends Thread implements Constants {
             Log.i(TAG, "Send thread exited cleanly");
         } catch (Throwable t) {
             Log.e(TAG, "Send thread halted due to an error", t);
-            lthread.stop();
+            if(lthread != null)
+                lthread.stop();
         }
     }
 
@@ -136,12 +141,14 @@ public class RemoteServerClient extends Thread implements Constants {
         return running;
     }
 
-    public synchronized void sendMessage(final SVMPProtocol.Request msg) {
+    public static synchronized void sendMessage(final SVMPProtocol.Request msg) {
+    	if(send_handler != null)
         send_handler.post(new Runnable() {
             @Override
             public void run() {
                 if (socket != null && socket.isConnected()) {
                     try {
+                        Log.i(TAG,"Writing message to VM...");
                         msg.writeDelimitedTo(out);
                     } catch (IOException e) {
                         Log.e(TAG,"IOException in sendMessage " + e.getMessage());
@@ -161,11 +168,13 @@ public class RemoteServerClient extends Thread implements Constants {
     private class ListenThread extends Thread {
         private Handler callback;
         private InputStream in;
+        private Context parent;
 
         boolean running = true;
 
-        public ListenThread(Handler callback, InputStream in) throws IOException {
+        public ListenThread(Handler callback, Context parent,InputStream in) throws IOException {
             this.callback = callback;
+            this.parent = parent;
             this.in = in;
         }
 

@@ -15,6 +15,9 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
+import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.IntentAction;
+import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.webrtc.videoengine.ViERenderer;
 import org.webrtc.videoengineapp.IViEAndroidCallback;
 import org.webrtc.videoengineapp.ViEAndroidJavaAPI;
@@ -105,6 +108,7 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.client_side);
+		Intent i = getIntent();
 
 		// Full Wakelock unnecessary, this is the new recommended method.
 		Window w = getWindow(); // in Activity's onCreate() for instance
@@ -122,7 +126,6 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 		
 		
 		// Get info passed to Intent
-		Intent i = getIntent();
 		host = i.getExtras().getString("host");
 		port = i.getExtras().getInt("port");
         encryptionType = i.getExtras().getInt("encryptionType");

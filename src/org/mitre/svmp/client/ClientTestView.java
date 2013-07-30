@@ -102,7 +102,7 @@ public class ClientTestView extends TestEventView implements Constants {
         this.clientActivity = clientActivity;
     	try {
         	protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
-            this.client = new RemoteServerClient(new MessageCallback(this),host,port,encryptionType);
+            this.client = new RemoteServerClient(new MessageCallback(this),getContext(),host,port,encryptionType);
             Log.d(TAG, "RemoteServerClient before start");  
         	this.client.start();
             
@@ -111,6 +111,11 @@ public class ClientTestView extends TestEventView implements Constants {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public RemoteServerClient getClient()
+    {
+        return client;
     }
 
     public void closeClient(){
@@ -406,7 +411,11 @@ public class ClientTestView extends TestEventView implements Constants {
         case VIDEOSTOP: // should add a new response type. 
         	clientActivity.videoIsStopped();  
         	break;
-        	
+        case INTENT:
+        case NOTIFICATION:
+        	//Inspect this message to see if it's an intent or notification.
+        	NetIntentsClient.inspect(msg,getContext());
+        	break;
         default:
             Log.i(TAG, "Ignoring unknown message type from VM. " + msg.getType());
         }
