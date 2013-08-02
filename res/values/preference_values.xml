@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this work except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+<resources>
+    <!-- Preference keys -->
+    <string name="preferenceKey_sensors_minimumDelay">sensors_minimumDelay</string>
+    <string name="preferenceKey_sensor_accelerometer">sensor_accelerometer</string>
+    <string name="preferenceKey_sensor_ambientTemperature">sensor_ambientTemperature</string>
+    <string name="preferenceKey_sensor_gyroscope">sensor_gyroscope</string>
+    <string name="preferenceKey_sensor_light">sensor_light</string>
+    <string name="preferenceKey_sensor_magneticField">sensor_magneticField</string>
+    <string name="preferenceKey_sensor_pressure">sensor_pressure</string>
+    <string name="preferenceKey_sensor_proximity">sensor_proximity</string>
+    <string name="preferenceKey_sensor_relativeHumidity">sensor_relativeHumidity</string>
+    <string name="preferenceKey_sensor_temperature">sensor_temperature</string>
+    <string name="preferenceKey_sensor_gravity">sensor_gravity</string>
+    <string name="preferenceKey_sensor_linearAcceleration">sensor_linearAcceleration</string>
+    <string name="preferenceKey_sensor_orientation">sensor_orientation</string>
+    <string name="preferenceKey_sensor_rotationVector">sensor_rotationVector</string>
+    <string name="preferenceKey_interface_quickConnect_enabled">interface_quickConnect_enabled</string>
+    <string name="preferenceKey_interface_quickConnect_prefix">interface_quickConnect_prefix</string>
+
+    <!-- Preference value defaults -->
+    <string name="preferenceValue_sensors_minimumDelay">1000</string>
+    <string name="preferenceValue_sensor_accelerometer">true</string>
+    <string name="preferenceValue_sensor_ambientTemperature">true</string>
+    <string name="preferenceValue_sensor_gyroscope">false</string>
+    <string name="preferenceValue_sensor_light">true</string>
+    <string name="preferenceValue_sensor_magneticField">true</string>
+    <string name="preferenceValue_sensor_pressure">true</string>
+    <string name="preferenceValue_sensor_proximity">true</string>
+    <string name="preferenceValue_sensor_relativeHumidity">true</string>
+    <string name="preferenceValue_sensor_temperature">true</string>
+    <string name="preferenceValue_sensor_gravity">false</string>
+    <string name="preferenceValue_sensor_linearAcceleration">false</string>
+    <string name="preferenceValue_sensor_orientation">false</string>
+    <string name="preferenceValue_sensor_rotationVector">false</string>
+    <string name="preferenceValue_interface_quickConnect_enabled">true</string>
+    <string name="preferenceValue_interface_quickConnect_prefix">192.168.42.</string>
+    
+    <!-- Preference page elements -->
+    <string name="preferenceCategory_connectionPreferences_title">Connection Preferences</string>
+
+    <string name="preferenceScreen_sensors_title">Sensors</string>
+    <string name="preferenceScreen_sensors_summary">Control forwarding of sensor data</string>
+
+    <string name="editTextPreference_sensors_minimumDelay_title">Minimum update delay (μs)</string>
+    <string name="editTextPreference_sensors_minimumDelay_summary">Default: 1000μs (100Hz)</string>
+
+    <string name="preferenceCategory_physicalSensors">Physical Sensors</string>
+    <string name="preferenceCategory_virtualSensors_title">Virtual Sensors</string>
+
+    <string name="checkBoxPreference_sensor_accelerometer_title">Accelerometer</string>             <!-- physical -->
+    <string name="checkBoxPreference_sensor_ambientTemperature_title">Ambient Temperature</string>  <!-- physical -->
+    <string name="checkBoxPreference_sensor_gravity_title">Gravity</string>                         <!-- virtual -->
+    <string name="checkBoxPreference_sensor_gyroscope_title">Gyroscope</string>                     <!-- physical -->
+    <string name="checkBoxPreference_sensor_light_title">Light</string>                             <!-- physical -->
+    <string name="checkBoxPreference_sensor_linearAcceleration_title">Linear Acceleration</string>  <!-- virtual -->
+    <string name="checkBoxPreference_sensor_magneticField_title">Magnetic Field</string>            <!-- physical -->
+    <string name="checkBoxPreference_sensor_orientation_title">Orientation</string>                 <!-- virtual -->
+    <string name="checkBoxPreference_sensor_pressure_title">Pressure</string>                       <!-- physical -->
+    <string name="checkBoxPreference_sensor_proximity_title">Proximity</string>                     <!-- physical -->
+    <string name="checkBoxPreference_sensor_relativeHumidity_title">Relative Humidity</string>      <!-- physical -->
+    <string name="checkBoxPreference_sensor_rotationVector_title">Rotation Vector</string>          <!-- virtual -->
+    <string name="checkBoxPreference_sensor_temperature_title">Temperature</string>                 <!-- physical -->
+
+    <string name="preferenceCategory_developerPreferences_title">Developer Preferences</string>
+
+    <string name="preferenceScreen_interface_title">Interface</string>
+    <string name="preferenceScreen_interface_summary">Control UI for developer use</string>
+
+    <string name="preferenceCategory_connectionList_title">Connection List</string>
+
+    <string name="editTextPreference_interface_quickConnect_prefix_title">Quick Connect prefix</string>
+    <string name="editTextPreference_interface_quickConnect_prefix_summary">Default: 192.168.42.</string>
+
+    <string name="checkBoxPreference_interface_quickConnect_enabled_title">Use Quick Connect</string>
+</resources>

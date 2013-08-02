@@ -1,18 +1,18 @@
 /*
-Copyright 2013 The MITRE Corporation, All Rights Reserved.
+ Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this work except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this work except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package org.mitre.svmp.client;
 
 import java.lang.ref.WeakReference;
@@ -22,12 +22,14 @@ import java.util.List;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
+import android.preference.PreferenceManager;
 import org.mitre.svmp.AuthData;
 import org.mitre.svmp.Constants;
 import org.mitre.svmp.RemoteServerClient;
@@ -65,10 +67,10 @@ public class ClientTestView extends TestEventView implements Constants {
     private ClientSideActivityDirect clientActivity;
 
     // track timestamp of the last update of each sensor we are tracking
-    private long[] lastSensorUpdate = new long[SvmpSensors.MAX_SENSOR_TYPE+1];
+    private long[] lastSensorUpdate = new long[PREFERENCES_SENSORS_KEYS.length + 1];
 
     // minimum allowed time between sensor updates in nanoseconds
-    private static final long MIN_SENSOR_INTERVAL = (1000 / 500) * 1000000; // 50Hz
+    private long minimumSensorDelay;
 
     // Protocol connection states
     private int protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
@@ -100,6 +102,14 @@ public class ClientTestView extends TestEventView implements Constants {
     public void startClient(ClientSideActivityDirect clientActivity, final String host, final int port,
                             final int encryptionType) {
         this.clientActivity = clientActivity;
+
+        // get preferences to determine which sensors we should listen to
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(clientActivity);
+
+        this.minimumSensorDelay = Utility.getPrefInt(clientActivity,
+                R.string.preferenceKey_sensors_minimumDelay, R.string.preferenceValue_sensors_minimumDelay);
+        this.minimumSensorDelay *=  1000; // convert microseconds to nanoseconds
+
     	try {
         	protocolState = PROTOCOLSTATE_UNAUTHENTICATED;
             this.client = new RemoteServerClient(new MessageCallback(this),getContext(),host,port,encryptionType);
@@ -174,7 +184,7 @@ public class ClientTestView extends TestEventView implements Constants {
 
 		int type = event.sensor.getType();
 
-		if (event.timestamp < lastSensorUpdate[type] + MIN_SENSOR_INTERVAL)
+		if (event.timestamp < lastSensorUpdate[type] + getScaledMinDelay(type-1))
 			return;
 		lastSensorUpdate[type] = event.timestamp;
 
@@ -282,6 +292,15 @@ public class ClientTestView extends TestEventView implements Constants {
         this.yScaleFactor = (float)toY/(float)getHeight();
         this.yScaleFactor = (float)toY/(float)getHeight();
         Log.i(TAG, "Scalefactor: (" + xScaleFactor + "," + yScaleFactor + ")");
+    }
+
+    private long getScaledMinDelay(int index) {
+        long delay = minimumSensorDelay;
+
+        if( SENSOR_MINIMUM_UPDATE_SCALES.length > index && index >= 0 )
+            delay *= index;
+
+        return delay;
     }
 
     private boolean handleAuthenticationResponse(SVMPProtocol.Response msg) {

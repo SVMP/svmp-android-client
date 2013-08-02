@@ -1,23 +1,26 @@
 /*
-Copyright 2013 The MITRE Corporation, All Rights Reserved.
+ Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this work except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this work except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package org.mitre.svmp;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationProvider;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationUpdate;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -29,6 +32,37 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
  * @author David Schoenheit, Joe Portner
  */
 public class Utility {
+    public static String getPrefString(Context context, int keyId, int defaultValueId) {
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        String key = context.getString(keyId);
+        String defaultValue = context.getString(defaultValueId);
+
+        return sharedPreferences.getString(key, defaultValue);
+    }
+
+    public static int getPrefInt(Context context, int keyId, int defaultValueId) {
+        String prefString = getPrefString(context, keyId, defaultValueId);
+
+        int value = 0;
+        try {
+            value = Integer.parseInt(prefString);
+        } catch( Exception e ) { /* don't care */ }
+
+        return value;
+    }
+
+    public static boolean getPrefBool(Context context, int keyId, int defaultValueId) {
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        String key = context.getString(keyId);
+        boolean defaultValue = false;
+        try {
+            defaultValue = Boolean.parseBoolean(context.getString(defaultValueId));
+        } catch( Exception e ) { /* don't care */ }
+
+        return sharedPreferences.getBoolean(key, defaultValue);
+    }
+
 	public static LocationProviderInfo toLocationProviderInfo(LocationProvider provider) {
 		// create a LocationProviderInfo Builder
 		LocationProviderInfo.Builder lpiBuilder = LocationProviderInfo.newBuilder()

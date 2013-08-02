@@ -13,26 +13,21 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp.widgets;
+package org.mitre.svmp;
 
-import android.content.Context;
-import org.mitre.svmp.ConnectionInfo;
+import android.app.Activity;
+import android.os.Bundle;
+import android.preference.PreferenceActivity;
+import org.mitre.svmp.client.R;
 
 /**
  * @author Joe Portner
  */
-public class ConnectionInfoArrayAdapter extends TwoLineArrayAdapter<ConnectionInfo> {
-    public ConnectionInfoArrayAdapter(Context context, ConnectionInfo[] connectionInfos) {
-        super(context, connectionInfos);
-    }
+public class SvmpPreferences extends PreferenceActivity {
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-    @Override
-    public String lineOneText(ConnectionInfo connectionInfo) {
-        return connectionInfo.toString();
-    }
-
-    @Override
-    public String lineTwoText(ConnectionInfo connectionInfo) {
-        return connectionInfo.toString2();
+        // deprecated in API 11
+        addPreferencesFromResource(R.xml.preferences);
     }
 }

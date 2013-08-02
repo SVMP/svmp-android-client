@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Copyright 2013 The MITRE Corporation, All Rights Reserved.
+  Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this work except in compliance with the License.
@@ -14,12 +14,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
   -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <gradient
-            android:startColor="#333"
-            android:centerColor="#222"
-            android:endColor="#fff"
-            android:angle="270"/>
-    <corners android:radius="5dp" />
-</shape>
-
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/preferences"
+        android:title="@string/menu_title_preferences"
+        />
+</menu>

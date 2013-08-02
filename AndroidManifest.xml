@@ -48,6 +48,8 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name="org.mitre.svmp.SvmpPreferences"/>
+        <activity android:name="org.mitre.svmp.SvmpActivity"/>
     </application>
     
     <uses-permission android:name="android.permission.CAMERA" />

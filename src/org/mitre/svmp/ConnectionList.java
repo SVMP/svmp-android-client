@@ -1,26 +1,26 @@
 /*
  Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this work except in compliance with the License.
-  You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this work except in compliance with the License.
+ You may obtain a copy of the License at
 
-      http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
  */
 package org.mitre.svmp;
 
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.InputType;
 import android.util.Log;
@@ -38,13 +38,14 @@ import java.util.List;
 /**
  * @author Joe Portner & David Schoenheit
  */
-public class ConnectionList extends Activity implements Constants {
+public class ConnectionList extends SvmpActivity implements Constants {
     private static String TAG = ConnectionList.class.getName();
     private static final int REQUESTCODE_VIDEO = 100;
     private static final int REQUESTCODE_CONNECTIONDETAILS = 101;
 
     private DatabaseHandler dbHandler;
     private List<ConnectionInfo> connectionInfoList;
+    private LinearLayout quickConnect_layout;
     private ListView listView;
 
     public void onCreate(Bundle savedInstanceState) {
@@ -57,15 +58,16 @@ public class ConnectionList extends Activity implements Constants {
         dbHandler = new DatabaseHandler(this);
 
         // get views
+        quickConnect_layout = (LinearLayout)findViewById(R.id.connectionList_layout_quickConnect);
         listView = (ListView)findViewById(R.id.connectionList_listView_connections);
 
         // create listeners for buttons
-        Button temporaryView = (Button) findViewById(R.id.connectionList_button_temporary),
-                newView = (Button) findViewById(R.id.connectionList_button_new),
-                exitView = (Button) findViewById(R.id.connectionList_button_exit);
-        temporaryView.setOnClickListener(temporaryHandler);
-        newView.setOnClickListener(newHandler);
-        exitView.setOnClickListener(exitHandler);
+        Button quickConnect_button = (Button) findViewById(R.id.connectionList_button_quickConnect),
+                new_button = (Button) findViewById(R.id.connectionList_button_new),
+                exit_button = (Button) findViewById(R.id.connectionList_button_exit);
+        quickConnect_button.setOnClickListener(quickConnectHandler);
+        new_button.setOnClickListener(newHandler);
+        exit_button.setOnClickListener(exitHandler);
 
         // create listeners for ListView
         listView.setOnItemClickListener( new AdapterView.OnItemClickListener() {
@@ -81,28 +83,33 @@ public class ConnectionList extends Activity implements Constants {
         });
         registerForContextMenu(listView);
 
+        // change layout depending on preferences
+        refreshPreferences();
+
         // populate the ListView
         populateConnections();
     }
 
     // connect now button is clicked (temporary, for development use)
-    View.OnClickListener temporaryHandler = new View.OnClickListener() {
+    View.OnClickListener quickConnectHandler = new View.OnClickListener() {
         public void onClick(View v) {
 
             // Check preferences
             final SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
-            final String tempSubnet = "192.168.42.";
-            final String tempHostOctet = settings.getString("tempHostOctet", "");
+            final String quickConnectPrefix = Utility.getPrefString(ConnectionList.this,
+                    R.string.preferenceKey_interface_quickConnect_prefix,
+                    R.string.preferenceValue_interface_quickConnect_prefix);
+            final String quickConnectSuffix = settings.getString("quickConnectSuffix", "");
 
             // create the password input
             final EditText input = new EditText(ConnectionList.this);
             input.setInputType(InputType.TYPE_CLASS_NUMBER);
-            input.setText(tempHostOctet);
+            input.setText(quickConnectSuffix);
 
             // show a dialog
             new AlertDialog.Builder(ConnectionList.this)
                     .setTitle("Enter last octet of IP")
-                    .setMessage(tempSubnet)
+                    .setMessage(quickConnectPrefix)
                     .setView(input)
                     .setPositiveButton("Submit", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int whichButton) {
@@ -111,14 +118,14 @@ public class ConnectionList extends Activity implements Constants {
 
                             // save value in preferences
                             SharedPreferences.Editor editor = settings.edit();
-                            editor.putString("tempHostOctet", value.toString());
+                            editor.putString("quickConnectSuffix", value.toString());
                             editor.commit();
 
                             startVideo(
                                     new ConnectionInfo(
                                             "FAKEDESCRIPTION",
                                             "FAKEUSERNAME",
-                                            tempSubnet + value.toString(),
+                                            quickConnectPrefix + value.toString(),
                                             DEFAULT_PORT,
                                             DEFAULT_ENCRYPTION_TYPE ),
                                     "FAKEPASSWORD");
@@ -253,6 +260,18 @@ public class ConnectionList extends Activity implements Constants {
     }
     // overload, starts a ConnectionDetails activity for creating a new connection
     private void startConnectionDetails() { startConnectionDetails(0); }
+
+    // called onResume so preference changes take effect in the layout
+    @Override
+    protected void refreshPreferences() {
+        // get preferences
+        boolean quickConnectEnabled = Utility.getPrefBool(this,
+                R.string.preferenceKey_interface_quickConnect_enabled,
+                R.string.preferenceValue_interface_quickConnect_enabled);
+
+        // change layout depending on preferences
+        quickConnect_layout.setVisibility( quickConnectEnabled ? View.VISIBLE : View.GONE);
+    }
 
     // queries the database for the list of connections and populates the ListView in the layout
     private void populateConnections() {

@@ -3,22 +3,35 @@
 <!--
   Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this work except in compliance with the License.
-   You may obtain a copy of the License at
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this work except in compliance with the License.
+  You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+      http://www.apache.org/licenses/LICENSE-2.0
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
   -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
               android:layout_width="match_parent"
               android:layout_height="match_parent">
+
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/connectionList_layout_quickConnect">
+        <TextView android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionList_button_quickConnect_text"
+                android:id="@+id/connectionList_button_quickConnect" android:layout_gravity="center_horizontal" android:layout_weight="2.0"
+                android:textSize="@dimen/textSize_large"
+            />
+        <TextView android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+    </LinearLayout>
 
     <TextView
             android:layout_width="wrap_content"
@@ -26,17 +39,6 @@
             android:text="@string/connectionList_textView_title_text"
             android:layout_gravity="center_horizontal"
             android:textSize="@dimen/textSize_xlarge"/>
-
-    <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content">
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.0" />
-        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionList_button_temporary_text"
-                android:id="@+id/connectionList_button_temporary" android:layout_gravity="center_horizontal" android:layout_weight="2.0"
-                android:textSize="@dimen/textSize_large"/>
-        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.0" />
-    </LinearLayout>
 
     <ListView
             android:layout_width="fill_parent"

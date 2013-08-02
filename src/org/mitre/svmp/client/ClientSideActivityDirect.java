@@ -1,34 +1,30 @@
 /*
-Copyright 2013 The MITRE Corporation, All Rights Reserved.
+ Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this work except in compliance with the License.
-You may obtain a copy of the License at
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this work except in compliance with the License.
+ You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+     http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package org.mitre.svmp.client;
 
-import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.IntentAction;
-import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
+import android.content.*;
+import android.preference.PreferenceManager;
+import org.mitre.svmp.Constants;
+import org.mitre.svmp.Utility;
 import org.webrtc.videoengine.ViERenderer;
 import org.webrtc.videoengineapp.IViEAndroidCallback;
 import org.webrtc.videoengineapp.ViEAndroidJavaAPI;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -37,32 +33,18 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.media.AudioManager;
-import android.media.MediaPlayer;
-import android.media.MediaPlayer.OnPreparedListener;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.PowerManager;
-import android.os.PowerManager.WakeLock;
 import android.util.Log;
 import android.view.OrientationEventListener;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.widget.RadioGroup;
-import android.widget.Spinner;
-import android.widget.TabHost;
-import android.widget.TextView;
-import android.widget.TabHost.TabSpec;
 import android.net.wifi.WifiManager;
 import android.net.wifi.WifiManager.WifiLock;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -81,7 +63,7 @@ import java.util.Timer;
  */
 
 public class ClientSideActivityDirect extends Activity implements 
-SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
+SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback, Constants {
 
 	protected static final String TAG = ClientSideActivityDirect.class.getName();
 	private ClientTestView view;
@@ -100,7 +82,7 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 
 	private LocationManager lm;
 	
-	private List<Sensor> registeredSensors = new ArrayList<Sensor>(SvmpSensors.MAX_SENSOR_TYPE);
+	private List<Sensor> registeredSensors = new ArrayList<Sensor>(PREFERENCES_SENSORS_KEYS.length);
 	
 	private boolean videostarted=false;
 
@@ -227,25 +209,15 @@ SensorEventListener, SurfaceHolder.Callback, IViEAndroidCallback {
 	private void initsensors() {
 		Log.d(TAG, "startClient started registering listener");
 
-		initSensor(SvmpSensors.TYPE_ACCELEROMETER);
-		initSensor(SvmpSensors.TYPE_AMBIENT_TEMPERATURE);
-		initSensor(SvmpSensors.TYPE_GRAVITY);
-		initSensor(SvmpSensors.TYPE_GYROSCOPE);
-		initSensor(SvmpSensors.TYPE_LIGHT);
-		initSensor(SvmpSensors.TYPE_LINEAR_ACCELERATION);
-		initSensor(SvmpSensors.TYPE_MAGNETIC_FIELD);
-		initSensor(SvmpSensors.TYPE_ORIENTATION);
-		initSensor(SvmpSensors.TYPE_PRESSURE);
-		initSensor(SvmpSensors.TYPE_PROXIMITY);
-		initSensor(SvmpSensors.TYPE_RELATIVE_HUMIDITY);
-		initSensor(SvmpSensors.TYPE_ROTATION_VECTOR);
-		initSensor(SvmpSensors.TYPE_TEMPERATURE);
-		
-		// Virtual sensors created from inputs of others
-		//   TYPE_GRAVITY
-		//   TYPE_LINEAR_ACCELERATION
-		//   TYPE_ORIENTATION
-		//   TYPE_ROTATION_VECTOR
+        // get preferences to determine which sensors we should listen to
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        // loop through preferences...
+        for( int i = 0; i < PREFERENCES_SENSORS_KEYS.length; i++ ) {
+            // if this sensor is enabled in the preferences, register a listener for it
+            if( Utility.getPrefBool(this, PREFERENCES_SENSORS_KEYS[i], PREFERENCES_SENSORS_DEFAULTVALUES[i]) )
+                initSensor(i+1); // sensors start at 1, not 0
+        }
 	}
 	
 	private boolean initSensor(int type) {

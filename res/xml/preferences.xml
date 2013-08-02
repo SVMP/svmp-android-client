@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) 2013 The MITRE Corporation, All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this work except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory
+        android:title="@string/preferenceCategory_connectionPreferences_title"
+        >
+        <PreferenceScreen
+            android:title="@string/preferenceScreen_sensors_title"
+            android:summary="@string/preferenceScreen_sensors_summary"
+            >
+            <EditTextPreference
+                android:key="@string/preferenceKey_sensors_minimumDelay"
+                android:title="@string/editTextPreference_sensors_minimumDelay_title"
+                android:summary="@string/editTextPreference_sensors_minimumDelay_summary"
+                android:defaultValue="@string/preferenceValue_sensors_minimumDelay"
+                android:numeric="integer"
+                />
+            <PreferenceCategory
+                android:title="@string/preferenceCategory_physicalSensors"
+                >
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_accelerometer"
+                    android:title="@string/checkBoxPreference_sensor_accelerometer_title"
+                    android:defaultValue="@string/preferenceValue_sensor_accelerometer"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_ambientTemperature"
+                    android:title="@string/checkBoxPreference_sensor_ambientTemperature_title"
+                    android:defaultValue="@string/preferenceValue_sensor_ambientTemperature"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_gyroscope"
+                    android:title="@string/checkBoxPreference_sensor_gyroscope_title"
+                    android:defaultValue="@string/preferenceValue_sensor_gyroscope"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_light"
+                    android:title="@string/checkBoxPreference_sensor_light_title"
+                    android:defaultValue="@string/preferenceValue_sensor_light"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_magneticField"
+                    android:title="@string/checkBoxPreference_sensor_magneticField_title"
+                    android:defaultValue="@string/preferenceValue_sensor_magneticField"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_pressure"
+                    android:title="@string/checkBoxPreference_sensor_pressure_title"
+                    android:defaultValue="@string/preferenceValue_sensor_pressure"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_proximity"
+                    android:title="@string/checkBoxPreference_sensor_proximity_title"
+                    android:defaultValue="@string/preferenceValue_sensor_proximity"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_relativeHumidity"
+                    android:title="@string/checkBoxPreference_sensor_relativeHumidity_title"
+                    android:defaultValue="@string/preferenceValue_sensor_relativeHumidity"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_temperature"
+                    android:title="@string/checkBoxPreference_sensor_temperature_title"
+                    android:defaultValue="@string/preferenceValue_sensor_temperature"
+                    />
+            </PreferenceCategory>
+            <PreferenceCategory
+                android:title="@string/preferenceCategory_virtualSensors_title"
+                >
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_gravity"
+                    android:title="@string/checkBoxPreference_sensor_gravity_title"
+                    android:defaultValue="@string/preferenceValue_sensor_gravity"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_linearAcceleration"
+                    android:title="@string/checkBoxPreference_sensor_linearAcceleration_title"
+                    android:defaultValue="@string/preferenceValue_sensor_linearAcceleration"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_orientation"
+                    android:title="@string/checkBoxPreference_sensor_orientation_title"
+                    android:defaultValue="@string/preferenceValue_sensor_orientation"
+                    />
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_sensor_rotationVector"
+                    android:title="@string/checkBoxPreference_sensor_rotationVector_title"
+                    android:defaultValue="@string/preferenceValue_sensor_rotationVector"
+                    />
+            </PreferenceCategory>
+        </PreferenceScreen>
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:title="@string/preferenceCategory_developerPreferences_title"
+        >
+        <PreferenceScreen
+            android:title="@string/preferenceScreen_interface_title"
+            android:summary="@string/preferenceScreen_interface_summary"
+            >
+            <PreferenceCategory
+                android:title="@string/preferenceCategory_connectionList_title"
+                >
+                <CheckBoxPreference
+                    android:key="@string/preferenceKey_interface_quickConnect_enabled"
+                    android:title="@string/checkBoxPreference_interface_quickConnect_enabled_title"
+                    android:defaultValue="@string/preferenceValue_interface_quickConnect_enabled"
+                    />
+                <EditTextPreference
+                    android:key="@string/preferenceKey_interface_quickConnect_prefix"
+                    android:title="@string/editTextPreference_interface_quickConnect_prefix_title"
+                    android:summary="@string/editTextPreference_interface_quickConnect_prefix_summary"
+                    android:dependency="interface_quickConnect_enabled"
+                    android:defaultValue="@string/preferenceValue_interface_quickConnect_prefix"
+                    />
+            </PreferenceCategory>
+        </PreferenceScreen>
+    </PreferenceCategory>
+</PreferenceScreen>
