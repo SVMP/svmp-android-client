@@ -20,7 +20,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.text.Editable;
 import android.text.InputType;
 import android.util.Log;
@@ -29,7 +28,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.*;
-import org.mitre.svmp.client.ClientSideActivityDirect;
+
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.widgets.ConnectionInfoArrayAdapter;
 
@@ -235,7 +234,8 @@ public class ConnectionList extends SvmpActivity implements Constants {
         AuthData.init(connectionInfo.getUsername(), password);
 
         // create explicit intent
-        Intent intent = new Intent(ConnectionList.this, ClientSideActivityDirect.class);
+        //Intent intent = new Intent(ConnectionList.this, ClientSideActivityDirect.class);
+        Intent intent = new Intent(ConnectionList.this, AppRTCDemoActivity.class);
 
         // add data to intent
         intent.putExtra("host", connectionInfo.getHost());

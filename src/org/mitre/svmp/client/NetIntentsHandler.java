@@ -15,7 +15,7 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
-import org.mitre.svmp.client.ClientTestView;
+import org.mitre.svmp.AppRTCDemoActivity;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
@@ -30,7 +30,7 @@ import android.net.Uri;
 import android.os.Looper;
 import android.widget.Toast;
 
-public class NetIntentsClient
+public class NetIntentsHandler
 {
 	public static final String TAG = "NetIntentsClient";
 	
@@ -64,7 +64,7 @@ public class NetIntentsClient
 			toast("Notification received!",context);
 	    	    
 	    	//Build intents.
-	        Intent inner_intent = new Intent(context, ClientTestView.class);
+	        Intent inner_intent = new Intent(context, AppRTCDemoActivity.class);
 	        PendingIntent pIntent = PendingIntent.getActivity(context, 0, inner_intent, 0);
 	        
 	        //Decode image
@@ -77,7 +77,7 @@ public class NetIntentsClient
 	            .setContentText(notification.getContentText())
 	            .setSmallIcon(R.drawable.logo)
 	            .setLargeIcon(bmp.copy(Bitmap.Config.ARGB_8888, true))
-	            .setContentIntent(pIntent).build();
+	            .setContentIntent(pIntent).getNotification();
 	        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 	            
 	        // Hide the notification after its selected.

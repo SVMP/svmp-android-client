@@ -15,7 +15,7 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
-import org.mitre.svmp.RemoteServerClient;
+//import org.mitre.svmp.RemoteServerClient;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.IntentAction;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
@@ -41,7 +41,7 @@ public class SendNetIntent extends Activity
 		//Set the Request message params and send it off.
 		msg.setType(RequestType.INTENT);
 		msg.setIntent(intentProtoBuffer.build());
-		RemoteServerClient.sendMessage(msg.build());
+//		RemoteServerClient.sendMessage(msg.build());
 		
 		finish();
 	}
