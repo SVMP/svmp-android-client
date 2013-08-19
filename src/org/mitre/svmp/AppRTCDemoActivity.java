@@ -245,43 +245,43 @@ public class AppRTCDemoActivity extends Activity
       vsv.postDelayed(repeatedStatsLogger, 10000);
     }
 
-    {
-      logAndToast("Creating local video source...");
-      VideoCapturer capturer = getVideoCapturer();
-      VideoSource videoSource = factory.createVideoSource(
-          capturer, appRtcClient.videoConstraints());
-      MediaStream lMS = factory.createLocalMediaStream("ARDAMS");
-      VideoTrack videoTrack = factory.createVideoTrack("ARDAMSv0", videoSource);
-      videoTrack.addRenderer(new VideoRenderer(new VideoCallbacks(
-          vsv, VideoStreamsView.Endpoint.LOCAL)));
-      lMS.addTrack(videoTrack);
-      lMS.addTrack(factory.createAudioTrack("ARDAMSa0"));
-      pc.addStream(lMS, new MediaConstraints());
-    }
+//    {
+//      logAndToast("Creating local video source...");
+//      VideoCapturer capturer = getVideoCapturer();
+//      VideoSource videoSource = factory.createVideoSource(
+//          capturer, appRtcClient.videoConstraints());
+//      MediaStream lMS = factory.createLocalMediaStream("ARDAMS");
+//      VideoTrack videoTrack = factory.createVideoTrack("ARDAMSv0", videoSource);
+//      videoTrack.addRenderer(new VideoRenderer(new VideoCallbacks(
+//          vsv, VideoStreamsView.Endpoint.LOCAL)));
+//      lMS.addTrack(videoTrack);
+//      lMS.addTrack(factory.createAudioTrack("ARDAMSa0"));
+//      pc.addStream(lMS, new MediaConstraints());
+//    }
     logAndToast("Waiting for ICE candidates...");
   }
 
-  // Cycle through likely device names for the camera and return the first
-  // capturer that works, or crash if none do.
-  private VideoCapturer getVideoCapturer() {
-    String[] cameraFacing = { "front", "back" };
-    int[] cameraIndex = { 0, 1 };
-    int[] cameraOrientation = { 0, 90, 180, 270 };
-    for (String facing : cameraFacing) {
-      for (int index : cameraIndex) {
-        for (int orientation : cameraOrientation) {
-          String name = "Camera " + index + ", Facing " + facing +
-              ", Orientation " + orientation;
-          VideoCapturer capturer = VideoCapturer.create(name);
-          if (capturer != null) {
-            logAndToast("Using camera: " + name);
-            return capturer;
-          }
-        }
-      }
-    }
-    throw new RuntimeException("Failed to open capturer");
-  }
+//  // Cycle through likely device names for the camera and return the first
+//  // capturer that works, or crash if none do.
+//  private VideoCapturer getVideoCapturer() {
+//    String[] cameraFacing = { "front", "back" };
+//    int[] cameraIndex = { 0, 1 };
+//    int[] cameraOrientation = { 0, 90, 180, 270 };
+//    for (String facing : cameraFacing) {
+//      for (int index : cameraIndex) {
+//        for (int orientation : cameraOrientation) {
+//          String name = "Camera " + index + ", Facing " + facing +
+//              ", Orientation " + orientation;
+//          VideoCapturer capturer = VideoCapturer.create(name);
+//          if (capturer != null) {
+//            logAndToast("Using camera: " + name);
+//            return capturer;
+//          }
+//        }
+//      }
+//    }
+//    throw new RuntimeException("Failed to open capturer");
+//  }
 
   @Override
   public void onDestroy() {

@@ -107,21 +107,21 @@ public class VideoStreamsView
 
   // Upload the planes from |framesToRender| to the textures owned by this View.
   private void updateFrames() {
-    I420Frame localFrame = null;
+//    I420Frame localFrame = null;
     I420Frame remoteFrame = null;
     synchronized (framesToRender) {
-      localFrame = framesToRender.remove(Endpoint.LOCAL);
+//      localFrame = framesToRender.remove(Endpoint.LOCAL);
       remoteFrame = framesToRender.remove(Endpoint.REMOTE);
     }
-    if (localFrame != null) {
-      texImage2D(localFrame, yuvTextures[0]);
-      framePool.returnFrame(localFrame);
-    }
+//    if (localFrame != null) {
+//      texImage2D(localFrame, yuvTextures[0]);
+//      framePool.returnFrame(localFrame);
+//    }
     if (remoteFrame != null) {
       texImage2D(remoteFrame, yuvTextures[1]);
       framePool.returnFrame(remoteFrame);
     }
-    abortUnless(localFrame != null || remoteFrame != null,
+    abortUnless(/*localFrame != null || */remoteFrame != null,
                 "Nothing to render!");
     requestRender();
   }
@@ -167,7 +167,7 @@ public class VideoStreamsView
   public void onDrawFrame(GL10 unused) {
     GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
     drawRectangle(yuvTextures[1], remoteVertices);
-    drawRectangle(yuvTextures[0], localVertices);
+//    drawRectangle(yuvTextures[0], localVertices);
     ++numFramesSinceLastLog;
     long now = System.nanoTime();
     if (lastFPSLogTime == -1 || now - lastFPSLogTime > 1e9) {
