@@ -11,6 +11,7 @@ apply plugin: 'android'
 dependencies {
 	/*compile files('libs/svmp-protocol.jar','libs/armeabi-v7a/libwebrtc-video-demo-jni.so')*/
 	compile project(':svmp-protocol-def')
+	compile files('libs/libjingle_peerconnection.jar')
 }
 
 tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
