@@ -53,9 +53,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.location.Location;
-import android.location.LocationListener;
-import android.location.LocationManager;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.PowerManager;
@@ -100,7 +97,7 @@ import java.util.List;
  * Main Activity of the SVMP Android client application.
  */
 public class AppRTCDemoActivity extends Activity
-    implements SVMPAppRTCClient.IceServersObserver, SensorEventListener, LocationListener {
+    implements SVMPAppRTCClient.IceServersObserver, SensorEventListener {
     
   private static final String TAG = "AppRTCDemoActivity";
   
@@ -162,7 +159,7 @@ public class AppRTCDemoActivity extends Activity
     
     touchHandler = new TouchHandler(this, displaySize);
     sensorHandler = new SensorHandler(this);
-//    locationHandler = new LocationHandler(this);
+    locationHandler = new LocationHandler(this);
     
     abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
         "Failed to initializeAndroidGlobals");
@@ -311,7 +308,7 @@ public class AppRTCDemoActivity extends Activity
   }
   
   public void sendMessage(Request msg) {
-      appRtcClient.sendMessage(msg);
+    appRtcClient.sendMessage(msg);
   }
 
   // Put a |key|->|value| mapping in |json|.
@@ -468,6 +465,7 @@ public class AppRTCDemoActivity extends Activity
       connected = true;
       touchHandler.sendScreenInfoMessage();
       sensorHandler.initSensors();
+      locationHandler.initLocationUpdates();
       
       logAndToast("Creating offer...");
       pc.createOffer(sdpObserver, sdpMediaConstraints);
@@ -476,16 +474,17 @@ public class AppRTCDemoActivity extends Activity
     public void onMessage(Response data) {
       switch (data.getType()) {
       case SCREENINFO:
-          handleScreenInfo(data);
+        handleScreenInfo(data);
+        break;
       case LOCATION:
-          handleLocationResponse(data);
-          break;
-          // This is an ACK to the video STOP request.
+        handleLocationResponse(data);
+        break;
+        // This is an ACK to the video STOP request.
       case INTENT:
       case NOTIFICATION:
-          //Inspect this message to see if it's an intent or notification.
-          NetIntentsHandler.inspect(data, AppRTCDemoActivity.this);
-          break;
+        //Inspect this message to see if it's an intent or notification.
+        NetIntentsHandler.inspect(data, AppRTCDemoActivity.this);
+        break;
       case WEBRTC:
         try {
           JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
@@ -666,34 +665,10 @@ public class AppRTCDemoActivity extends Activity
   // Bridge LocationListener callbacks to the Location Handler
   /////////////////////////////////////////////////////////////////////
   private void handleLocationResponse(Response msg) {
-//      locationHandler.handleLocationResponse(msg);
+    locationHandler.handleLocationResponse(msg);
   }
   
   public LocationManager getLocationManager() {
     return (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-  }
-  
-  @Override
-  public void onLocationChanged(Location location) {
-    if (connected)
-      locationHandler.onLocationChanged(location);
-  }
-
-  @Override
-  public void onProviderDisabled(String provider) {
-    if (connected)
-      locationHandler.onProviderDisabled(provider);
-  }
-    
-  @Override
-  public void onProviderEnabled(String provider) {
-    if (connected)
-      locationHandler.onProviderEnabled(provider);
-  }
-    
-  @Override
-  public void onStatusChanged(String provider, int status, Bundle extras) {
-    if (connected)
-      locationHandler.onStatusChanged(provider, status, extras);
   }
 }

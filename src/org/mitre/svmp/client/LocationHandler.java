@@ -15,20 +15,6 @@
  */
 package org.mitre.svmp.client;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Utility;
-import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationResponse;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationSubscribe;
-import org.mitre.svmp.protocol.SVMPProtocol.LocationUnsubscribe;
-import org.mitre.svmp.protocol.SVMPProtocol.Request;
-import org.mitre.svmp.protocol.SVMPProtocol.Response;
-
 import android.content.Context;
 import android.location.Location;
 import android.location.LocationListener;
@@ -37,10 +23,21 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
+import org.mitre.svmp.AppRTCDemoActivity;
+import org.mitre.svmp.Utility;
+import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.*;
 
-public class LocationHandler implements LocationListener {
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+
+/**
+ * @author Joe Portner
+ */
+public class LocationHandler {
     private static final String TAG = LocationHandler.class.getName();
-    
+
     private AppRTCDemoActivity activity;
     private LocationManager lm;
 
@@ -49,18 +46,19 @@ public class LocationHandler implements LocationListener {
 
     public LocationHandler(AppRTCDemoActivity activity) {
         this.activity = activity;
-        lm = activity.getLocationManager();
+        lm = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
     }
-    
+
     public void removeLUpdates(String provider) {
         if( locationListeners.containsKey(provider) )
             lm.removeUpdates(locationListeners.get(provider));
     }
-    
-    private void initLocationUpdates() {
+
+    public void initLocationUpdates() {
+        sendLocationProviderMessages();
     }
-    
-    private void cleanupLocationUpdates(){
+
+    public void cleanupLocationUpdates(){
         // loop through location listeners and remove subscriptions for each one
         Iterator it = locationListeners.entrySet().iterator();
         while (it.hasNext()) {
@@ -69,7 +67,7 @@ public class LocationHandler implements LocationListener {
             it.remove(); // avoids a ConcurrentModificationException
         }
     }
-    
+
     protected SVMPLocationListener getListenerSingle(String provider) {
         // generate a unique name for this key (each single subscription is disposed after receiving one update)
         String uniqueName = provider + String.format("%.3f",  System.currentTimeMillis() / 1000.0);
@@ -87,7 +85,7 @@ public class LocationHandler implements LocationListener {
 
         return locationListeners.get(provider);
     }
-    
+
     // called when a LocationListener triggers, converts the data and sends it to the VM
     public void onLocationChanged(Location location) {
 
@@ -97,7 +95,7 @@ public class LocationHandler implements LocationListener {
         // send the Request to the VM
         activity.sendMessage(request);
     }
-    
+
     // called when a onProviderEnabled or onProviderDisabled triggers, converts the data and sends it to the VM
     public void onProviderEnabled(String s, boolean isEnabled) {
         SVMPProtocol.LocationProviderEnabled providerEnabled = Utility.toLocationProviderEnabled(s, isEnabled);
@@ -106,7 +104,7 @@ public class LocationHandler implements LocationListener {
         // send the Request to the VM
         activity.sendMessage(request);
     }
-    
+
     // called when a onStatusChanged triggers, converts the data and sends it to the VM
     public void onStatusChanged(String s, int i, Bundle bundle) {
         SVMPProtocol.LocationProviderStatus providerStatus = Utility.toLocationProviderStatus(s, i, bundle);
@@ -115,7 +113,7 @@ public class LocationHandler implements LocationListener {
         // send the Request to the VM
         activity.sendMessage(request);
     }
-    
+
     private void sendLocationProviderMessages() {
         // loop through all location providers
         List<String> providerNames = lm.getAllProviders();
@@ -132,7 +130,7 @@ public class LocationHandler implements LocationListener {
             }
         }
     }
-    
+
     public void handleLocationResponse(Response response) {
         LocationResponse locationResponse = response.getLocationResponse();
 
@@ -170,8 +168,6 @@ public class LocationHandler implements LocationListener {
         }
     }
 
-
-    
     class SVMPLocationListener implements LocationListener {
 
         private String key;
@@ -185,7 +181,7 @@ public class LocationHandler implements LocationListener {
         @Override
         public void onLocationChanged(Location location) {
             Log.d(TAG, "onLocationChanged: Provider(" + location.getProvider() + "), singleShot(" + singleShot + "), " + location.toString());
-            onLocationChanged(location);
+            LocationHandler.this.onLocationChanged(location);
 
             // if this is a singleshot update, we don't need this listener anymore; remove it
             if( singleShot ) {
@@ -211,19 +207,5 @@ public class LocationHandler implements LocationListener {
             Log.d(TAG, "onProviderDisabled: Provider(" + s + ")");
             LocationHandler.this.onProviderEnabled(s, false);
         }
-    }
-
-
-
-    @Override
-    public void onProviderDisabled(String provider) {
-        // TODO Auto-generated method stub
-        
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-        // TODO Auto-generated method stub
-        
     }
 }
