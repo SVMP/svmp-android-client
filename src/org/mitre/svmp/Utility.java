@@ -26,6 +26,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.LocationUpdate;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderEnabled;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderStatus;
+import org.mitre.svmp.protocol.SVMPProtocol.RotationInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
 /**
@@ -63,7 +64,7 @@ public class Utility {
         return sharedPreferences.getBoolean(key, defaultValue);
     }
 
-	public static LocationProviderInfo toLocationProviderInfo(LocationProvider provider) {
+	public static Request toRequest_LocationProviderInfo(LocationProvider provider) {
 		// create a LocationProviderInfo Builder
 		LocationProviderInfo.Builder lpiBuilder = LocationProviderInfo.newBuilder()
                 // set required variables
@@ -78,11 +79,16 @@ public class Utility {
 				.setPowerRequirement(provider.getPowerRequirement())
 				.setAccuracy(provider.getAccuracy());
 
-		// build the LocationProviderInfo
-		return lpiBuilder.build();
+        // pack LocationProviderInfo into LocationRequest wrapper
+        LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
+                .setType(LocationRequest.LocationRequestType.PROVIDERINFO)
+                .setProviderInfo(lpiBuilder);
+
+        // build the Request
+        return toRequest_LocationRequest(lrBuilder);
 	}
 
-	public static LocationProviderStatus toLocationProviderStatus(String s, int i, Bundle bundle) {
+	public static Request toRequest_LocationProviderStatus(String s, int i, Bundle bundle) {
 		// create a LocationProviderStatus Builder
 		LocationProviderStatus.Builder lpsBuilder = LocationProviderStatus.newBuilder()
                 // set required variables
@@ -91,22 +97,32 @@ public class Utility {
 
 		//TODO: add bundle if it is not null
 
-		// build the LocationProviderStatus
-		return lpsBuilder.build();
+        // pack LocationProviderStatus into LocationRequest wrapper
+        LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
+                .setType(LocationRequest.LocationRequestType.PROVIDERSTATUS)
+                .setProviderStatus(lpsBuilder);
+
+        // build the Request
+        return toRequest_LocationRequest(lrBuilder);
 	}
 
-	public static LocationProviderEnabled toLocationProviderEnabled(String s, boolean isEnabled) {
+	public static Request toRequest_LocationProviderEnabled(String s, boolean isEnabled) {
 		// create a LocationProviderEnabled Builder
 		LocationProviderEnabled.Builder lpeBuilder = LocationProviderEnabled.newBuilder()
                 // set required variables
 				.setProvider(s)
 				.setEnabled(isEnabled);
 
-		// build the LocationProviderEnabled
-		return lpeBuilder.build();
+        // pack LocationProviderEnabled into LocationRequest wrapper
+        LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
+                .setType(LocationRequest.LocationRequestType.PROVIDERENABLED)
+                .setProviderEnabled(lpeBuilder);
+
+        // build the Request
+        return toRequest_LocationRequest(lrBuilder);
 	}
 
-    public static LocationUpdate toLocationUpdate(Location location) {
+    public static Request toRequest_LocationUpdate(Location location) {
         // create a LocationUpdate Builder
         LocationUpdate.Builder luBuilder = LocationUpdate.newBuilder()
                 // set required variables
@@ -125,55 +141,16 @@ public class Utility {
         if( location.hasSpeed() )
             luBuilder.setSpeed(location.getSpeed());
 
-        // build the LocationUpdate
-        return luBuilder.build();
-    }
-
-    // overload
-	public static Request toRequest(LocationProviderInfo providerInfo) {
-		// pack LocationProviderInfo into LocationRequest wrapper
-		LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
-				.setType(LocationRequest.LocationRequestType.PROVIDERINFO)
-				.setProviderInfo(providerInfo);
-
-        // build the Request
-        return toRequest(lrBuilder);
-	}
-
-    // overload
-	public static Request toRequest(LocationProviderEnabled providerEnabled) {
-		// pack LocationProviderEnabled into LocationRequest wrapper
-		LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
-				.setType(LocationRequest.LocationRequestType.PROVIDERENABLED)
-				.setProviderEnabled(providerEnabled);
-
-        // build the Request
-        return toRequest(lrBuilder);
-	}
-
-    // overload
-	public static Request toRequest(LocationProviderStatus providerStatus) {
-		// pack LocationProviderStatus into LocationRequest wrapper
-		LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
-				.setType(LocationRequest.LocationRequestType.PROVIDERSTATUS)
-				.setProviderStatus(providerStatus);
-
-        // build the Request
-        return toRequest(lrBuilder);
-	}
-
-    // overload
-    public static Request toRequest(LocationUpdate locationUpdate) {
         // pack LocationUpdate into LocationRequest wrapper
         LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
                 .setType(LocationRequest.LocationRequestType.LOCATIONUPDATE)
-                .setUpdate(locationUpdate);
+                .setUpdate(luBuilder);
 
         // build the Request
-        return toRequest(lrBuilder);
+        return toRequest_LocationRequest(lrBuilder);
     }
 
-	public static Request toRequest(LocationRequest.Builder lrBuilder) {
+	public static Request toRequest_LocationRequest(LocationRequest.Builder lrBuilder) {
 		// pack LocationRequest into Request wrapper
 		Request.Builder rBuilder = Request.newBuilder()
 				.setType(Request.RequestType.LOCATION)
@@ -182,4 +159,20 @@ public class Utility {
 		// build the Request
 		return rBuilder.build();
 	}
+
+    public static Request toRequest_RotationInfo(int rotation) {
+        // create a RotationInfo Builder
+        RotationInfo.Builder riBuilder = RotationInfo.newBuilder()
+                // set required variables
+                .setRotation(rotation);
+
+
+        // pack RotationInfo into Request wrapper
+        Request.Builder rBuilder = Request.newBuilder()
+                .setType(Request.RequestType.ROTATION_INFO)
+                .setRotationInfo(riBuilder);
+
+        // build the Request
+        return rBuilder.build();
+    }
 }

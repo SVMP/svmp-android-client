@@ -25,7 +25,6 @@ import android.os.Looper;
 import android.util.Log;
 import org.mitre.svmp.AppRTCDemoActivity;
 import org.mitre.svmp.Utility;
-import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
 import java.util.HashMap;
@@ -88,9 +87,7 @@ public class LocationHandler {
 
     // called when a LocationListener triggers, converts the data and sends it to the VM
     public void onLocationChanged(Location location) {
-
-        SVMPProtocol.LocationUpdate locationUpdate = Utility.toLocationUpdate(location);
-        SVMPProtocol.Request request = Utility.toRequest(locationUpdate);
+        Request request = Utility.toRequest_LocationUpdate(location);
 
         // send the Request to the VM
         activity.sendMessage(request);
@@ -98,8 +95,7 @@ public class LocationHandler {
 
     // called when a onProviderEnabled or onProviderDisabled triggers, converts the data and sends it to the VM
     public void onProviderEnabled(String s, boolean isEnabled) {
-        SVMPProtocol.LocationProviderEnabled providerEnabled = Utility.toLocationProviderEnabled(s, isEnabled);
-        SVMPProtocol.Request request = Utility.toRequest(providerEnabled);
+        Request request = Utility.toRequest_LocationProviderEnabled(s, isEnabled);
 
         // send the Request to the VM
         activity.sendMessage(request);
@@ -107,8 +103,7 @@ public class LocationHandler {
 
     // called when a onStatusChanged triggers, converts the data and sends it to the VM
     public void onStatusChanged(String s, int i, Bundle bundle) {
-        SVMPProtocol.LocationProviderStatus providerStatus = Utility.toLocationProviderStatus(s, i, bundle);
-        SVMPProtocol.Request request = Utility.toRequest(providerStatus);
+        Request request = Utility.toRequest_LocationProviderStatus(s, i, bundle);
 
         // send the Request to the VM
         activity.sendMessage(request);
@@ -122,8 +117,7 @@ public class LocationHandler {
             if( !providerName.equals(LocationManager.PASSIVE_PROVIDER) ) {
                 //get the provider information and package it into a Request
                 LocationProvider provider = lm.getProvider(providerName);
-                LocationProviderInfo providerInfo = Utility.toLocationProviderInfo(provider);
-                Request request = Utility.toRequest(providerInfo);
+                Request request = Utility.toRequest_LocationProviderInfo(provider);
 
                 // send the Request to the VM
                 activity.sendMessage(request);

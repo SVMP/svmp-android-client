@@ -68,6 +68,7 @@ import org.mitre.svmp.client.LocationHandler;
 import org.mitre.svmp.client.NetIntentsHandler;
 import org.mitre.svmp.client.SensorHandler;
 import org.mitre.svmp.client.TouchHandler;
+import org.mitre.svmp.client.RotationHandler;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
@@ -124,6 +125,7 @@ public class AppRTCDemoActivity extends Activity
   private TouchHandler touchHandler;
   private SensorHandler sensorHandler;
   private LocationHandler locationHandler;
+  private RotationHandler rotationHandler;
   private boolean connected = false;
   
   @Override
@@ -160,6 +162,7 @@ public class AppRTCDemoActivity extends Activity
     touchHandler = new TouchHandler(this, displaySize);
     sensorHandler = new SensorHandler(this);
     locationHandler = new LocationHandler(this);
+    rotationHandler = new RotationHandler(this);
     
     abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
         "Failed to initializeAndroidGlobals");
@@ -466,6 +469,7 @@ public class AppRTCDemoActivity extends Activity
       touchHandler.sendScreenInfoMessage();
       sensorHandler.initSensors();
       locationHandler.initLocationUpdates();
+      rotationHandler.initRotationUpdates();
       
       logAndToast("Creating offer...");
       pc.createOffer(sdpObserver, sdpMediaConstraints);
@@ -668,7 +672,7 @@ public class AppRTCDemoActivity extends Activity
     locationHandler.handleLocationResponse(msg);
   }
   
-  public LocationManager getLocationManager() {
-    return (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-  }
+//  public LocationManager getLocationManager() {
+//    return (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+//  }
 }
