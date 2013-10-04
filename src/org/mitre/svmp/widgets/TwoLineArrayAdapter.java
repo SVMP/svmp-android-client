@@ -20,7 +20,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.TextView;
+import org.mitre.svmp.client.R;
 
 /**
  * @author Joe Portner
@@ -29,7 +31,7 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
     private int mListItemLayoutResId;
 
     public TwoLineArrayAdapter(Context context, T[] ts) {
-        this(context, android.R.layout.two_line_list_item, ts);
+        this(context, R.layout.connection_list_item, ts);
     }
 
     public TwoLineArrayAdapter(
@@ -41,7 +43,7 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
     }
 
     @Override
-    public android.view.View getView(
+    public View getView(
             int position,
             View convertView,
             ViewGroup parent) {
@@ -58,11 +60,11 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
                     false);
         }
 
-        // The ListItemLayout must use the standard text item IDs.
+        // get the child views in the layout
         TextView lineOneView = (TextView)listItemView.findViewById(
-                android.R.id.text1);
+                R.id.connectionListItem_text1);
         TextView lineTwoView = (TextView)listItemView.findViewById(
-                android.R.id.text2);
+                R.id.connectionListItem_text2);
 
         T t = (T)getItem(position);
         lineOneView.setText(lineOneText(t));

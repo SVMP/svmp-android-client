@@ -23,17 +23,7 @@ import org.mitre.svmp.client.R;
  */
 public interface Constants {
     public static final int DEFAULT_PORT = 8002;
-    public static final int DEFAULT_ENCRYPTION_TYPE = 2; // ENCRYPTION_SSLTLS_UNTRUSTED
     public static final String PREFS_NAME = "SVMP_PREFERENCES";
-
-    // used to determine the state of the connection to the Proxy server
-    public static final int PROTOCOLSTATE_UNAUTHENTICATED = 0;
-    public static final int PROTOCOLSTATE_AUTHENTICATING = 1;
-    public static final int PROTOCOLSTATE_VMREADYWAIT = 2;
-    public static final int PROTOCOLSTATE_GETSCREENINFO = 3;
-    public static final int PROTOCOLSTATE_PROXYREADY = 4;
-    public static final int PROTOCOLSTATE_VIDEOSTART = 5;
-    public static final int PROTOCOLSTATE_VIDEOSTOP = 6;
 
     // used to determine what the EncryptionType for each connection is
     public static final int ENCRYPTION_NONE = 0;

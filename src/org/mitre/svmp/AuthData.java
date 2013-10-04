@@ -15,32 +15,29 @@ limitations under the License.
 */
 package org.mitre.svmp;
 
+import org.mitre.svmp.protocol.SVMPProtocol.Request;
+
 public final class AuthData {
 	
 	private static AuthData instance = null;
 	
-	private String username;
-	private String password;
+	private Request authRequest;
 
 	// no public instantiations
 	private AuthData() {
 		
 	}
 
-	public static void init(String un, String pw) {
+	public static void init(Request authRequest) {
 		if (instance == null) {
 			instance = new AuthData();
 		}
-		instance.username = un;
-		instance.password = pw;
+		instance.authRequest = authRequest;
 	}
 
-	public static String getUsername() {
-		return instance.username;
-	}
-	
-	public static String getPassword() {
-		return instance.password;
-	}
-	
+    public static Request getRequest() {
+        if (instance != null)
+            return instance.authRequest;
+        return null;
+    }
 }

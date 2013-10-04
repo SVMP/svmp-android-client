@@ -114,18 +114,6 @@
             <PreferenceCategory
                 android:title="@string/preferenceCategory_connectionList_title"
                 >
-                <CheckBoxPreference
-                    android:key="@string/preferenceKey_interface_quickConnect_enabled"
-                    android:title="@string/checkBoxPreference_interface_quickConnect_enabled_title"
-                    android:defaultValue="@string/preferenceValue_interface_quickConnect_enabled"
-                    />
-                <EditTextPreference
-                    android:key="@string/preferenceKey_interface_quickConnect_prefix"
-                    android:title="@string/editTextPreference_interface_quickConnect_prefix_title"
-                    android:summary="@string/editTextPreference_interface_quickConnect_prefix_summary"
-                    android:dependency="interface_quickConnect_enabled"
-                    android:defaultValue="@string/preferenceValue_interface_quickConnect_prefix"
-                    />
             </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceCategory>

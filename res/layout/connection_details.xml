@@ -15,79 +15,106 @@
    See the License for the specific language governing permissions and
    limitations under the License.
   -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:orientation="vertical"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent">
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent" android:fillViewport="true">
 
-    <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/connectionDetails_textView_title_text"
-            android:textSize="@dimen/textSize_xlarge"
-            android:layout_gravity="center_horizontal"/>
-
-    <TableLayout android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0"
-            android:stretchColumns="1">
-        <TableRow android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0">
+    <TableLayout android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_weight="1.0"
+                 android:stretchColumns="1">
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_description_text"
                       android:textSize="@dimen/textSize_large"
                       android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
                       android:paddingRight="@dimen/padding_normal"/>
-            <EditText android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_description"
+            <EditText android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_description"
                       android:textSize="@dimen/textSize_medium" android:singleLine="true" android:inputType="text|textNoSuggestions|textCapSentences"
-                      android:layout_gravity="center_vertical"/>
+                      android:layout_gravity="center_vertical" android:layout_weight="1.0"/>
         </TableRow>
-        <TableRow android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_username_text"
-                      android:textSize="@dimen/textSize_large"
-                      android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
-                      android:paddingRight="@dimen/padding_normal"/>
-            <EditText android:layout_width="fill_parent" android:layout_height="wrap_content"
-                      android:id="@+id/connectionDetails_editText_username" android:textSize="@dimen/textSize_medium" android:inputType="text|textNoSuggestions"
-                      android:layout_gravity="center_vertical"/>
-        </TableRow>
-        <TableRow android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0">
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_host_text"
                       android:textSize="@dimen/textSize_large"
                       android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
                       android:paddingRight="@dimen/padding_normal"/>
-            <EditText android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_host"
+            <EditText android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_host"
                       android:textSize="@dimen/textSize_medium" android:inputType="text|textNoSuggestions"
-                      android:layout_gravity="center_vertical"/>
+                      android:layout_gravity="center_vertical" android:layout_weight="1.0"/>
         </TableRow>
-        <TableRow android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0">
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_port_text"
                       android:textSize="@dimen/textSize_large"
                       android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
                       android:paddingRight="@dimen/padding_normal"/>
-            <EditText android:layout_width="fill_parent" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_port"
+            <EditText android:layout_width="0dp" android:layout_height="wrap_content" android:id="@+id/connectionDetails_editText_port"
                       android:textSize="@dimen/textSize_medium" android:inputType="number"
-                      android:layout_gravity="center_vertical"/>
+                      android:layout_gravity="center_vertical" android:layout_weight="1.0"/>
         </TableRow>
-        <TableRow android:layout_width="fill_parent" android:layout_height="0dp" android:layout_weight="1.0">
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_username_text"
+                      android:textSize="@dimen/textSize_large"
+                      android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
+                      android:paddingRight="@dimen/padding_normal"/>
+            <EditText android:layout_width="0dp" android:layout_height="wrap_content"
+                      android:id="@+id/connectionDetails_editText_username" android:textSize="@dimen/textSize_medium" android:inputType="text|textNoSuggestions"
+                      android:layout_gravity="center_vertical" android:layout_weight="1.0"/>
+        </TableRow>
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content"
+                >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="@string/connectionDetails_textView_domain_text"
+                      android:textSize="@dimen/textSize_large" android:layout_gravity="center_vertical|right"
+                      android:paddingLeft="@dimen/padding_normal" android:paddingRight="@dimen/padding_normal"/>
+            <EditText android:layout_width="0dp" android:layout_height="wrap_content"
+                      android:id="@+id/connectionDetails_editText_domain" android:textSize="@dimen/textSize_medium"
+                      android:inputType="text|textNoSuggestions" android:layout_gravity="center_vertical"
+                      android:layout_weight="1.0"/>
+        </TableRow>
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_encryption_text"
                       android:textSize="@dimen/textSize_large"
                       android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
                       android:paddingRight="@dimen/padding_normal"/>
             <Spinner
-                    android:layout_width="fill_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:id="@+id/connectionDetails_spinner_encryption" android:layout_gravity="center_vertical"
-                    android:entries="@array/connection_details_encryption_items"/>
+                    android:entries="@array/connectionDetails_encryption_items" android:layout_weight="1.0"/>
+        </TableRow>
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow android:layout_width="fill_parent" android:layout_height="wrap_content"
+                >
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                      android:text="@string/connectionDetails_textView_authType_text"
+                      android:textSize="@dimen/textSize_large" android:layout_gravity="center_vertical|right"
+                      android:paddingLeft="@dimen/padding_normal" android:paddingRight="@dimen/padding_normal"/>
+            <Spinner android:layout_width="0dp" android:layout_height="wrap_content"
+                     android:id="@+id/connectionDetails_spinner_authType" android:layout_gravity="center_vertical"
+                     android:layout_weight="1.0"/>
+        </TableRow>
+        <TableRow android:layout_width="0dp" android:layout_height="0dp" android:layout_weight="1.0" />
+        <TableRow
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content">
+            <LinearLayout
+                    android:orientation="horizontal"
+                    android:layout_width="fill_parent"
+                    android:layout_height="wrap_content" android:layout_span="2">
+                <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionDetails_button_cancel_text"
+                        android:id="@+id/button_cancel" android:layout_weight="1.0" android:textSize="@dimen/textSize_large"
+                        android:onClick="onClick_Cancel"/>
+                <Button
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:text="@string/connectionDetails_button_save_text"
+                        android:id="@+id/button_save" android:layout_weight="1.0" android:textSize="@dimen/textSize_large"
+                        android:onClick="onClick_Save"/>
+            </LinearLayout>
         </TableRow>
     </TableLayout>
 
-    <LinearLayout
-            android:orientation="horizontal"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content">
-        <Button
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:text="@string/connectionDetails_button_save_text"
-                android:id="@+id/button_save" android:layout_weight="1.0" android:textSize="@dimen/textSize_large"/>
-        <Button android:layout_width="0dp" android:layout_height="wrap_content" android:text="@string/connectionDetails_button_cancel_text"
-                android:id="@+id/button_cancel" android:layout_weight="1.0" android:textSize="@dimen/textSize_large"/>
-    </LinearLayout>
-</LinearLayout>
+</ScrollView>

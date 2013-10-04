@@ -48,8 +48,6 @@
     <string name="preferenceValue_sensor_linearAcceleration">false</string>
     <string name="preferenceValue_sensor_orientation">false</string>
     <string name="preferenceValue_sensor_rotationVector">false</string>
-    <string name="preferenceValue_interface_quickConnect_enabled">true</string>
-    <string name="preferenceValue_interface_quickConnect_prefix">192.168.42.</string>
     
     <!-- Preference page elements -->
     <string name="preferenceCategory_connectionPreferences_title">Connection Preferences</string>
@@ -83,9 +81,4 @@
     <string name="preferenceScreen_interface_summary">Control UI for developer use</string>
 
     <string name="preferenceCategory_connectionList_title">Connection List</string>
-
-    <string name="editTextPreference_interface_quickConnect_prefix_title">Quick Connect prefix</string>
-    <string name="editTextPreference_interface_quickConnect_prefix_summary">Default: 192.168.42.</string>
-
-    <string name="checkBoxPreference_interface_quickConnect_enabled_title">Use Quick Connect</string>
 </resources>

@@ -15,11 +15,12 @@
    limitations under the License.
   -->
 <resources>
-    <string-array name="connection_list_context_items">
-        <item>Edit</item>
-        <item>Remove</item>
+    <string-array name="connectionList_context_items">
+        <item>Connect</item>
+        <item>Edit connection</item>
+        <item>Remove connection</item>
     </string-array>
-    <string-array name="connection_details_encryption_items">
+    <string-array name="connectionDetails_encryption_items">
         <item>No encryption</item>
         <item>SSL/TLS</item>
         <item>SSL/TLS (accept untrusted certs)</item>

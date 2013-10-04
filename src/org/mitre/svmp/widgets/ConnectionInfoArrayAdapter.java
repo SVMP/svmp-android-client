@@ -28,11 +28,11 @@ public class ConnectionInfoArrayAdapter extends TwoLineArrayAdapter<ConnectionIn
 
     @Override
     public String lineOneText(ConnectionInfo connectionInfo) {
-        return connectionInfo.toString();
+        return connectionInfo.lineOneText();
     }
 
     @Override
     public String lineTwoText(ConnectionInfo connectionInfo) {
-        return connectionInfo.toString2();
+        return connectionInfo.lineTwoText();
     }
 }

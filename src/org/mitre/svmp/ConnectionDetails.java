@@ -15,26 +15,24 @@
  */
 package org.mitre.svmp;
 
-import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.Toast;
+import org.mitre.svmp.auth.AuthModuleRegistry;
+import org.mitre.svmp.auth.IAuthModule;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.widgets.AuthModuleArrayAdapter;
 
 /**
  * @author Joe Portner
  */
-public class ConnectionDetails extends SvmpActivity implements Constants {
+public class ConnectionDetails extends SvmpActivity {
     private static String TAG = ConnectionDetails.class.getName();
 
-    // database handler
-    private DatabaseHandler dbHandler;
+    // the ID of the ConnectionInfo we are updating (0 is a new ConnectionInfo)
     private int updateID = 0;
 
     // views
@@ -42,30 +40,32 @@ public class ConnectionDetails extends SvmpActivity implements Constants {
             descriptionView,
             usernameView,
             hostView,
-            portView;
-    private Spinner encryptionView;
+            portView,
+            domainView;
+    private Spinner
+            encryptionView,
+            authTypeView;
+    private IAuthModule[] authModules;
 
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+        super.onCreate(savedInstanceState, R.layout.connection_details);
+    }
 
-        // set the layout
-        setContentView(R.layout.connection_details);
-
-        // connect to the database
-        dbHandler = new DatabaseHandler(this);
-
+    @Override
+    protected void populateLayout() {
         // get views
         descriptionView = (EditText) findViewById(R.id.connectionDetails_editText_description);
         usernameView = (EditText) findViewById(R.id.connectionDetails_editText_username);
         hostView = (EditText) findViewById(R.id.connectionDetails_editText_host);
         portView = (EditText) findViewById(R.id.connectionDetails_editText_port);
+        domainView = (EditText) findViewById(R.id.connectionDetails_editText_domain);
         encryptionView = (Spinner) findViewById(R.id.connectionDetails_spinner_encryption);
+        authTypeView = (Spinner) findViewById(R.id.connectionDetails_spinner_authType);
 
-        // create listeners for buttons
-        Button saveView = (Button) findViewById(R.id.button_save),
-                cancelView = (Button) findViewById(R.id.button_cancel);
-        saveView.setOnClickListener(saveHandler);
-        cancelView.setOnClickListener(cancelHandler);
+        // populate items for AuthType spinner
+        authModules = AuthModuleRegistry.getAuthModules();
+        AuthModuleArrayAdapter adapter = new AuthModuleArrayAdapter(this, authModules);
+        authTypeView.setAdapter(adapter);
 
         // check if an existing ConnectionInfo ID was sent with the Intent
         Intent intent = getIntent();
@@ -79,7 +79,7 @@ public class ConnectionDetails extends SvmpActivity implements Constants {
             // if ConnectionInfo is null, stop
             if( connectionInfo == null ) {
                 Log.d(TAG, "Expected ConnectionInfo is null");
-                finish();
+                finishMessage(R.string.connectionList_toast_notFound, RESULT_REPOPULATE);
             }
             // ConnectionInfo is good, continue
             else {
@@ -88,10 +88,16 @@ public class ConnectionDetails extends SvmpActivity implements Constants {
                 usernameView.setText(connectionInfo.getUsername());
                 hostView.setText(connectionInfo.getHost());
                 portView.setText(String.valueOf(connectionInfo.getPort()));
+                domainView.setText(connectionInfo.getDomain());
                 encryptionView.setSelection(connectionInfo.getEncryptionType());
+                for (int i = 0; i < authModules.length; i++)
+                    if (authModules[i].getAuthTypeID() == connectionInfo.getAuthType()) {
+                        authTypeView.setSelection(i);
+                        break;
+                    }
 
                 // flag so we know this is an update, not insert
-                updateID = connectionInfo.getID();
+                updateID = connectionInfo.getConnectionID();
             }
         }
         // this is a new connection, fill in the default port
@@ -99,76 +105,63 @@ public class ConnectionDetails extends SvmpActivity implements Constants {
             portView.setText(String.valueOf(DEFAULT_PORT));
     }
 
+    // called onResume so preference changes take effect in the layout
+    @Override
+    protected void refreshPreferences() {
+    }
+
     // save button is clicked
-    View.OnClickListener saveHandler = new View.OnClickListener() {
-        public void onClick(View v) {
-            // get user input
-            String description = descriptionView.getText().toString(),
-                    username = usernameView.getText().toString(),
-                    host = hostView.getText().toString(),
-                    portString = portView.getText().toString();
-            int port = 0;
-            try {
-                port = Integer.parseInt(portString);
-            } catch( NumberFormatException e ) {
-                // don't care
-            }
-            int encryptionType = encryptionView.getSelectedItemPosition();
-
-            // validate input
-            if( port < 1 || port > 65535 )
-                doToast("Invalid port number (must be 1 to 65535)");
-            else if( description.length() == 0 )
-                doToast("Description must not be blank");
-            else if( ambiguousDescription(description) )
-                doToast("That description is already used");
-            else if( username.length() == 0 )
-                doToast("Username must not be blank");
-            else if( host.length() == 0 )
-                doToast("Host must not be blank");
-            else {
-                // create a new ConnectionInfo object
-                ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port, encryptionType);
-
-                // insert or update the ConnectionInfo in the database
-                long result;
-                if( updateID > 0 )
-                    result = dbHandler.updateConnectionInfo(connectionInfo);
-                else
-                    result = dbHandler.insertConnectionInfo(connectionInfo);
-
-                // exit and resume previous activity, report results in the intent
-                if( result > -1 && updateID > 0 )
-                    finishMessage(R.string.connectionList_toast_updated);
-                else if( result > -1 )
-                    finishMessage(R.string.connectionList_toast_added);
-                else
-                    finishMessage(R.string.connectionList_toast_error);
-            }
+    public void onClick_Save(View v) {
+        // get user input
+        String description = descriptionView.getText().toString(),
+                username = usernameView.getText().toString(),
+                host = hostView.getText().toString(),
+                portString = portView.getText().toString(),
+                domain = domainView.getText().toString();
+        int port = 0;
+        try {
+            port = Integer.parseInt(portString);
+        } catch( NumberFormatException e ) {
+            // don't care
         }
-    };
+        int encryptionType = encryptionView.getSelectedItemPosition(),
+                authType = authModules[authTypeView.getSelectedItemPosition()].getAuthTypeID();
+
+        // validate input
+        if( port < 1 || port > 65535 )
+            toastShort(R.string.connectionDetails_toast_invalidPort);
+        else if( description.length() == 0 )
+            toastShort(R.string.connectionDetails_toast_blankDescription);
+        else if( dbHandler.getConnectionInfo(updateID, description) != null )
+            toastShort(R.string.connectionDetails_toast_ambiguousDescription);
+        else if( username.length() == 0 )
+            toastShort(R.string.connectionDetails_toast_blankUsername);
+        else if( host.length() == 0 )
+            toastShort(R.string.connectionDetails_toast_blankHost);
+        else {
+            // create a new ConnectionInfo object
+            ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port,
+                    encryptionType, domain, authType);
+
+            // insert or update the ConnectionInfo in the database
+            long result;
+            if( updateID > 0 )
+                result = dbHandler.updateConnectionInfo(connectionInfo);
+            else
+                result = dbHandler.insertConnectionInfo(connectionInfo);
+
+            // exit and resume previous activity, report results in the intent
+            if( result > -1 && updateID > 0 )
+                finishMessage(R.string.connectionList_toast_updated, RESULT_REPOPULATE);
+            else if( result > -1 )
+                finishMessage(R.string.connectionList_toast_added, RESULT_REPOPULATE);
+            else
+                finishMessage(R.string.connectionList_toast_error, RESULT_REPOPULATE);
+        }
+    }
 
     // cancel button is clicked
-    View.OnClickListener cancelHandler = new View.OnClickListener() {
-        public void onClick(View v) {
-            finish();
-        }
-    };
-
-    private boolean ambiguousDescription(String description) {
-        return dbHandler.getConnectionInfo(updateID, description) != null;
-    }
-
-    private void finishMessage(int resId) {
-        Intent intent = new Intent();
-        intent.putExtra("message", resId);
-        setResult(RESULT_OK, intent);
+    public void onClick_Cancel(View v) {
         finish();
-    }
-
-    private void doToast(String text) {
-        Toast toast = Toast.makeText(this, text, Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-        toast.show();
     }
 }

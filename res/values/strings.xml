@@ -55,19 +55,20 @@
     <string name="mediacodec">MediaCodec Decoder/Renderer</string>
     <string name="opengl">OpenGL</string>
 
-    <!-- Connection List layout resources -->
-    <string name="connectionList_textView_title_text">Stored Connections</string>
-    <string name="connectionList_button_quickConnect_text">Quick Connect</string>
+    <!-- ConnectionList layout resources -->
+    <string name="connectionList_title">SVMP Connections</string>
     <string name="connectionList_button_new_text">New</string>
     <string name="connectionList_button_exit_text">Exit</string>
 
-    <!-- Connection Details layout resources -->
-    <string name="connectionDetails_textView_title_text">Connection Details</string>
+    <!-- ConnectionDetails layout resources -->
+    <string name="connectionDetails_title">SVMP Connection Details</string>
     <string name="connectionDetails_textView_description_text">Description</string>
     <string name="connectionDetails_textView_username_text">Username</string>
     <string name="connectionDetails_textView_host_text">Host</string>
     <string name="connectionDetails_textView_port_text">Port</string>
     <string name="connectionDetails_textView_encryption_text">Encryption</string>
+    <string name="connectionDetails_textView_domain_text">Domain</string>
+    <string name="connectionDetails_textView_authType_text">Auth Type</string>
     <string name="connectionDetails_button_save_text">Save</string>
     <string name="connectionDetails_button_cancel_text">Cancel</string>
 
@@ -75,16 +76,23 @@
     <string name="connectionList_toast_added">New connection created</string>
     <string name="connectionList_toast_updated">Connection updated</string>
     <string name="connectionList_toast_error">Error creating new connection</string>
+    <string name="connectionList_toast_notFound">Connection not found</string>
     <string name="connectionList_toast_removed">Connection removed</string>
     <string name="connectionList_toast_failSSL">Error connecting (check your encryption settings)</string>
     <string name="connectionList_toast_failRefused">Error connecting (server refused connection)</string>
     <string name="connectionList_toast_failLostConn">Lost connection to server</string>
 
+    <!-- ConnectionDetails toast resources -->
+    <string name="connectionDetails_toast_invalidPort">Invalid port number (must be 1 to 65535)</string>
+    <string name="connectionDetails_toast_blankDescription">Description must not be blank</string>
+    <string name="connectionDetails_toast_ambiguousDescription">That description is already used</string>
+    <string name="connectionDetails_toast_blankUsername">Username must not be blank</string>
+    <string name="connectionDetails_toast_blankHost">Host must not be blank</string>
+
     <!-- ConnectionList dialog resources -->
-    <string name="connectionList_dialog_passwordPrompt_title">Password required</string>
-    <string name="connectionList_dialog_passwordPrompt_message">Enter a password to proceed</string>
-    <string name="connectionList_dialog_passwordPrompt_positiveButton">Submit</string>
-    <string name="connectionList_dialog_passwordPrompt_negativeButton">Cancel</string>
+    <string name="authPrompt_title">Authentication required</string>
+    <string name="authPrompt_button_positive_text">Submit</string>
+    <string name="authPrompt_button_negative_text">Cancel</string>
 
     <!-- Menu resources -->
     <string name="menu_title_preferences">Preferences</string>

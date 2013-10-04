@@ -16,6 +16,7 @@
 package org.mitre.svmp;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
 import org.mitre.svmp.client.R;
@@ -29,5 +30,12 @@ public class SvmpPreferences extends PreferenceActivity {
 
         // deprecated in API 11
         addPreferencesFromResource(R.xml.preferences);
+    }
+
+    @Override
+    public void finish() {
+        Intent intent = new Intent();
+        setResult(SvmpActivity.RESULT_REFRESHPREFS, intent);
+        super.finish();
     }
 }

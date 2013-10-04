@@ -80,10 +80,12 @@ public class RotationHandler extends OrientationEventListener {
     }
 
     private void sendRotationInfo() {
-        // construct a Request object
-        Request request = Utility.toRequest_RotationInfo(rotation);
+        if (activity.isConnected()) {
+            // construct a Request object
+            Request request = Utility.toRequest_RotationInfo(rotation);
 
-        // send the Request to the VM
-        activity.sendMessage(request);
+            // send the Request to the VM
+            activity.sendMessage(request);
+        }
     }
 }

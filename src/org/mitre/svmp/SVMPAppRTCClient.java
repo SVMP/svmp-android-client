@@ -351,7 +351,7 @@ public class SVMPAppRTCClient implements Constants {
       toastMe( result ? "Connected to " + host : "Connection failed" );
 
       if (result)
-        new SVMPAuthenticator().execute(AuthData.getUsername(), AuthData.getPassword());
+        new SVMPAuthenticator().execute(AuthData.getRequest());
     }
       
     private void socketConnect() throws UnknownHostException, IOException {
@@ -376,25 +376,19 @@ public class SVMPAppRTCClient implements Constants {
   }
 
   // Perform authentication request/resposne
-  private class SVMPAuthenticator extends AsyncTask <String, Void, Boolean> {
+  private class SVMPAuthenticator extends AsyncTask <Request, Void, Boolean> {
 
     @Override
-    protected Boolean doInBackground(String... params) {
+    protected Boolean doInBackground(Request... request) {
       if (!svmpSocket.isConnected())
         return false;
 
-      if (params.length != 2)
+      if (request[0] == null)
         return false;
       
       try {
         // send authentication request
-        Authentication.Builder auth = Authentication.newBuilder();
-        auth.setUn(params[0]);
-        auth.setPw(params[1]);
-        
-        Request.newBuilder().setType(RequestType.USERAUTH)
-          .setAuthentication(auth)
-          .build().writeDelimitedTo(socketOut);
+        request[0].writeDelimitedTo(socketOut);
 
         // get response
         Response resp = Response.parseDelimitedFrom(socketIn);

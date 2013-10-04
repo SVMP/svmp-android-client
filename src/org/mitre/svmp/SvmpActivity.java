@@ -16,26 +16,68 @@
 package org.mitre.svmp;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
+import android.view.*;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+import com.google.protobuf.ByteString;
+import org.mitre.svmp.auth.AuthModuleRegistry;
+import org.mitre.svmp.auth.IAuthModule;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.protocol.SVMPProtocol.*;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * @author Joe Portner
  */
-public class SvmpActivity extends Activity {
-    public void onCreate(Bundle savedInstanceState) {
+public class SvmpActivity extends Activity implements Constants {
+    private static final int REQUESTCODE_VIDEO = 100;
+    protected final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
+    protected final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
+    protected final static int RESULT_FINISH = 102; // finish the parent activity
+
+    // database handler
+    protected DatabaseHandler dbHandler;
+
+    public void onCreate(Bundle savedInstanceState, int layoutId) {
         super.onCreate(savedInstanceState);
+
+        // if layoutId is -1, we don't use a layout, we are using fragment activities within tab views
+
+        // set the layout
+        if (layoutId > -1)
+            setContentView(layoutId);
+
+        // connect to the database
+        dbHandler = new DatabaseHandler(this);
+
+        // initial layout population
+        if (layoutId > -1)
+            populateLayout();
+
+        // change layout depending on preferences
+        if (layoutId > -1)
+            refreshPreferences();
     }
+
+    // override this method in child classes
+    protected void populateLayout() {}
+
+    // override this method in child classes
+    protected void refreshPreferences() {}
+
+    // override this method in child classes(
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater menuInflater = getMenuInflater();
         menuInflater.inflate(R.menu.mainmenu, menu);
-
         return true;
     }
 
@@ -48,17 +90,161 @@ public class SvmpActivity extends Activity {
                 startActivity(intent);
                 break;
         }
-
         return true;
+    }
+
+    // activity returns
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // if this result has an intent, and the intent has a message, display a Toast
+        int resId;
+        if( data != null && (resId = data.getIntExtra("message", 0)) > 0 )
+            toastLong(resId);
+
+        switch (resultCode) {
+            default:
+            case RESULT_CANCELED:
+                break;
+            case RESULT_REPOPULATE:
+                populateLayout();
+                break;
+            case RESULT_REFRESHPREFS:
+                refreshPreferences();
+                break;
+            case RESULT_FINISH:
+                finish();
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        // repopulate the layout in case DB information has changed
+        populateLayout();
         // change layout depending on preferences
         refreshPreferences();
     }
 
-    // override this method in child classes
-    protected void refreshPreferences() {}
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // close database connection
+        dbHandler.close();
+    }
+
+    // Dialog for entering a password when a connection is opened
+    protected void authPrompt(final ConnectionInfo connectionInfo) {
+        // create the input container
+        final LinearLayout inputContainer = (LinearLayout) getLayoutInflater().inflate(R.layout.auth_prompt, null);
+
+        // set the message
+        TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
+        message.setText(connectionInfo.domainUsername());
+
+        IAuthModule[] authModules = AuthModuleRegistry.getAuthModules();
+        final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
+        // loop through the available Auth Modules;
+        for (IAuthModule module : authModules)
+            // if one should be used for this Connection, let it add a View to the UI and store it in a map
+            if (module.isModuleUsed(connectionInfo.getAuthType())) {
+                View view = module.generateUI(this);
+                moduleViewMap.put(module, view);
+                // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
+                if (view != null)
+                    inputContainer.addView(view);
+            }
+
+        // create a dialog
+        final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
+                .setTitle( R.string.authPrompt_title)
+//                .setMessage(connectionInfo.domainUsername())
+                .setView(inputContainer)
+                .setPositiveButton(R.string.authPrompt_button_positive_text,
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                // create an Intent to send for authorization
+                                Request authRequest = buildAuthRequest(connectionInfo.domainUsername(), moduleViewMap);
+                                // legacy code (will change when Service is implemented)
+                                startVideo(connectionInfo, authRequest);
+                            }
+                        })
+                .setNegativeButton(R.string.authPrompt_button_negative_text,
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int whichButton) {
+                                // Do nothing.
+                            }
+                        }).create();
+        // show the dialog
+        dialog.show();
+        // request keyboard
+        dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+    }
+
+    private Request buildAuthRequest(String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
+        // create an Authentication protobuf
+        Authentication.Builder aBuilder = Authentication.newBuilder();
+        // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
+        aBuilder.setUsername(domainUsername);
+
+        // loop through the Auth module(s) we're using, get the values, & put them in the Intent
+        for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
+            // create an AuthenticationEntry protobuf
+            AuthenticationEntry.Builder aeBuilder = AuthenticationEntry.newBuilder();
+            // get the key from the AuthModule
+            String key = entry.getKey().getAuthKey();
+            // get the value from the AuthModule, which may use input from a View from the Authentication prompt
+            byte[] value = entry.getKey().getAuthValue(entry.getValue());
+
+            // set the key and value in the AuthenticationEntry
+            aeBuilder.setKey(key);
+            aeBuilder.setValue(ByteString.copyFrom(value));
+
+            // add the AuthenticationEntry to the Authentication protobuf
+            aBuilder.addEntries(aeBuilder);
+        }
+
+        // package the Authentication protobuf in a Request wrapper and return it
+        Request.Builder rBuilder = Request.newBuilder();
+        rBuilder.setType(Request.RequestType.USERAUTH);
+        rBuilder.setAuthentication(aBuilder);
+        return rBuilder.build();
+    }
+
+    // starts a ClientSideActivityDirect activity for connecting to a server
+    private void startVideo(ConnectionInfo connectionInfo, Request authRequest) {
+        // authorize user credentials
+        AuthData.init(authRequest);
+
+        // create explicit intent
+        //Intent intent = new Intent(ConnectionList.this, ClientSideActivityDirect.class);
+        Intent intent = new Intent(SvmpActivity.this, AppRTCDemoActivity.class);
+
+        // add data to intent
+        intent.putExtra("host", connectionInfo.getHost());
+        intent.putExtra("port", connectionInfo.getPort());
+        intent.putExtra("encryptionType", connectionInfo.getEncryptionType());
+
+        // start the activity without expecting a result
+        startActivityForResult(intent, REQUESTCODE_VIDEO);
+    }
+
+    protected void toastShort(int resId) {
+        toast(resId, Toast.LENGTH_SHORT);
+    }
+
+    protected void toastLong(int resId) {
+        toast(resId, Toast.LENGTH_LONG);
+    }
+
+    private void toast(int resId, int length) {
+        Toast toast = Toast.makeText(this, resId, length);
+        toast.show();
+    }
+
+    protected void finishMessage(int resId, int resultCode) {
+        Intent intent = new Intent();
+        intent.putExtra("message", resId);
+        setResult(resultCode, intent);
+        finish();
+    }
 }

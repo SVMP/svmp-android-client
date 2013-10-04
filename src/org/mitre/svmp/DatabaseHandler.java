@@ -20,6 +20,8 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteQueryBuilder;
+import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,122 +30,245 @@ import java.util.List;
  * @author Joe Portner
  */
 public class DatabaseHandler extends SQLiteOpenHelper {
-    public static final String DB_NAME="org.mitre.svmp.db";
-    public static final int DB_VERSION = 2;
+    private static final String TAG = DatabaseHandler.class.getName();
+
+    public static final String DB_NAME = "org.mitre.svmp.db";
+    public static final int DB_VERSION = 3;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final String[] Tables = new String[]{
-            "Connections"
+        "Connections"
     };
 
-    private static final String[] CreateTableQueries = new String[]{
-            "CREATE TABLE " + Tables[TABLE_CONNECTIONS] + " (" +
-                    "ID INTEGER PRIMARY KEY, " +
-                    "Description TEXT NOT NULL, " +
-                    "Username TEXT NOT NULL, " +
-                    "Host TEXT NOT NULL, " +
-                    "Port INTEGER, " +
-                    "EncryptionType INTEGER" +
-                    ");"
+    // this is used to generate queries to create new tables with appropriate constraints
+    // foreign keys constraints are automatically added for matching table names
+    // see SQLite Datatypes: http://www.sqlite.org/datatype3.html
+    public static final String[][][] TableColumns = new String[][][] {
+        // column, type, constraints
+        {
+            {"ConnectionID", "INTEGER", "PRIMARY KEY"},
+            {"Description", "TEXT"},
+            {"Username", "TEXT"},
+            {"Host", "TEXT"},
+            {"Port", "INTEGER"},
+            {"EncryptionType", "INTEGER"},
+            {"Domain", "TEXT"},
+            {"AuthType", "INTEGER"}
+        }
     };
 
     private SQLiteDatabase db;
+    private Context context;
 
     public DatabaseHandler(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
+        this.context = context;
+    }
+
+    private SQLiteDatabase getDb() {
+        if( db == null )
+            db = this.getWritableDatabase();
+        return db;
     }
 
     public void close() {
         // cleanup
-        try {
-            if( db != null )
-                db.close();
-        } catch( Exception e ) {
-            // don't care
-        }
+        if (db != null && db.isOpen())
+            db.close();
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        // loop through create table query strings and execute them
-        for( String query : CreateTableQueries ) {
-            try {
-                db.execSQL(query);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        // loop through the tables and create them from the TableColumns jagged array
+        for (int i = 0; i < Tables.length; i++)
+            createTable(i, db);
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        recreateTables(db);
+        switch(oldVersion) {
+            case 1:
+                // changed Connections table, recreate it
+                recreateTable(TABLE_CONNECTIONS, db);
+            case 2:
+                addTableColumn(TABLE_CONNECTIONS, 6, "''", db);
+                addTableColumn(TABLE_CONNECTIONS, 7, "0", db);
+            default:
+                break;
+        }
     }
 
-    private void recreateTables(SQLiteDatabase db) {
+    // This is needed to enable cascade operations for foreign keys (delete and update)
+    @Override
+    public void onOpen(SQLiteDatabase db) {
+        super.onOpen(db);
+        if (!db.isReadOnly()) {
+            // Enable foreign key constraints
+            db.execSQL("PRAGMA foreign_keys=ON;");
+        }
+    }
+
+    private void addTableColumn(int tableID, int colNum, String defaultVal, SQLiteDatabase db) {
+        String query = String.format("ALTER TABLE %s ADD COLUMN %s %s DEFAULT %s",
+                Tables[TABLE_CONNECTIONS], // table name
+                TableColumns[TABLE_CONNECTIONS][colNum][0], // column name
+                TableColumns[TABLE_CONNECTIONS][colNum][1], // column type
+                defaultVal);
+        // try to create the table with the constructed query
+        try {
+            db.execSQL(query);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // if the table exists, drop it; then, create the table again
+    private void recreateTable(int tableID, SQLiteDatabase db) {
+        // try to drop the table
+        try {
+            db.execSQL(String.format("DROP TABLE IF EXISTS %s", Tables[tableID]));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        // create the table again
+        createTable(tableID, db);
+    }
+
+    // creates a table, along with constraints, based on the TableColumns jagged array
+    private void createTable(int tableID, SQLiteDatabase db) {
+        StringBuilder query = new StringBuilder();
+        StringBuilder primaryKeys = new StringBuilder();
+        StringBuilder foreignKeys = new StringBuilder();
+
+        query.append(String.format("CREATE TABLE %s (", Tables[tableID]));
+
+        for (int i = 0; i < TableColumns[tableID].length; i++) {
+            if (i > 0)
+                query.append(", ");
+
+            // append column name, type, and constraints
+            for (int j = 0; j < TableColumns[tableID][i].length; j++) {
+                // if this is a primary key option, add it to the string and save it for the end
+                if (j == 2 && TableColumns[tableID][i][j].equals("PRIMARY KEY")) {
+                    if (primaryKeys.length() > 0)
+                        primaryKeys.append(", ");
+                    primaryKeys.append(TableColumns[tableID][i][0]);
+                }
+                // if this is another option (UNIQUE, NOT NULL, etc) add it now
+                else {
+                    if (j > 0)
+                        query.append(" ");
+                    query.append(TableColumns[tableID][i][j]);
+                }
+            }
+
+            // loop through tables to construct foreign key constraints (looks at 1st column/primary key of each table)
+            String foreignTable = "";
+            for (int k = 0; k < Tables.length; k++) {
+
+                if (k < tableID // skip the same table, skip tables that haven't been added yet
+                        && TableColumns[k][0][0].equals(TableColumns[tableID][i][0])
+                        && TableColumns[k][0].length > 2
+                        && TableColumns[k][0][2].equals("PRIMARY KEY")) {
+                    foreignTable = Tables[k];
+                    break;
+                }
+            }
+            if (foreignTable.length() > 0) {
+                String constraint = String.format(", FOREIGN KEY (%s) REFERENCES %s (%s) ON DELETE CASCADE ON UPDATE CASCADE",
+                        TableColumns[tableID][i][0],
+                        foreignTable,
+                        TableColumns[tableID][i][0]);
+                foreignKeys.append(constraint);
+            }
+        }
+
+        // append primary key constraint(s)
+        if( primaryKeys.length() > 0 ) {
+            query.append(String.format(", PRIMARY KEY (%s)", primaryKeys.toString()));
+        }
+
+        query.append(foreignKeys.toString());
+        query.append(");");
+
+        Log.d(TAG, String.format("Creating table: %s", query.toString()));
+
+        // try to create the table with the constructed query
+        try {
+            db.execSQL(query.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /*private void recreateTables(SQLiteDatabase db) {
         // drop older table(s) if they exist
-        for( String table : Tables )
+        for (String table : Tables)
             db.execSQL("DROP TABLE IF EXISTS " + table);
 
         // create tables again
         onCreate(db);
-    }
+    }*/
 
     public List<ConnectionInfo> getConnectionInfoList() {
-        db = this.getWritableDatabase();
-
-        // prepared statement for speed and security
-        Cursor cursor = db.query(
-                Tables[TABLE_CONNECTIONS], // table
-                null, // columns (null == "*")
-                null, // selection ('where' clause)
-                null, // selection args
-                null, // group by
-                null, // having
-                "Description" // order by
-        );
+        // run the query
+        Cursor cursor = _getConnectionInfoCursor(null, null);
 
         // try to get results and add ConnectionInfo objects to the list
         List<ConnectionInfo> connectionInfoList = new ArrayList<ConnectionInfo>();
         while (cursor.moveToNext()) {
-            try {
-                // construct a new ConnectionInfo from the cursor
-                ConnectionInfo connectionInfo = makeConnectionInfo(cursor);
+            // construct a new ConnectionInfo from the cursor
+            ConnectionInfo connectionInfo = makeConnectionInfo(cursor);
 
                 // add the ConnectionInfo to the list
-                connectionInfoList.add( connectionInfo );
-            }
-            catch( Exception e ) {
-                e.printStackTrace();
-            }
+            if (connectionInfo != null)
+                connectionInfoList.add(connectionInfo);
         }
 
         // cleanup
         try {
             cursor.close();
-        } catch( Exception e ) {
+        } catch (Exception e) {
             // don't care
         }
 
         return connectionInfoList;
     }
 
-    // returns a ConnectionInfo that matches the given ID (null if none found)
+    // returns a ConnectionInfo that matches the given ConnectionID (null if none found)
     public ConnectionInfo getConnectionInfo(int id) {
-        return _getConnectionInfo("ID=?", new String[]{ String.valueOf(id) });
+        return _getConnectionInfo("ConnectionID=?", String.valueOf(id));
     }
 
-    // returns a ConnectionInfo that does NOT match the given ID, but matches the given description (null if none found)
+    // returns a ConnectionInfo that does NOT match the given ConnectionID, but matches the given description (null if none found)
     public ConnectionInfo getConnectionInfo(int id, String description) {
-        return _getConnectionInfo("ID!=? AND LOWER(Description)=TRIM(LOWER(?))",
-                new String[]{ String.valueOf(id), description });
+        return _getConnectionInfo("ConnectionID!=? AND LOWER(Description)=TRIM(LOWER(?))",
+                String.valueOf(id), description);
     }
 
-    private ConnectionInfo _getConnectionInfo(String selection, String[] selectionArgs) {
-        db = this.getWritableDatabase();
+    private ConnectionInfo _getConnectionInfo(String selection, String... selectionArgs) {
+        // run the query
+        Cursor cursor = _getConnectionInfoCursor(selection, selectionArgs);
 
+        // try to get results and make a ConnectionInfo object to return
+        ConnectionInfo connectionInfo = null;
+        if (cursor.moveToFirst())
+            connectionInfo = makeConnectionInfo(cursor);
+
+        // cleanup
+        try {
+            cursor.close();
+        } catch (Exception e) {
+            // don't care
+        }
+
+        return connectionInfo;
+    }
+
+    // selection and selectionArgs are optional
+    private Cursor _getConnectionInfoCursor(String selection, String... selectionArgs) {
         // prepared statement for speed and security
-        Cursor cursor = db.query(
+        Cursor cursor = getDb().query(
                 Tables[TABLE_CONNECTIONS], // table
                 null, // columns (null == "*")
                 selection, // selection ('where' clause)
@@ -153,54 +278,41 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 null // order by
         );
 
-        // try to get results and make a ConnectionInfo object to return
-        ConnectionInfo connectionInfo = null;
-        if (cursor.moveToFirst()) {
-            try {
-                // construct a new ConnectionInfo from the cursor
-                connectionInfo = makeConnectionInfo(cursor);
-            }
-            catch( Exception e ) {
-                e.printStackTrace();
-            }
-        }
-
-        // cleanup
-        try {
-            cursor.close();
-        } catch( Exception e ) {
-            // don't care
-        }
-
-        return connectionInfo;
+        return cursor;
     }
 
     private ConnectionInfo makeConnectionInfo(Cursor cursor) {
-        // get values from query
-        int id = cursor.getInt(0);
-        String description = cursor.getString(1);
-        String username = cursor.getString(2);
-        String host = cursor.getString(3);
-        int port = cursor.getInt(4);
-        int encryptionType = cursor.getInt(5);
+        try {
+            // get values from query
+            int connectionID = cursor.getInt(0);
+            String description = cursor.getString(1);
+            String username = cursor.getString(2);
+            String host = cursor.getString(3);
+            int port = cursor.getInt(4);
+            int encryptionType = cursor.getInt(5);
+            String domain = cursor.getString(6);
+            int authType = cursor.getInt(7);
 
-        return new ConnectionInfo(id, description, username, host, port, encryptionType);
+            return new ConnectionInfo(connectionID, description, username, host, port, encryptionType, domain,
+                    authType);
+        } catch( Exception e ) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
-    protected long insertConnectionInfo( ConnectionInfo connectionInfo ) {
+    protected long insertConnectionInfo(ConnectionInfo connectionInfo) {
         // attempt insert
-        return insertRecord( TABLE_CONNECTIONS, makeContentValues(connectionInfo) );
+        return insertRecord(TABLE_CONNECTIONS, makeContentValues(connectionInfo));
     }
 
-    private long insertRecord( int tableId, ContentValues contentValues ) {
+    private long insertRecord(int tableID, ContentValues contentValues) {
         long result = -1;
-        db = this.getWritableDatabase();
 
         // attempt insert
         try {
-            result = db.insert(Tables[tableId], null, contentValues);
-
-        } catch( Exception e ) {
+            result = getDb().insert(Tables[tableID], null, contentValues);
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -208,26 +320,23 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return result;
     }
 
-
-    protected long updateConnectionInfo( ConnectionInfo connectionInfo ) {
+    protected long updateConnectionInfo(ConnectionInfo connectionInfo) {
         // attempt insert
         return updateRecord(
                 TABLE_CONNECTIONS,
                 makeContentValues(connectionInfo),
-                "ID=?",
-                new String[]{ String.valueOf(connectionInfo.getID()) }
+                "ConnectionID=?",
+                String.valueOf(connectionInfo.getConnectionID())
         );
     }
 
-    private long updateRecord( int tableId, ContentValues contentValues, String whereClause, String[] whereArgs ) {
+    private long updateRecord(int tableID, ContentValues contentValues, String whereClause, String... whereArgs) {
         long result = -1;
-        db = this.getWritableDatabase();
 
         // attempt update
         try {
-            result = db.update(Tables[tableId], contentValues, whereClause, whereArgs);
-
-        } catch( Exception e ) {
+            result = getDb().update(Tables[tableID], contentValues, whereClause, whereArgs);
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -238,33 +347,31 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private ContentValues makeContentValues(ConnectionInfo connectionInfo) {
         ContentValues contentValues = new ContentValues();
 
-        if( connectionInfo != null ) {
-            contentValues.put( "Description", connectionInfo.getDescription() );
-            contentValues.put( "Username", connectionInfo.getUsername() );
-            contentValues.put( "Host", connectionInfo.getHost() );
-            contentValues.put( "Port", connectionInfo.getPort() );
-            contentValues.put( "EncryptionType", connectionInfo.getEncryptionType() );
+        if (connectionInfo != null) {
+            contentValues.put("Description", connectionInfo.getDescription());
+            contentValues.put("Username", connectionInfo.getUsername());
+            contentValues.put("Host", connectionInfo.getHost());
+            contentValues.put("Port", connectionInfo.getPort());
+            contentValues.put("EncryptionType", connectionInfo.getEncryptionType());
+            contentValues.put("Domain", connectionInfo.getDomain());
+            contentValues.put("AuthType", connectionInfo.getAuthType());
         }
 
         return contentValues;
     }
 
-    protected long deleteConnectionInfo( int id ) {
+    protected long deleteConnectionInfo(int connectionID) {
         // attempt delete
-        return deleteRecord(
-                Tables[TABLE_CONNECTIONS],
-                "ID=?",
-                new String[]{ String.valueOf(id) });
+        return deleteRecord(TABLE_CONNECTIONS, "ConnectionID=?", String.valueOf(connectionID));
     }
 
-    private long deleteRecord( String table, String whereClause, String[] whereArgs ) {
+    private long deleteRecord(int tableID, String whereClause, String... whereArgs) {
         long result = -1;
-        db = this.getWritableDatabase();
 
         // attempt delete
         try {
-            result = db.delete(table, whereClause, whereArgs);
-        } catch( Exception e ) {
+            result = getDb().delete(Tables[tableID], whereClause, whereArgs);
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
