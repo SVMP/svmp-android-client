@@ -47,17 +47,17 @@ package org.mitre.svmp;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.net.SSLCertificateSocketFactory;
 import android.os.AsyncTask;
-import android.os.Message;
 import android.util.Log;
 import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.Authentication;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
@@ -70,18 +70,12 @@ import org.webrtc.PeerConnection;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLConnection;
 import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.net.SocketFactory;
 
@@ -108,8 +102,7 @@ public class SVMPAppRTCClient implements Constants {
   private boolean useSsl;
   private boolean sslDebug;
   
-  private String host;
-  private int port;
+  private ConnectionInfo connectionInfo;
   
   private Socket svmpSocket;
   private InputStream socketIn;
@@ -136,13 +129,13 @@ public class SVMPAppRTCClient implements Constants {
     this.iceServersObserver = iceServersObserver;
   }
 
-  public void connectToRoom(String host, int port, int encryptionType) {
-    this.host = host;
-    this.port = port;
+  public void connectToRoom(ConnectionInfo connectionInfo) {
+    this.connectionInfo = connectionInfo;
 
     // determine both booleans from the EncryptionType integer
-    useSsl = (encryptionType == ENCRYPTION_SSLTLS || encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
-    sslDebug = (encryptionType == ENCRYPTION_SSLTLS_UNTRUSTED);
+    useSsl = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS
+            || connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
+    sslDebug = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
     
     (new SocketConnector()).execute();
   }
@@ -335,9 +328,12 @@ public class SVMPAppRTCClient implements Constants {
   // Connect to the SVMP server
   private class SocketConnector extends AsyncTask <Void, Void, Boolean> {
 
+    private Request authRequest;
     @Override
     protected Boolean doInBackground(Void... params) {
       try {
+        // get the auth data request; if this isn't a session token, it's removed from memory
+        authRequest = AuthData.getRequest(connectionInfo);
         socketConnect();
         return true;
       } catch (Exception e) {
@@ -348,16 +344,16 @@ public class SVMPAppRTCClient implements Constants {
 
     @Override
     protected void onPostExecute(Boolean result) {
-      toastMe( result ? "Connected to " + host : "Connection failed" );
+      toastMe( result ? "Connected to " + connectionInfo.getHost() : "Connection failed" );
 
       if (result)
-        new SVMPAuthenticator().execute(AuthData.getRequest());
+        new SVMPAuthenticator().execute(authRequest);
     }
       
     private void socketConnect() throws UnknownHostException, IOException {
       SocketFactory sf;
 
-      Log.d(TAG, "Socket connecting to " + host + ":" + DEFAULT_PORT);
+      Log.d(TAG, "Socket connecting to " + connectionInfo.getHost() + ":" + DEFAULT_PORT);
 
       if (useSsl) {
         if (sslDebug)
@@ -368,7 +364,7 @@ public class SVMPAppRTCClient implements Constants {
        sf = SocketFactory.getDefault();
      }
 
-     svmpSocket = sf.createSocket(host, port);
+     svmpSocket = sf.createSocket(connectionInfo.getHost(), connectionInfo.getPort());
 
      socketOut = svmpSocket.getOutputStream();
      socketIn = svmpSocket.getInputStream();
@@ -392,10 +388,29 @@ public class SVMPAppRTCClient implements Constants {
 
         // get response
         Response resp = Response.parseDelimitedFrom(socketIn);
-        if (resp.getType() == ResponseType.AUTHOK)
+        if (resp.getType() == ResponseType.AUTHOK) {
+          // if we authenticated successfully, check if we received a message
+          if (resp.hasMessage()) {
+            // we received a message, it should be JSON containing a session token... try to parse it
+            try {
+              JSONObject jsonObject = new JSONObject(resp.getMessage());
+              String sessionToken = jsonObject.getString("sessionToken");
+
+              // we parsed the JSON and got the session token, store it
+              AuthData.setSessionToken(connectionInfo, sessionToken);
+            } catch (JSONException e) {
+              Log.e(TAG, "Error parsing authentication message JSON: " + e.getMessage());
+            }
+          }
+
           return true;
-        else
+        }
+        else {
+          // if we used a session token and authentication failed, discard it
+          if (AuthData.hasSessionToken(connectionInfo))
+              AuthData.reset(connectionInfo.getConnectionID());
           return false;
+        }
       } catch (IOException e) {
         Log.e(TAG, e.getMessage());
         return false;
@@ -410,8 +425,11 @@ public class SVMPAppRTCClient implements Constants {
         // auth succeeded, wait for VMREADY
         (new SVMPReadyWait()).execute();
       } else {
-        // TODO
         // authentication failed, handle appropriately
+          Intent intent = new Intent();
+          intent.putExtra("connectionID", connectionInfo.getConnectionID());
+          activity.setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
+          activity.finish();
       }
     }
   }

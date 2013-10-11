@@ -64,6 +64,7 @@ import android.widget.Toast;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.client.LocationHandler;
 import org.mitre.svmp.client.NetIntentsHandler;
 import org.mitre.svmp.client.SensorHandler;
@@ -118,9 +119,8 @@ public class AppRTCDemoActivity extends Activity
   private final Boolean[] quit = new Boolean[] { false };
   private PowerManager.WakeLock wakeLock;
 
-  private String host;
-  private int port;
-  private int encryptionType;
+  private DatabaseHandler dbHandler;
+  private ConnectionInfo connectionInfo;
   
   private TouchHandler touchHandler;
   private SensorHandler sensorHandler;
@@ -131,6 +131,9 @@ public class AppRTCDemoActivity extends Activity
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
+    // connect to the database
+    dbHandler = new DatabaseHandler(this);
 
     // Since the error-handling of this demo consists of throwing
     // RuntimeExceptions and we assume that'll terminate the app, we install
@@ -181,16 +184,17 @@ public class AppRTCDemoActivity extends Activity
 
     // Get info passed to Intent
     final Intent intent = getIntent();
-    host = intent.getExtras().getString("host");
-    port = intent.getExtras().getInt("port");
-    encryptionType = intent.getExtras().getInt("encryptionType");
+    connectionInfo = dbHandler.getConnectionInfo(intent.getIntExtra("connectionID", 0));
 
-    connectToRoom();
+    if (connectionInfo != null)
+      connectToRoom();
+    else
+      logAndToast("Connection info not found!");
   }
 
   private void connectToRoom() {
     logAndToast("Connecting to room...");
-    appRtcClient.connectToRoom(host, port, encryptionType);
+    appRtcClient.connectToRoom(connectionInfo);
   }
 
   @Override
@@ -477,6 +481,28 @@ public class AppRTCDemoActivity extends Activity
 
     public void onMessage(Response data) {
       switch (data.getType()) {
+      case ERROR:
+        // we received an error message while proxying, check to see if there is a message with details
+        if (data.hasMessage())
+          try {
+            JSONObject json = new JSONObject(data.getMessage());
+            String type = (String) json.get("type");
+            if (type.equals("sessionMaxTimeout")) {
+              logAndToast("Your session has timed out, please re-authorize");
+              AuthData.reset(connectionInfo.getConnectionID()); // clear timed out session information from memory
+              // send a result message to the calling activity so it will show the authentication dialog again
+              Intent intent = new Intent();
+              intent.putExtra("connectionID", connectionInfo.getConnectionID());
+              setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
+              this.onClose();
+            } else
+              Log.d(TAG, String.format("Error message received, unknown type: %s", type));
+          } catch (JSONException e) {
+            Log.d(TAG, String.format("Error message received: %s", e.getMessage()));
+          }
+        else
+          Log.d(TAG, "Unknown error message received");
+        break;
       case SCREENINFO:
         handleScreenInfo(data);
         break;

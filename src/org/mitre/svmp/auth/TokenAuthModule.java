@@ -31,7 +31,7 @@ public class TokenAuthModule implements IAuthModule {
     }
 
     public String getAuthTypeDescription() {
-        return "Domain + Security Token";
+        return "Password + Security Token";
     }
 
     public boolean isModuleUsed(int authTypeID) {

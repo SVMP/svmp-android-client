@@ -31,7 +31,7 @@ public class PasswordAuthModule implements IAuthModule {
     }
 
     public String getAuthTypeDescription() {
-        return "Domain only";
+        return "Password only";
     }
 
     public boolean isModuleUsed(int authTypeID) {

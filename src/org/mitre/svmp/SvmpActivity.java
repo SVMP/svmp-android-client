@@ -25,6 +25,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.google.protobuf.ByteString;
+import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.AuthModuleRegistry;
 import org.mitre.svmp.auth.IAuthModule;
 import org.mitre.svmp.client.R;
@@ -41,6 +42,7 @@ public class SvmpActivity extends Activity implements Constants {
     protected final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
     protected final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
     protected final static int RESULT_FINISH = 102; // finish the parent activity
+    protected final static int RESULT_AUTHFAIL = 103; // authentication failure
 
     // database handler
     protected DatabaseHandler dbHandler;
@@ -113,6 +115,17 @@ public class SvmpActivity extends Activity implements Constants {
                 break;
             case RESULT_FINISH:
                 finish();
+            case RESULT_AUTHFAIL:
+                // we tried to authenticate but failed... try to find the ConnectionInfo we were connecting to
+                if (data != null ) {
+                    int connectionID = data.getIntExtra("connectionID", 0);
+                    ConnectionInfo connectionInfo = dbHandler.getConnectionInfo(connectionID);
+
+                    // we found the ConnectionInfo we were connecting to, prompt again
+                    if (connectionInfo != null)
+                        authPrompt(connectionInfo);
+                }
+                break;
         }
     }
 
@@ -134,50 +147,59 @@ public class SvmpActivity extends Activity implements Constants {
 
     // Dialog for entering a password when a connection is opened
     protected void authPrompt(final ConnectionInfo connectionInfo) {
-        // create the input container
-        final LinearLayout inputContainer = (LinearLayout) getLayoutInflater().inflate(R.layout.auth_prompt, null);
+        // if we have a session token, try to authenticate with it
+        if (AuthData.hasSessionToken(connectionInfo)) {
+            startVideo(connectionInfo);
+        }
+        // we don't have a session token, so prompt for authentication input
+        else {
+            // create the input container
+            final LinearLayout inputContainer = (LinearLayout) getLayoutInflater().inflate(R.layout.auth_prompt, null);
 
-        // set the message
-        TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
-        message.setText(connectionInfo.domainUsername());
+            // set the message
+            TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
+            message.setText(connectionInfo.domainUsername());
 
-        IAuthModule[] authModules = AuthModuleRegistry.getAuthModules();
-        final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
-        // loop through the available Auth Modules;
-        for (IAuthModule module : authModules)
-            // if one should be used for this Connection, let it add a View to the UI and store it in a map
-            if (module.isModuleUsed(connectionInfo.getAuthType())) {
-                View view = module.generateUI(this);
-                moduleViewMap.put(module, view);
-                // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
-                if (view != null)
-                    inputContainer.addView(view);
-            }
+            IAuthModule[] authModules = AuthModuleRegistry.getAuthModules();
+            final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
+            // loop through the available Auth Modules;
+            for (IAuthModule module : authModules)
+                // if one should be used for this Connection, let it add a View to the UI and store it in a map
+                if (module.isModuleUsed(connectionInfo.getAuthType())) {
+                    View view = module.generateUI(this);
+                    moduleViewMap.put(module, view);
+                    // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
+                    if (view != null)
+                        inputContainer.addView(view);
+                }
 
-        // create a dialog
-        final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
-                .setTitle( R.string.authPrompt_title)
-//                .setMessage(connectionInfo.domainUsername())
-                .setView(inputContainer)
-                .setPositiveButton(R.string.authPrompt_button_positive_text,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                // create an Intent to send for authorization
-                                Request authRequest = buildAuthRequest(connectionInfo.domainUsername(), moduleViewMap);
-                                // legacy code (will change when Service is implemented)
-                                startVideo(connectionInfo, authRequest);
-                            }
-                        })
-                .setNegativeButton(R.string.authPrompt_button_negative_text,
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int whichButton) {
-                                // Do nothing.
-                            }
-                        }).create();
-        // show the dialog
-        dialog.show();
-        // request keyboard
-        dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            // create a dialog
+            final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
+                    .setTitle( R.string.authPrompt_title)
+    //                .setMessage(connectionInfo.domainUsername())
+                    .setView(inputContainer)
+                    .setPositiveButton(R.string.authPrompt_button_positive_text,
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    // create an Intent to send for authorization
+                                    Request authRequest = buildAuthRequest(connectionInfo.domainUsername(), moduleViewMap);
+                                    // authorize user credentials
+                                    AuthData.setAuthRequest(connectionInfo, authRequest);
+                                    // legacy code (will change when Service is implemented)
+                                    startVideo(connectionInfo);
+                                }
+                            })
+                    .setNegativeButton(R.string.authPrompt_button_negative_text,
+                            new DialogInterface.OnClickListener() {
+                                public void onClick(DialogInterface dialog, int whichButton) {
+                                    // Do nothing.
+                                }
+                            }).create();
+            // show the dialog
+            dialog.show();
+            // request keyboard
+            dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        }
     }
 
     private Request buildAuthRequest(String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
@@ -211,18 +233,12 @@ public class SvmpActivity extends Activity implements Constants {
     }
 
     // starts a ClientSideActivityDirect activity for connecting to a server
-    private void startVideo(ConnectionInfo connectionInfo, Request authRequest) {
-        // authorize user credentials
-        AuthData.init(authRequest);
-
+    private void startVideo(ConnectionInfo connectionInfo) {
         // create explicit intent
-        //Intent intent = new Intent(ConnectionList.this, ClientSideActivityDirect.class);
         Intent intent = new Intent(SvmpActivity.this, AppRTCDemoActivity.class);
 
         // add data to intent
-        intent.putExtra("host", connectionInfo.getHost());
-        intent.putExtra("port", connectionInfo.getPort());
-        intent.putExtra("encryptionType", connectionInfo.getEncryptionType());
+        intent.putExtra("connectionID", connectionInfo.getConnectionID());
 
         // start the activity without expecting a result
         startActivityForResult(intent, REQUESTCODE_VIDEO);
