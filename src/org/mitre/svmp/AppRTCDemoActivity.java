@@ -570,6 +570,7 @@ public class AppRTCDemoActivity extends Activity
 
   // Disconnect from remote resources, dispose of local resources, and exit.
   private void disconnectAndExit() {
+    connected = false;
     synchronized (quit[0]) {
       if (quit[0]) {
         return;
