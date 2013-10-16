@@ -487,14 +487,13 @@ public class AppRTCDemoActivity extends Activity
           try {
             JSONObject json = new JSONObject(data.getMessage());
             String type = (String) json.get("type");
+
             if (type.equals("sessionMaxTimeout")) {
-              logAndToast("Your session has timed out, please re-authorize");
-              AuthData.reset(connectionInfo.getConnectionID()); // clear timed out session information from memory
-              // send a result message to the calling activity so it will show the authentication dialog again
-              Intent intent = new Intent();
-              intent.putExtra("connectionID", connectionInfo.getConnectionID());
-              setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
-              this.onClose();
+              logAndToast("Session reached max life timeout, please re-authenticate");
+              doTimeout();
+            } else if (type.equals("sessionIdleTimeout")) {
+              logAndToast("Session reached idle timeout, please re-authenticate");
+              doTimeout();
             } else
               Log.d(TAG, String.format("Error message received, unknown type: %s", type));
           } catch (JSONException e) {
@@ -557,6 +556,15 @@ public class AppRTCDemoActivity extends Activity
         Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
       }
 
+    }
+
+    public void doTimeout() {
+      AuthData.reset(connectionInfo.getConnectionID()); // clear timed out session information from memory
+      // send a result message to the calling activity so it will show the authentication dialog again
+      Intent intent = new Intent();
+      intent.putExtra("connectionID", connectionInfo.getConnectionID());
+      setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
+      disconnectAndExit();
     }
 
     public void onClose() {
