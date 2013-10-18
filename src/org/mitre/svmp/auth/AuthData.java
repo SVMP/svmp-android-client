@@ -16,7 +16,7 @@ limitations under the License.
 package org.mitre.svmp.auth;
 
 import org.mitre.svmp.ConnectionInfo;
-import org.mitre.svmp.protocol.SVMPProtocol.Authentication;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
 import java.util.HashMap;
@@ -65,15 +65,16 @@ public final class AuthData {
             AuthData instance = getInstance(connectionInfo.getConnectionID());
 
             // create an Authentication protobuf
-            Authentication.Builder aBuilder = Authentication.newBuilder();
+            AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
+            aBuilder.setType(AuthRequest.AuthRequestType.SESSION_TOKEN);
             // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
             aBuilder.setUsername(connectionInfo.domainUsername());
             aBuilder.setSessionToken(sessionToken);
 
             // package the Authentication protobuf in a Request wrapper and store it
             Request.Builder rBuilder = Request.newBuilder();
-            rBuilder.setType(Request.RequestType.USERAUTH);
-            rBuilder.setAuthentication(aBuilder);
+            rBuilder.setType(Request.RequestType.AUTH);
+            rBuilder.setAuthRequest(aBuilder);
             instance.authRequest = rBuilder.build();
             instance.hasSessionToken = true;
         }

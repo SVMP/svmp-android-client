@@ -16,7 +16,6 @@
 package org.mitre.svmp.auth;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -35,7 +34,7 @@ public class AuthModuleRegistry {
 
         // add instances of modules here
         list.add(new PasswordAuthModule());
-        list.add(new TokenAuthModule());
+        list.add(new SecurityTokenAuthModule());
 
         return list;
     }
@@ -58,7 +57,7 @@ public class AuthModuleRegistry {
 
         // add instances of modules here
         list.add(new PasswordAuthModule());
-        list.add(new TokenAuthModule());
+        list.add(new SecurityTokenAuthModule());
 
         // loop through the list and add entries to the map
         for (IAuthModule authModule : list)

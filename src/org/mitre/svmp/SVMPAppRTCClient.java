@@ -57,7 +57,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.auth.AuthData;
+import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthResponse;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
@@ -388,29 +390,22 @@ public class SVMPAppRTCClient implements Constants {
 
         // get response
         Response resp = Response.parseDelimitedFrom(socketIn);
-        if (resp.getType() == ResponseType.AUTHOK) {
-          // if we authenticated successfully, check if we received a message
-          if (resp.hasMessage()) {
-            // we received a message, it should be JSON containing a session token... try to parse it
-            try {
-              JSONObject jsonObject = new JSONObject(resp.getMessage());
-              String sessionToken = jsonObject.getString("sessionToken");
+        if (resp.getType() == ResponseType.AUTH) {
+          AuthResponse authResponse = resp.getAuthResponse();
+          if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
+            // we authenticated successfully, check if we received a session token
+            if (authResponse.hasSessionToken())
+              AuthData.setSessionToken(connectionInfo, authResponse.getSessionToken());
 
-              // we parsed the JSON and got the session token, store it
-              AuthData.setSessionToken(connectionInfo, sessionToken);
-            } catch (JSONException e) {
-              Log.e(TAG, "Error parsing authentication message JSON: " + e.getMessage());
-            }
+            return true;
           }
+        }
 
-          return true;
-        }
-        else {
-          // if we used a session token and authentication failed, discard it
-          if (AuthData.hasSessionToken(connectionInfo))
-              AuthData.reset(connectionInfo.getConnectionID());
-          return false;
-        }
+        // should be an AuthResponse with a type of AUTH_FAIL, but fail anyway if it isn't
+        // if we used a session token and authentication failed, discard it
+        if (AuthData.hasSessionToken(connectionInfo))
+          AuthData.reset(connectionInfo.getConnectionID());
+        return false;
       } catch (IOException e) {
         Log.e(TAG, e.getMessage());
         return false;
@@ -419,8 +414,6 @@ public class SVMPAppRTCClient implements Constants {
 
     @Override
     protected void onPostExecute(Boolean result) {
-      toastMe( result ? "Authentication succeeded" : "Authentication failed" );
-
       if (result) {
         // auth succeeded, wait for VMREADY
         (new SVMPReadyWait()).execute();
@@ -428,7 +421,8 @@ public class SVMPAppRTCClient implements Constants {
         // authentication failed, handle appropriately
           Intent intent = new Intent();
           intent.putExtra("connectionID", connectionInfo.getConnectionID());
-          activity.setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
+          intent.putExtra("message", R.string.svmpActivity_toast_authFailed);
+          activity.setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
           activity.finish();
       }
     }

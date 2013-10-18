@@ -19,11 +19,12 @@ import android.content.Context;
 import android.text.InputType;
 import android.view.View;
 import android.widget.EditText;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 
 /**
  * @author Joe Portner
  */
-public class TokenAuthModule implements IAuthModule {
+public class SecurityTokenAuthModule implements IAuthModule {
     private static int AUTH_TYPE_ID = 1;
 
     public int getAuthTypeID() {
@@ -46,18 +47,12 @@ public class TokenAuthModule implements IAuthModule {
         return input;
     }
 
-    public String getAuthKey() {
-        return "token";
-    }
+    public void addRequestData(AuthRequest.Builder builder, View view, int authTypeID) {
+        if (authTypeID == AUTH_TYPE_ID)
+            builder.setType(AuthRequest.AuthRequestType.PASSWORD_AND_SECURITY_TOKEN);
 
-    public byte[] getAuthValue(View view) {
-        byte[] value = new byte[0];
         EditText input = (EditText)view;
-
         String text = input.getEditableText().toString();
-        if (text != null && text.length() > 0)
-            value = text.getBytes();
-
-        return value;
+        builder.setPassword(text);
     }
 }

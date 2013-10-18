@@ -89,6 +89,11 @@
     <string name="connectionDetails_toast_blankUsername">Username must not be blank</string>
     <string name="connectionDetails_toast_blankHost">Host must not be blank</string>
 
+    <!-- SvmpActivity toast resources -->
+    <string name="svmpActivity_toast_authFailed">Authentication failed, try again</string>
+    <string name="svmpActivity_toast_sessionMaxTimeout">Session reached max life timeout, please re-authenticate</string>
+    <string name="svmpActivity_toast_sessionIdleTimeout">Session reached idle timeout, please re-authenticate</string>
+
     <!-- SvmpActivity dialog resources -->
     <string name="authPrompt_title">Authentication required</string>
     <string name="authPrompt_button_positive_text">Submit</string>

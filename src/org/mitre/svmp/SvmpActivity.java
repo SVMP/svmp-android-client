@@ -24,7 +24,6 @@ import android.view.*;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import com.google.protobuf.ByteString;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.AuthModuleRegistry;
 import org.mitre.svmp.auth.IAuthModule;
@@ -42,7 +41,7 @@ public class SvmpActivity extends Activity implements Constants {
     protected final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
     protected final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
     protected final static int RESULT_FINISH = 102; // finish the parent activity
-    protected final static int RESULT_AUTHFAIL = 103; // authentication failure
+    protected final static int RESULT_NEEDAUTH = 103; // need to authenticate
 
     // database handler
     protected DatabaseHandler dbHandler;
@@ -115,7 +114,7 @@ public class SvmpActivity extends Activity implements Constants {
                 break;
             case RESULT_FINISH:
                 finish();
-            case RESULT_AUTHFAIL:
+            case RESULT_NEEDAUTH:
                 // we tried to authenticate but failed... try to find the ConnectionInfo we were connecting to
                 if (data != null ) {
                     int connectionID = data.getIntExtra("connectionID", 0);
@@ -182,7 +181,10 @@ public class SvmpActivity extends Activity implements Constants {
                             new DialogInterface.OnClickListener() {
                                 public void onClick(DialogInterface dialog, int whichButton) {
                                     // create an Intent to send for authorization
-                                    Request authRequest = buildAuthRequest(connectionInfo.domainUsername(), moduleViewMap);
+                                    Request authRequest = buildAuthRequest(
+                                            connectionInfo.getAuthType(),
+                                            connectionInfo.domainUsername(),
+                                            moduleViewMap);
                                     // authorize user credentials
                                     AuthData.setAuthRequest(connectionInfo, authRequest);
                                     // legacy code (will change when Service is implemented)
@@ -202,33 +204,22 @@ public class SvmpActivity extends Activity implements Constants {
         }
     }
 
-    private Request buildAuthRequest(String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
+    private Request buildAuthRequest(int authTypeID, String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
         // create an Authentication protobuf
-        Authentication.Builder aBuilder = Authentication.newBuilder();
+        AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
         // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
         aBuilder.setUsername(domainUsername);
 
         // loop through the Auth module(s) we're using, get the values, & put them in the Intent
         for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
-            // create an AuthenticationEntry protobuf
-            AuthenticationEntry.Builder aeBuilder = AuthenticationEntry.newBuilder();
-            // get the key from the AuthModule
-            String key = entry.getKey().getAuthKey();
-            // get the value from the AuthModule, which may use input from a View from the Authentication prompt
-            byte[] value = entry.getKey().getAuthValue(entry.getValue());
-
-            // set the key and value in the AuthenticationEntry
-            aeBuilder.setKey(key);
-            aeBuilder.setValue(ByteString.copyFrom(value));
-
-            // add the AuthenticationEntry to the Authentication protobuf
-            aBuilder.addEntries(aeBuilder);
+            // add the value from the AuthModule, which may use input from a View from the Authentication prompt
+            entry.getKey().addRequestData(aBuilder, entry.getValue(), authTypeID);
         }
 
         // package the Authentication protobuf in a Request wrapper and return it
         Request.Builder rBuilder = Request.newBuilder();
-        rBuilder.setType(Request.RequestType.USERAUTH);
-        rBuilder.setAuthentication(aBuilder);
+        rBuilder.setType(Request.RequestType.AUTH);
+        rBuilder.setAuthRequest(aBuilder);
         return rBuilder.build();
     }
 

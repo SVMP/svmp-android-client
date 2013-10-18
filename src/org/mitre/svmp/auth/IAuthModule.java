@@ -17,6 +17,7 @@ package org.mitre.svmp.auth;
 
 import android.content.Context;
 import android.view.View;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 
 /**
  * @author Joe Portner
@@ -35,9 +36,6 @@ public interface IAuthModule {
     // adds elements to the Dialog window for this Auth module, if necessary
     View generateUI(Context context);
 
-    // string key used to add the input to an Intent
-    String getAuthKey();
-
-    // value used to add the input to an Intent, may get input from the View that was added to the UI (View may be null)
-    byte[] getAuthValue(View view);
+    // method used to add the correct input to an Intent, may use input from a View if necessary
+    void addRequestData(AuthRequest.Builder builder, View view, int authTypeID);
 }

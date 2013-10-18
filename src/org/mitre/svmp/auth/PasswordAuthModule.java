@@ -19,6 +19,7 @@ import android.content.Context;
 import android.text.InputType;
 import android.view.View;
 import android.widget.EditText;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 
 /**
  * @author Joe Portner
@@ -46,18 +47,12 @@ public class PasswordAuthModule implements IAuthModule {
         return input;
     }
 
-    public String getAuthKey() {
-        return "password";
-    }
+    public void addRequestData(AuthRequest.Builder builder, View view, int authTypeID) {
+        if (authTypeID == AUTH_TYPE_ID)
+            builder.setType(AuthRequest.AuthRequestType.PASSWORD);
 
-    public byte[] getAuthValue(View view) {
-        byte[] value = new byte[0];
         EditText input = (EditText)view;
-
         String text = input.getEditableText().toString();
-        if (text != null && text.length() > 0)
-            value = text.getBytes();
-
-        return value;
+        builder.setPassword(text);
     }
 }

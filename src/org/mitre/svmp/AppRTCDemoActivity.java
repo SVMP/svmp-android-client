@@ -65,11 +65,7 @@ import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.auth.AuthData;
-import org.mitre.svmp.client.LocationHandler;
-import org.mitre.svmp.client.NetIntentsHandler;
-import org.mitre.svmp.client.SensorHandler;
-import org.mitre.svmp.client.TouchHandler;
-import org.mitre.svmp.client.RotationHandler;
+import org.mitre.svmp.client.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
@@ -85,11 +81,8 @@ import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 import org.webrtc.StatsObserver;
 import org.webrtc.StatsReport;
-import org.webrtc.VideoCapturer;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.I420Frame;
-import org.webrtc.VideoSource;
-import org.webrtc.VideoTrack;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -481,26 +474,17 @@ public class AppRTCDemoActivity extends Activity
 
     public void onMessage(Response data) {
       switch (data.getType()) {
-      case ERROR:
-        // we received an error message while proxying, check to see if there is a message with details
-        if (data.hasMessage())
-          try {
-            JSONObject json = new JSONObject(data.getMessage());
-            String type = (String) json.get("type");
-
-            if (type.equals("sessionMaxTimeout")) {
-              logAndToast("Session reached max life timeout, please re-authenticate");
-              doTimeout();
-            } else if (type.equals("sessionIdleTimeout")) {
-              logAndToast("Session reached idle timeout, please re-authenticate");
-              doTimeout();
-            } else
-              Log.d(TAG, String.format("Error message received, unknown type: %s", type));
-          } catch (JSONException e) {
-            Log.d(TAG, String.format("Error message received: %s", e.getMessage()));
+      case AUTH:
+        if (data.hasAuthResponse()) {
+          switch (data.getAuthResponse().getType()) {
+            case SESSION_MAX_TIMEOUT:
+                needAuth(R.string.svmpActivity_toast_sessionMaxTimeout);
+              break;
+            case SESSION_IDLE_TIMEOUT:
+                needAuth(R.string.svmpActivity_toast_sessionIdleTimeout);
+              break;
           }
-        else
-          Log.d(TAG, "Unknown error message received");
+        }
         break;
       case SCREENINFO:
         handleScreenInfo(data);
@@ -558,12 +542,17 @@ public class AppRTCDemoActivity extends Activity
 
     }
 
-    public void doTimeout() {
+    // when authentication fails, or a session maxTimeout or idleTimeout message is received, stop the
+    // AppRTCDemoActivity, close the connection, and cause the ConnectionList activity to reconnect to this
+    // connectionID
+    public void needAuth(int messageResID) {
       AuthData.reset(connectionInfo.getConnectionID()); // clear timed out session information from memory
       // send a result message to the calling activity so it will show the authentication dialog again
       Intent intent = new Intent();
       intent.putExtra("connectionID", connectionInfo.getConnectionID());
-      setResult(SvmpActivity.RESULT_AUTHFAIL, intent);
+      if (messageResID > 0)
+        intent.putExtra("message", messageResID); // toast to show to user when the activity finishes
+      setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
       disconnectAndExit();
     }
 
