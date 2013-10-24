@@ -33,7 +33,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 3;
+    public static final int DB_VERSION = 4;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final String[] Tables = new String[]{
@@ -53,7 +53,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"Port", "INTEGER"},
             {"EncryptionType", "INTEGER"},
             {"Domain", "TEXT"},
-            {"AuthType", "INTEGER"}
+            {"AuthType", "INTEGER DEFAULT 1"}
         }
     };
 
@@ -93,6 +93,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             case 2:
                 addTableColumn(TABLE_CONNECTIONS, 6, "''", db);
                 addTableColumn(TABLE_CONNECTIONS, 7, "0", db);
+            case 3:
+                // changed auth types, now the IDs begin with 1, not 0
+                db.execSQL("UPDATE Connections SET AuthType=1 WHERE AuthType=0;");
             default:
                 break;
         }
@@ -212,7 +215,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
     public List<ConnectionInfo> getConnectionInfoList() {
         // run the query
-        Cursor cursor = _getConnectionInfoCursor(null, null);
+        Cursor cursor = _getConnectionInfoCursor(null);
 
         // try to get results and add ConnectionInfo objects to the list
         List<ConnectionInfo> connectionInfoList = new ArrayList<ConnectionInfo>();

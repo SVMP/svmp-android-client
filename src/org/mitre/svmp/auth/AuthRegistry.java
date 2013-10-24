@@ -15,26 +15,46 @@
  */
 package org.mitre.svmp.auth;
 
+import org.mitre.svmp.auth.module.*;
+import org.mitre.svmp.auth.type.*;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * @author Joe Portner
  */
-public class AuthModuleRegistry {
+public class AuthRegistry {
+    // get an array of all Auth Types that are registered
+    public static IAuthType[] getAuthTypes() {
+        return AUTH_TYPES.toArray(new IAuthType[AUTH_TYPES.size()]);
+    }
+
     // get an array of all Auth Modules that are registered
     public static IAuthModule[] getAuthModules() {
         return AUTH_MODULES.toArray(new IAuthModule[AUTH_MODULES.size()]);
     }
 
+    private static final List<IAuthType> AUTH_TYPES = registerTypes();
     private static final List<IAuthModule> AUTH_MODULES = registerModules();
+
+    private static List<IAuthType> registerTypes() {
+        List<IAuthType> list = new ArrayList<IAuthType>();
+
+        // add instances of types here
+        list.add(new PasswordType());
+        list.add(new SecurityTokenType());
+        list.add(new PasswordAndSecurityTokenType());
+
+        return list;
+    }
 
     private static List<IAuthModule> registerModules() {
         List<IAuthModule> list = new ArrayList<IAuthModule>();
 
         // add instances of modules here
-        list.add(new PasswordAuthModule());
-        list.add(new SecurityTokenAuthModule());
+        list.add(new PasswordModule());
+        list.add(new SecurityTokenModule());
 
         return list;
     }
@@ -56,8 +76,8 @@ public class AuthModuleRegistry {
         List<IAuthModule> list = new ArrayList<IAuthModule>();
 
         // add instances of modules here
-        list.add(new PasswordAuthModule());
-        list.add(new SecurityTokenAuthModule());
+        list.add(new PasswordModule());
+        list.add(new SecurityTokenModule());
 
         // loop through the list and add entries to the map
         for (IAuthModule authModule : list)

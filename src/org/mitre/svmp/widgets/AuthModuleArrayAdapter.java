@@ -22,21 +22,21 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
-import org.mitre.svmp.auth.IAuthModule;
+import org.mitre.svmp.auth.type.IAuthType;
 
 /**
  * @author Joe Portner
  */
-public class AuthModuleArrayAdapter extends ArrayAdapter<IAuthModule> {
+public class AuthModuleArrayAdapter extends ArrayAdapter<IAuthType> {
     private int mSpinnerLayoutResId;
     private int mSpinnerDropDownLayoutResId;
 
-    public AuthModuleArrayAdapter(Context context, IAuthModule[] authModules) {
-        this(context, R.layout.simple_spinner_item, R.layout.simple_spinner_dropdown_item, authModules);
+    public AuthModuleArrayAdapter(Context context, IAuthType[] authTypes) {
+        this(context, R.layout.simple_spinner_item, R.layout.simple_spinner_dropdown_item, authTypes);
     }
 
-    public AuthModuleArrayAdapter(Context context, int spinnerResId, int spinnerDropDownResId, IAuthModule[] authModules) {
-        super(context, spinnerResId, authModules);
+    public AuthModuleArrayAdapter(Context context, int spinnerResId, int spinnerDropDownResId, IAuthType[] authTypes) {
+        super(context, spinnerResId, authTypes);
         mSpinnerLayoutResId = spinnerResId;
         mSpinnerDropDownLayoutResId = spinnerDropDownResId;
         setDropDownViewResource(spinnerDropDownResId);
@@ -62,12 +62,12 @@ public class AuthModuleArrayAdapter extends ArrayAdapter<IAuthModule> {
             view = layoutInflater.inflate(resId, parent, false);
         }
 
-        // get the Auth Module at this position
-        IAuthModule authModule = getItem(position);
+        // get the Auth Type at this position
+        IAuthType authType = getItem(position);
 
         // set the text for the child view
         TextView text1 = (TextView)view.findViewById(android.R.id.text1);
-        text1.setText(authModule.getAuthTypeDescription());
+        text1.setText(authType.getDescription());
 
         return view;
     }

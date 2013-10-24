@@ -13,29 +13,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp.auth;
-
-import android.content.Context;
-import android.view.View;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
+package org.mitre.svmp.auth.type;
 
 /**
  * @author Joe Portner
  */
-public interface IAuthModule {
-
+public interface IAuthType {
     // integer ID used to add to the spinner selection when editing a ConnectionInfo (stored in DB for the connection)
-    int getAuthTypeID();
+    int getID();
 
     // string description used to add to the spinner selection when editing a ConnectionInfo
-    String getAuthTypeDescription();
-
-    // determines whether or not this Auth module is used, based on the ConnectionInfo's stored AuthType
-    boolean isModuleUsed(int authType);
-
-    // adds elements to the Dialog window for this Auth module, if necessary
-    View generateUI(Context context);
-
-    // method used to add the correct input to an Intent, may use input from a View if necessary
-    void addRequestData(AuthRequest.Builder builder, View view, int authTypeID);
+    String getDescription();
 }

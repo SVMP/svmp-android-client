@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp.auth;
+package org.mitre.svmp.auth.module;
 
 import android.content.Context;
 import android.text.InputType;
@@ -24,33 +24,22 @@ import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 /**
  * @author Joe Portner
  */
-public class PasswordAuthModule implements IAuthModule {
-    private static int AUTH_TYPE_ID = 0;
+public class SecurityTokenModule implements IAuthModule {
+    public static final int AUTH_MODULE_ID = 1 << 1; // 2
 
-    public int getAuthTypeID() {
-        return AUTH_TYPE_ID;
-    }
-
-    public String getAuthTypeDescription() {
-        return "Password only";
-    }
-
-    public boolean isModuleUsed(int authTypeID) {
-        return true; // a password is always required
+    public int getID() {
+        return AUTH_MODULE_ID;
     }
 
     public View generateUI(Context context) {
         // create the token input
         EditText input = new EditText(context);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        input.setHint("Password");
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
+        input.setHint("Security Token");
         return input;
     }
 
-    public void addRequestData(AuthRequest.Builder builder, View view, int authTypeID) {
-        if (authTypeID == AUTH_TYPE_ID)
-            builder.setType(AuthRequest.AuthRequestType.PASSWORD);
-
+    public void addRequestData(AuthRequest.Builder builder, View view) {
         EditText input = (EditText)view;
         String text = input.getEditableText().toString();
         builder.setPassword(text);

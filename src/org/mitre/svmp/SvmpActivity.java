@@ -25,8 +25,8 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.mitre.svmp.auth.AuthData;
-import org.mitre.svmp.auth.AuthModuleRegistry;
-import org.mitre.svmp.auth.IAuthModule;
+import org.mitre.svmp.auth.AuthRegistry;
+import org.mitre.svmp.auth.module.IAuthModule;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
@@ -159,12 +159,13 @@ public class SvmpActivity extends Activity implements Constants {
             TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
             message.setText(connectionInfo.domainUsername());
 
-            IAuthModule[] authModules = AuthModuleRegistry.getAuthModules();
+            IAuthModule[] authModules = AuthRegistry.getAuthModules();
             final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
             // loop through the available Auth Modules;
             for (IAuthModule module : authModules)
                 // if one should be used for this Connection, let it add a View to the UI and store it in a map
-                if (module.isModuleUsed(connectionInfo.getAuthType())) {
+                if ((connectionInfo.getAuthType() & module.getID()) == module.getID()) {
+                //if (module.isModuleUsed(connectionInfo.getAuthType())) {
                     View view = module.generateUI(this);
                     moduleViewMap.put(module, view);
                     // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
@@ -207,13 +208,14 @@ public class SvmpActivity extends Activity implements Constants {
     private Request buildAuthRequest(int authTypeID, String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
         // create an Authentication protobuf
         AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
+        aBuilder.setType(AuthRequest.AuthRequestType.AUTHENTICATION);
         // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
         aBuilder.setUsername(domainUsername);
 
         // loop through the Auth module(s) we're using, get the values, & put them in the Intent
         for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
             // add the value from the AuthModule, which may use input from a View from the Authentication prompt
-            entry.getKey().addRequestData(aBuilder, entry.getValue(), authTypeID);
+            entry.getKey().addRequestData(aBuilder, entry.getValue());
         }
 
         // package the Authentication protobuf in a Request wrapper and return it

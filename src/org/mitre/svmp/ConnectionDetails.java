@@ -21,8 +21,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Spinner;
-import org.mitre.svmp.auth.AuthModuleRegistry;
-import org.mitre.svmp.auth.IAuthModule;
+import org.mitre.svmp.auth.AuthRegistry;
+import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.widgets.AuthModuleArrayAdapter;
 
@@ -45,7 +45,7 @@ public class ConnectionDetails extends SvmpActivity {
     private Spinner
             encryptionView,
             authTypeView;
-    private IAuthModule[] authModules;
+    private IAuthType[] authTypes;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState, R.layout.connection_details);
@@ -63,8 +63,8 @@ public class ConnectionDetails extends SvmpActivity {
         authTypeView = (Spinner) findViewById(R.id.connectionDetails_spinner_authType);
 
         // populate items for AuthType spinner
-        authModules = AuthModuleRegistry.getAuthModules();
-        AuthModuleArrayAdapter adapter = new AuthModuleArrayAdapter(this, authModules);
+        authTypes = AuthRegistry.getAuthTypes();
+        AuthModuleArrayAdapter adapter = new AuthModuleArrayAdapter(this, authTypes);
         authTypeView.setAdapter(adapter);
 
         // check if an existing ConnectionInfo ID was sent with the Intent
@@ -90,8 +90,8 @@ public class ConnectionDetails extends SvmpActivity {
                 portView.setText(String.valueOf(connectionInfo.getPort()));
                 domainView.setText(connectionInfo.getDomain());
                 encryptionView.setSelection(connectionInfo.getEncryptionType());
-                for (int i = 0; i < authModules.length; i++)
-                    if (authModules[i].getAuthTypeID() == connectionInfo.getAuthType()) {
+                for (int i = 0; i < authTypes.length; i++)
+                    if (authTypes[i].getID() == connectionInfo.getAuthType()) {
                         authTypeView.setSelection(i);
                         break;
                     }
@@ -125,7 +125,7 @@ public class ConnectionDetails extends SvmpActivity {
             // don't care
         }
         int encryptionType = encryptionView.getSelectedItemPosition(),
-                authType = authModules[authTypeView.getSelectedItemPosition()].getAuthTypeID();
+                authType = authTypes[authTypeView.getSelectedItemPosition()].getID();
 
         // validate input
         if( port < 1 || port > 65535 )
