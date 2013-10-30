@@ -17,6 +17,9 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
+    <!-- used for performance measurements -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
     <application android:label="@string/app_name">
         <!-- Allows for intercepting URL intents. -->
         <activity android:name=".SendNetIntent"

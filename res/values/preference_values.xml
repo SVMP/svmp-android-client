@@ -30,8 +30,9 @@
     <string name="preferenceKey_sensor_linearAcceleration">sensor_linearAcceleration</string>
     <string name="preferenceKey_sensor_orientation">sensor_orientation</string>
     <string name="preferenceKey_sensor_rotationVector">sensor_rotationVector</string>
-    <string name="preferenceKey_interface_quickConnect_enabled">interface_quickConnect_enabled</string>
-    <string name="preferenceKey_interface_quickConnect_prefix">interface_quickConnect_prefix</string>
+    <string name="preferenceKey_performance_takeMeasurements">performance_takeMeasurements</string>
+    <string name="preferenceKey_performance_measureInterval">performance_measureInterval</string>
+    <string name="preferenceKey_performance_pingInterval">performance_pingInterval</string>
 
     <!-- Preference value defaults -->
     <string name="preferenceValue_sensors_minimumDelay">1000</string>
@@ -48,6 +49,9 @@
     <string name="preferenceValue_sensor_linearAcceleration">false</string>
     <string name="preferenceValue_sensor_orientation">false</string>
     <string name="preferenceValue_sensor_rotationVector">false</string>
+    <string name="preferenceValue_performance_takeMeasurements">false</string>
+    <string name="preferenceValue_performance_measureInterval">1000</string>
+    <string name="preferenceValue_performance_pingInterval">5000</string>
     
     <!-- Preference page elements -->
     <string name="preferenceCategory_connectionPreferences_title">Connection Preferences</string>
@@ -77,8 +81,28 @@
 
     <string name="preferenceCategory_developerPreferences_title">Developer Preferences</string>
 
-    <string name="preferenceScreen_interface_title">Interface</string>
-    <string name="preferenceScreen_interface_summary">Control UI for developer use</string>
+    <string name="preferenceScreen_performance_title">Performance</string>
+    <string name="preferenceScreen_performance_summary">Control instrumentation values</string>
 
-    <string name="preferenceCategory_connectionList_title">Connection List</string>
+    <string name="preferenceCategory_instrumentation_title">Instrumentation</string>
+
+    <string name="checkBoxPreference_performance_takeMeasurements_title">Take measurements</string>
+    <string name="editTextPreference_performance_measureInterval_title">Measurement interval (ms)</string>
+    <string name="editTextPreference_performance_measureInterval_summary">Default: 1000ms</string>
+    <string name="editTextPreference_performance_pingInterval_title">Ping send interval (ms)</string>
+    <string name="editTextPreference_performance_pingInterval_summary">Default: 5000ms</string>
+    <string name="preference_performance_exportData_text">Export data to CSV(s)</string> <!-- button in pref menu -->
+    <string name="preference_performance_exportData_dialog_message">Are you sure you want to export all performance data to external storage? It will take a few seconds.</string>
+    <string name="preference_performance_exportData_dialog_positiveButton">Proceed</string>
+    <string name="preference_performance_exportData_dialog_negativeButton">Cancel</string>
+    <string name="preference_performance_exportData_toast_unavailable">External storage unavailable</string>
+    <string name="preference_performance_exportData_toast_fail">Couldn\'t create folder</string>
+    <string name="preference_performance_exportData_toast_error">Export error</string>
+    <string name="preference_performance_exportData_toast_success">Export succeeded</string>
+    <string name="preference_performance_exportData_toast_noneWritten">There is no recorded data to export</string>
+    <string name="preference_performance_wipeData_text">Wipe performance data</string> <!-- button in pref menu -->
+    <string name="preference_performance_wipeData_dialog_message">Are you sure you want to wipe all performance data in the database? This will not affect data that has been exported to external storage.</string>
+    <string name="preference_performance_wipeData_dialog_positiveButton">Proceed</string>
+    <string name="preference_performance_wipeData_dialog_negativeButton">Cancel</string>
+    <string name="preference_performance_wipeData_toast_success">Performance data has been wiped</string>
 </resources>

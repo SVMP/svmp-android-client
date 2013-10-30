@@ -33,6 +33,64 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
  * @author David Schoenheit, Joe Portner
  */
 public class Utility {
+    // transforms a CellNetwork integer to an appropriate string (see TelephonyManager)
+    public static String cellNetwork(int cellNetwork) {
+        String network;
+        switch(cellNetwork) {
+            // use literals in cases for backwards compatibility (past versions of Android don't have later networks)
+            case 1:
+                network = "GPRS";
+                break;
+            case 2:
+                network = "EDGE";
+                break;
+            case 3:
+                network = "UMTS";
+                break;
+            case 4:
+                network = "CDMA";
+                break;
+            case 5:
+                network = "EVDO_0";
+                break;
+            case 6:
+                network = "EVDO_A";
+                break;
+            case 7:
+                network = "1xRTT";
+                break;
+            case 8:
+                network = "HSDPA";
+                break;
+            case 9:
+                network = "HSUPA";
+                break;
+            case 10:
+                network = "HSPA";
+                break;
+            case 11:
+                network = "IDEN";
+                break;
+            case 12:
+                network = "EVDO_B";
+                break;
+            case 13:
+                network = "LTE";
+                break;
+            case 14:
+                network = "EHRPD";
+                break;
+            case 15:
+                network = "HSPAP";
+                break;
+            case 0:
+            default:
+                network = "UNKNOWN";
+                break;
+        }
+        return network;
+    }
+
     public static String getPrefString(Context context, int keyId, int defaultValueId) {
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
         String key = context.getString(keyId);

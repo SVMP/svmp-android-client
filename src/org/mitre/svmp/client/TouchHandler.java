@@ -17,6 +17,7 @@ package org.mitre.svmp.client;
 
 import org.mitre.svmp.AppRTCDemoActivity;
 import org.mitre.svmp.Constants;
+import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 
@@ -33,15 +34,17 @@ public class TouchHandler implements Constants {
     private static final String TAG = TouchHandler.class.getName();
     
     private AppRTCDemoActivity activity;
+    private SpanPerformanceData spanPerformanceData;
     private Point displaySize;
     
     private float xScaleFactor, yScaleFactor = 0;
     private boolean gotScreenInfo = false;
 
-    public TouchHandler(AppRTCDemoActivity activity, Point displaySize) {
+    public TouchHandler(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData, Point displaySize) {
 //        super(context);
         
         this.activity = activity;
+        this.spanPerformanceData = spanPerformanceData;
         this.displaySize = displaySize;
 
         // make sure we're on top and have input focus
@@ -79,6 +82,9 @@ public class TouchHandler implements Constants {
 //    @Override
     public boolean onTouchEvent(final MotionEvent event) {
         if (! gotScreenInfo) return false;
+
+        // increment the touch update count for performance measurement
+        spanPerformanceData.incrementTouchUpdates();
 
         // SEND REMOTE EVENT
         SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();

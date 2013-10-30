@@ -66,6 +66,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.client.*;
+import org.mitre.svmp.performance.PointPerformanceData;
+import org.mitre.svmp.performance.SpanPerformanceData;
+import org.mitre.svmp.performance.PerformanceTimer;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
@@ -114,6 +117,9 @@ public class AppRTCDemoActivity extends Activity
 
   private DatabaseHandler dbHandler;
   private ConnectionInfo connectionInfo;
+  private PerformanceTimer performanceTimer;
+  private SpanPerformanceData spanPerformanceData;
+  private PointPerformanceData pointPerformanceData;
   
   private TouchHandler touchHandler;
   private SensorHandler sensorHandler;
@@ -127,6 +133,10 @@ public class AppRTCDemoActivity extends Activity
 
     // connect to the database
     dbHandler = new DatabaseHandler(this);
+
+    // create an object to hold performance measurements
+    spanPerformanceData = new SpanPerformanceData();
+    pointPerformanceData = new PointPerformanceData();
 
     // Since the error-handling of this demo consists of throwing
     // RuntimeExceptions and we assume that'll terminate the app, we install
@@ -152,11 +162,11 @@ public class AppRTCDemoActivity extends Activity
 
     Point displaySize = new Point();
     getWindowManager().getDefaultDisplay().getSize(displaySize);
-    vsv = new VideoStreamsView(this, displaySize);
+    vsv = new VideoStreamsView(this, displaySize, spanPerformanceData);
     setContentView(vsv);
     
-    touchHandler = new TouchHandler(this, displaySize);
-    sensorHandler = new SensorHandler(this);
+    touchHandler = new TouchHandler(this, spanPerformanceData, displaySize);
+    sensorHandler = new SensorHandler(this, spanPerformanceData);
     locationHandler = new LocationHandler(this);
     rotationHandler = new RotationHandler(this);
     
@@ -282,6 +292,7 @@ public class AppRTCDemoActivity extends Activity
 
   @Override
   public void onDestroy() {
+    performanceTimer.cancel();
     super.onDestroy();
   }
 
@@ -463,6 +474,11 @@ public class AppRTCDemoActivity extends Activity
         return;
       }
       connected = true;
+
+      // create a timer to start taking measurements
+      performanceTimer = new PerformanceTimer(AppRTCDemoActivity.this, spanPerformanceData, pointPerformanceData,
+              connectionInfo.getConnectionID());
+
       touchHandler.sendScreenInfoMessage();
       sensorHandler.initSensors();
       locationHandler.initLocationUpdates();
@@ -536,6 +552,11 @@ public class AppRTCDemoActivity extends Activity
           throw new RuntimeException(e);
         }
         break;
+      case PING:
+        long endDate = System.currentTimeMillis(); // immediately get end date
+        if (data.hasPingResponse())
+          pointPerformanceData.setPing(data.getPingResponse().getStartDate(), endDate);
+        break;
       default:
         Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
       }
@@ -591,6 +612,7 @@ public class AppRTCDemoActivity extends Activity
         }
         appRtcClient = null;
       }
+      performanceTimer.cancel();
       finish();
     }
   }

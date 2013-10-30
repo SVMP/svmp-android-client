@@ -20,10 +20,14 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.database.sqlite.SQLiteQueryBuilder;
 import android.util.Log;
+import org.mitre.svmp.performance.MeasurementInfo;
+import org.mitre.svmp.performance.PointPerformanceData;
+import org.mitre.svmp.performance.SpanPerformanceData;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -33,11 +37,15 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 4;
+    public static final int DB_VERSION = 5;
 
     public static final int TABLE_CONNECTIONS = 0;
+    public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
+    public static final int TABLE_PERFORMANCE_DATA = 2; // raw performance data
     public static final String[] Tables = new String[]{
-        "Connections"
+        "Connections",
+        "MeasurementInfo",
+        "PerformanceData"
     };
 
     // this is used to generate queries to create new tables with appropriate constraints
@@ -54,6 +62,25 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"EncryptionType", "INTEGER"},
             {"Domain", "TEXT"},
             {"AuthType", "INTEGER DEFAULT 1"}
+        }, {
+            {"StartDate", "INTEGER", "PRIMARY KEY"},
+            {"ConnectionID", "INTEGER"}, // foreign key
+            {"MeasureInterval", "INTEGER"},
+            {"PingInterval", "INTEGER"}
+        }, {
+            {"MeasureDate", "INTEGER", "PRIMARY KEY"},
+            {"StartDate", "INTEGER"},     // foreign key
+            {"FrameCount", "INTEGER"},    // count since last measurement
+            {"SensorUpdates", "INTEGER"}, // count since last measurement
+            {"TouchUpdates", "INTEGER"},  // count since last measurement
+            {"CPUUsage", "REAL"},         // percentage (0.0 to 1.0)
+            {"MemoryUsage", "INTEGER"},   // measured in kB
+            {"WifiStrength", "REAL"},     // percentage (0.0 to 1.0)
+            {"BatteryLevel", "REAL"},     // percentage (0.0 to 1.0)
+            {"CellNetwork", "INTEGER"},   // what network the device is on (see TelephonyManager.NETWORK_* constants)
+            {"CellValues", "TEXT"},       // a variety of cell values (depends on network type; LTE, GSM, CDMA/EVDO...)
+            {"Ping", "INTEGER"}           // last ping response in ms
+            // TODO: add server channel throughput, number of lost video packets, and video packet receive jitter
         }
     };
 
@@ -96,6 +123,10 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             case 3:
                 // changed auth types, now the IDs begin with 1, not 0
                 db.execSQL("UPDATE Connections SET AuthType=1 WHERE AuthType=0;");
+            case 4:
+                // added measurement info and performance data tables, no need to change existing info
+                createTable(TABLE_MEASUREMENT_INFO, db);
+                createTable(TABLE_PERFORMANCE_DATA, db);
             default:
                 break;
         }
@@ -284,6 +315,65 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return cursor;
     }
 
+    public List<MeasurementInfo> getAllMeasurementInfo() {
+        Cursor cursor = getDb().query(
+                Tables[TABLE_MEASUREMENT_INFO], // table
+                null, // columns (null == "*")
+                null, // selection ('where' clause)
+                null, // selection args
+                null, // group by
+                null, // having
+                null // order by
+        );
+
+        // try to get results and add MeasurementInfo objects to the list
+        List<MeasurementInfo> measurementInfoList = new ArrayList<MeasurementInfo>();
+        while (cursor.moveToNext()) {
+            // construct a new MeasurementInfo from the cursor
+            MeasurementInfo measurementInfo = makeMeasurementInfo(cursor);
+
+            // add the MeasurementInfo to the list
+            if (measurementInfo != null)
+                measurementInfoList.add(measurementInfo);
+        }
+
+        // cleanup
+        try {
+            cursor.close();
+        } catch (Exception e) {
+            // don't care
+        }
+
+        return measurementInfoList;
+    }
+
+    public List<String> getAllPerformanceData(MeasurementInfo measurementInfo) {
+        Cursor cursor = getDb().query(
+                Tables[TABLE_PERFORMANCE_DATA], // table
+                null, // columns (null == "*")
+                "StartDate=?", // selection ('where' clause)
+                new String[] {String.valueOf(measurementInfo.getStartDate().getTime())}, // selection args
+                null, // group by
+                null, // having
+                null // order by
+        );
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ssZ");
+
+        // try to get results and add String objects to the list
+        List<String> performanceDataList = new ArrayList<String>();
+        while (cursor.moveToNext()) {
+            // construct a new String from the cursor
+            String performanceData = makePerformanceData(cursor, measurementInfo, dateFormat);
+
+            // add the String to the list
+            if (performanceData != null)
+                performanceDataList.add(performanceData);
+        }
+
+        return performanceDataList;
+    }
+
     private ConnectionInfo makeConnectionInfo(Cursor cursor) {
         try {
             // get values from query
@@ -304,9 +394,104 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         }
     }
 
+    private MeasurementInfo makeMeasurementInfo(Cursor cursor) {
+        try {
+            // get values from query
+            long startDate = cursor.getLong(0);
+            int connectionID = cursor.getInt(1);
+            int measureInterval = cursor.getInt(2);
+            int pingInterval = cursor.getInt(3);
+
+            return new MeasurementInfo(new Date(startDate), connectionID, measureInterval, pingInterval);
+        } catch( Exception e ) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private String makePerformanceData(Cursor cursor, MeasurementInfo measurementInfo, SimpleDateFormat dateFormat) {
+        try {
+            // get values from query
+            long measureDate = cursor.getLong(0);
+            //long startDate = cursor.getLong(1); // don't need this, it's just a foreign key
+            int frameCount = cursor.getInt(2);
+            int sensorUpdates = cursor.getInt(3);
+            int touchUpdates = cursor.getInt(4);
+            double cpuUsage = cursor.getDouble(5);
+            int memoryUsage = cursor.getInt(6);
+            double wifiStrength = cursor.getDouble(7);
+            double batteryLevel = cursor.getDouble(8);
+            int cellNetwork = cursor.getInt(9);
+            String cellValues = cursor.getString(10);
+            int ping = cursor.getInt(11);
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append(dateFormat.format(new Date(measureDate)));
+            stringBuilder.append(",");
+            stringBuilder.append(numberPerSecond(frameCount, measurementInfo.getMeasureInterval()));
+            stringBuilder.append(",");
+            stringBuilder.append(numberPerSecond(sensorUpdates, measurementInfo.getMeasureInterval()));
+            stringBuilder.append(",");
+            stringBuilder.append(numberPerSecond(touchUpdates, measurementInfo.getMeasureInterval()));
+            stringBuilder.append(",");
+            stringBuilder.append(cpuUsage);
+            stringBuilder.append(",");
+            stringBuilder.append(memoryUsage);
+            stringBuilder.append(",");
+            stringBuilder.append(wifiStrength);
+            stringBuilder.append(",");
+            stringBuilder.append(batteryLevel);
+            stringBuilder.append(",");
+            stringBuilder.append(Utility.cellNetwork(cellNetwork));
+            stringBuilder.append(",");
+            stringBuilder.append(cellValues);
+            stringBuilder.append(",");
+            stringBuilder.append(ping);
+
+            return stringBuilder.toString();
+        } catch( Exception e ) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+    private double numberPerSecond(int input, int interval) {
+        if (interval > 0) // sanity
+            return ((double)input) / (interval/1000);
+        return input;
+    }
+
     protected long insertConnectionInfo(ConnectionInfo connectionInfo) {
         // attempt insert
         return insertRecord(TABLE_CONNECTIONS, makeContentValues(connectionInfo));
+    }
+
+    public long insertMeasurementInfo(MeasurementInfo measurementInfo) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("StartDate", measurementInfo.getStartDate().getTime());
+        contentValues.put("ConnectionID", measurementInfo.getConnectionID());
+        contentValues.put("MeasureInterval", measurementInfo.getMeasureInterval());
+        contentValues.put("PingInterval", measurementInfo.getPingInterval());
+
+        return insertRecord(TABLE_MEASUREMENT_INFO, contentValues);
+    }
+
+    public long insertPerformanceData(long startDate, SpanPerformanceData spanMeasurements,
+                                      PointPerformanceData pointMeasurements) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("MeasureDate", System.currentTimeMillis());
+        contentValues.put("StartDate", startDate);
+        contentValues.put("FrameCount", spanMeasurements.getFrameCount());
+        contentValues.put("SensorUpdates", spanMeasurements.getSensorUpdates());
+        contentValues.put("TouchUpdates", spanMeasurements.getTouchUpdates());
+        contentValues.put("CpuUsage", pointMeasurements.getCpuUsage());
+        contentValues.put("MemoryUsage", pointMeasurements.getMemoryUsage());
+        contentValues.put("WifiStrength", pointMeasurements.getWifiStrength());
+        contentValues.put("BatteryLevel", pointMeasurements.getBatteryLevel());
+        contentValues.put("CellNetwork", pointMeasurements.getCellNetwork());
+        contentValues.put("CellValues", pointMeasurements.getCellValues());
+        contentValues.put("Ping", pointMeasurements.getPing());
+
+        return insertRecord(TABLE_PERFORMANCE_DATA, contentValues);
     }
 
     private long insertRecord(int tableID, ContentValues contentValues) {
@@ -345,6 +530,11 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
         // return result
         return result;
+    }
+
+    public long wipeAllPerformanceData() {
+        // delete all measurement info (will cascade delete all performance data)
+        return getDb().delete(Tables[TABLE_MEASUREMENT_INFO], null, null);
     }
 
     private ContentValues makeContentValues(ConnectionInfo connectionInfo) {

@@ -108,12 +108,37 @@
         android:title="@string/preferenceCategory_developerPreferences_title"
         >
         <PreferenceScreen
-            android:title="@string/preferenceScreen_interface_title"
-            android:summary="@string/preferenceScreen_interface_summary"
+            android:title="@string/preferenceScreen_performance_title"
+            android:summary="@string/preferenceScreen_performance_summary"
             >
             <PreferenceCategory
-                android:title="@string/preferenceCategory_connectionList_title"
+                android:title="@string/preferenceCategory_instrumentation_title"
                 >
+                <CheckBoxPreference
+                        android:key="@string/preferenceKey_performance_takeMeasurements"
+                        android:title="@string/checkBoxPreference_performance_takeMeasurements_title"
+                        android:defaultValue="@string/preferenceValue_performance_takeMeasurements"
+                        />
+                <EditTextPreference
+                        android:key="@string/preferenceKey_performance_measureInterval"
+                        android:title="@string/editTextPreference_performance_measureInterval_title"
+                        android:summary="@string/editTextPreference_performance_measureInterval_summary"
+                        android:defaultValue="@string/preferenceValue_performance_measureInterval"
+                        android:numeric="integer"
+                        />
+                <EditTextPreference
+                        android:key="@string/preferenceKey_performance_pingInterval"
+                        android:title="@string/editTextPreference_performance_pingInterval_title"
+                        android:summary="@string/editTextPreference_performance_pingInterval_summary"
+                        android:defaultValue="@string/preferenceValue_performance_pingInterval"
+                        android:numeric="integer"
+                        />
+                <Preference
+                        android:layout="@layout/preference_performance_export_data"
+                        />
+                <Preference
+                        android:layout="@layout/preference_performance_wipe_data"
+                        />
             </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceCategory>
