@@ -10,6 +10,7 @@
 
 # generated files
 bin/
+build/
 gen/
 src/org/mitre/svmp/protocol/
 src/com
@@ -25,3 +26,6 @@ local.properties
 # IDEA project files
 *.iml
 .idea/
+
+# gradle stuff
+.gradle/

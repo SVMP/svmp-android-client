@@ -3,15 +3,17 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.4'
+        classpath 'com.android.tools.build:gradle:0.6.3'
     }
 }
 apply plugin: 'android'
 
 dependencies {
-	/*compile files('libs/svmp-protocol.jar','libs/armeabi-v7a/libwebrtc-video-demo-jni.so')*/
-	compile project(':svmp-protocol-def')
-	compile files('libs/libjingle_peerconnection.jar')
+    /*compile files('libs/svmp-protocol.jar','libs/armeabi-v7a/libwebrtc-video-demo-jni.so')*/
+    //compile files('libs/libjingle_peerconnection.jar', '../svmp-protocol-def/protobuf-2.5.0/protobuf-java-2.5.0.jar')
+
+    compile project(':svmp-protocol-def')
+    compile files('libs/libjingle_peerconnection.jar')
 }
 
 tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
@@ -20,15 +22,17 @@ tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
 
 android {
     compileSdkVersion 17
-    buildToolsVersion "17"
+    buildToolsVersion "19"
 
     defaultConfig {
-        minSdkVersion 17
-        targetSdkVersion 17
+// Let these come from the AndroidManifest.xml
+//        minSdkVersion 13
+//        targetSdkVersion 17
     }
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
+            //java.srcDirs = ['src','../svmp-protocol-def/src']
             java.srcDirs = ['src']
             resources.srcDirs = ['src']
             aidl.srcDirs = ['src']
