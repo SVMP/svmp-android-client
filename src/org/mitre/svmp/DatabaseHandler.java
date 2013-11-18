@@ -37,7 +37,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 5;
+    public static final int DB_VERSION = 6;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
@@ -61,7 +61,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"Port", "INTEGER"},
             {"EncryptionType", "INTEGER"},
             {"Domain", "TEXT"},
-            {"AuthType", "INTEGER DEFAULT 1"}
+            {"AuthType", "INTEGER DEFAULT 1"},
+            {"SessionToken", "TEXT"}
         }, {
             {"StartDate", "INTEGER", "PRIMARY KEY"},
             {"ConnectionID", "INTEGER"}, // foreign key
@@ -127,6 +128,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 // added measurement info and performance data tables, no need to change existing info
                 createTable(TABLE_MEASUREMENT_INFO, db);
                 createTable(TABLE_PERFORMANCE_DATA, db);
+            case 5:
+                addTableColumn(TABLE_CONNECTIONS, 8, "''", db); // SessionToken column added
             default:
                 break;
         }
@@ -313,6 +316,27 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
 
         return cursor;
+    }
+
+    // returns an empty string if the connection doesn't have a session token
+    public String getSessionToken(ConnectionInfo connectionInfo) {
+        // run the query
+        Cursor cursor = getDb().query(
+                Tables[TABLE_CONNECTIONS], // table
+                new String[] {"SessionToken"}, // columns (null == "*")
+                "ConnectionID=?", // selection ('where' clause)
+                new String[] {String.valueOf(connectionInfo.getConnectionID())}, // selection args
+                null, // group by
+                null, // having
+                null // order by
+        );
+
+        // try to get results and find a Session Token to return
+        String sessionToken = "";
+        if (cursor.moveToFirst())
+            sessionToken = cursor.getString(0);
+
+        return sessionToken;
     }
 
     public List<MeasurementInfo> getAllMeasurementInfo() {
@@ -513,6 +537,20 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return updateRecord(
                 TABLE_CONNECTIONS,
                 makeContentValues(connectionInfo),
+                "ConnectionID=?",
+                String.valueOf(connectionInfo.getConnectionID())
+        );
+    }
+
+    protected long updateSessionToken(ConnectionInfo connectionInfo, String sessionToken) {
+        // create content values (we're only updating the SessionToken column)
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("SessionToken", sessionToken);
+
+        // attempt update
+        return updateRecord(
+                TABLE_CONNECTIONS,
+                contentValues,
                 "ConnectionID=?",
                 String.valueOf(connectionInfo.getConnectionID())
         );

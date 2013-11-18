@@ -80,6 +80,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLException;
 
 /**
  * Negotiates signaling for chatting with apprtc.appspot.com "rooms".
@@ -91,7 +92,7 @@ import javax.net.SocketFactory;
  */
 public class SVMPAppRTCClient implements Constants {
   private static final String TAG = "SVMPAppRTCClient";
-  private final Activity activity;
+  private final AppRTCDemoActivity activity;
   private final SVMPChannelClient.MessageHandler gaeHandler;
   private final IceServersObserver iceServersObserver;
 
@@ -105,6 +106,7 @@ public class SVMPAppRTCClient implements Constants {
   private boolean sslDebug;
   
   private ConnectionInfo connectionInfo;
+  private DatabaseHandler dbHandler;
   
   private Socket svmpSocket;
   private InputStream socketIn;
@@ -123,12 +125,13 @@ public class SVMPAppRTCClient implements Constants {
   }
 
   public SVMPAppRTCClient(
-      Activity activity, SVMPChannelClient.MessageHandler gaeHandler,
+      AppRTCDemoActivity activity, SVMPChannelClient.MessageHandler gaeHandler,
       IceServersObserver iceServersObserver) 
   {
     this.activity = activity;
     this.gaeHandler = gaeHandler;
     this.iceServersObserver = iceServersObserver;
+    this.dbHandler = new DatabaseHandler(activity);
   }
 
   public void connectToRoom(ConnectionInfo connectionInfo) {
@@ -148,13 +151,18 @@ public class SVMPAppRTCClient implements Constants {
    */
   public void disconnect() throws IOException {
     proxying = false;
+    if (dbHandler != null)
+      dbHandler.close();
     if (sender != null)
       sender.cancel(true);
     if (listener != null)
       listener.cancel(true);
-    socketIn.close();
-    socketOut.close();
-    svmpSocket.close();
+    if (socketIn != null)
+      socketIn.close();
+    if (socketOut != null)
+      socketOut.close();
+    if (!svmpSocket.isClosed())
+      svmpSocket.close();
   }
   
   private void startProxying() {
@@ -333,15 +341,34 @@ public class SVMPAppRTCClient implements Constants {
     private Request authRequest;
     @Override
     protected Boolean doInBackground(Void... params) {
+      boolean returnVal = false;
       try {
-        // get the auth data request; if this isn't a session token, it's removed from memory
-        authRequest = AuthData.getRequest(connectionInfo);
+        // get the auth request, which is either constructed from a session token or made up of auth input (password, etc)
+        String sessionToken = dbHandler.getSessionToken(connectionInfo);
+        if (sessionToken.length() > 0)
+            authRequest = AuthData.makeRequest(connectionInfo, sessionToken);
+        else
+          // get the auth data req it's removed from memory
+          authRequest = AuthData.getRequest(connectionInfo);
         socketConnect();
-        return true;
+        returnVal = true;
+      } catch (SSLException e) {
+        if (e.getMessage().contains("I/O error during system call, Connection reset by peer")) {
+          // connection failed, we tried to connect using SSL but proxy's SSL is turned off
+          toastMe(""); // cancel current toasts
+          Intent intent = new Intent();
+          intent.putExtra("connectionID", connectionInfo.getConnectionID());
+          intent.putExtra("message", R.string.connectionList_toast_failSSL);
+          activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
+          activity.finish();
+        }
+        else {
+          Log.e(TAG, e.getMessage());
+        }
       } catch (Exception e) {
         Log.e(TAG, e.getMessage());
-        return false;
       }
+      return returnVal;
     }
 
     @Override
@@ -395,7 +422,7 @@ public class SVMPAppRTCClient implements Constants {
           if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
             // we authenticated successfully, check if we received a session token
             if (authResponse.hasSessionToken())
-              AuthData.setSessionToken(connectionInfo, authResponse.getSessionToken());
+              dbHandler.updateSessionToken(connectionInfo, authResponse.getSessionToken());
 
             return true;
           }
@@ -403,8 +430,7 @@ public class SVMPAppRTCClient implements Constants {
 
         // should be an AuthResponse with a type of AUTH_FAIL, but fail anyway if it isn't
         // if we used a session token and authentication failed, discard it
-        if (AuthData.hasSessionToken(connectionInfo))
-          AuthData.reset(connectionInfo.getConnectionID());
+        dbHandler.updateSessionToken(connectionInfo, "");
         return false;
       } catch (IOException e) {
         Log.e(TAG, e.getMessage());
@@ -419,6 +445,7 @@ public class SVMPAppRTCClient implements Constants {
         (new SVMPReadyWait()).execute();
       } else {
         // authentication failed, handle appropriately
+        toastMe(""); // cancel current toasts
           Intent intent = new Intent();
           intent.putExtra("connectionID", connectionInfo.getConnectionID());
           intent.putExtra("message", R.string.svmpActivity_toast_authFailed);
@@ -509,8 +536,7 @@ public class SVMPAppRTCClient implements Constants {
       @Override
       public void run() {
         Context context = activity.getApplicationContext();
-        Toast toast = Toast.makeText(context, msg, Toast.LENGTH_SHORT);
-        toast.show();
+        activity.logAndToast(msg);
       }
     });
   }

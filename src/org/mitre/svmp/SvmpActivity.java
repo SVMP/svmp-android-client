@@ -147,7 +147,8 @@ public class SvmpActivity extends Activity implements Constants {
     // Dialog for entering a password when a connection is opened
     protected void authPrompt(final ConnectionInfo connectionInfo) {
         // if we have a session token, try to authenticate with it
-        if (AuthData.hasSessionToken(connectionInfo)) {
+        String sessionToken = dbHandler.getSessionToken(connectionInfo);
+        if (sessionToken.length() > 0) {
             startVideo(connectionInfo);
         }
         // we don't have a session token, so prompt for authentication input

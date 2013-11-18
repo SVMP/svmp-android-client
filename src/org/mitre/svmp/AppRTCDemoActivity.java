@@ -292,7 +292,8 @@ public class AppRTCDemoActivity extends Activity
 
   @Override
   public void onDestroy() {
-    performanceTimer.cancel();
+    if (performanceTimer != null)
+      performanceTimer.cancel();
     super.onDestroy();
   }
 
@@ -304,13 +305,14 @@ public class AppRTCDemoActivity extends Activity
   }
 
   // Log |msg| and Toast about it.
-  private void logAndToast(String msg) {
+  protected void logAndToast(String msg) {
     Log.d(TAG, msg);
     if (logToast != null) {
       logToast.cancel();
     }
-    logToast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
-    logToast.show();
+    if (msg.length() > 0)
+      logToast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
+      logToast.show();
   }
 
   // Send |json| to the underlying AppEngine Channel.
@@ -567,7 +569,8 @@ public class AppRTCDemoActivity extends Activity
     // AppRTCDemoActivity, close the connection, and cause the ConnectionList activity to reconnect to this
     // connectionID
     public void needAuth(int messageResID) {
-      AuthData.reset(connectionInfo.getConnectionID()); // clear timed out session information from memory
+      // clear timed out session information from memory
+      dbHandler.updateSessionToken(connectionInfo, "");
       // send a result message to the calling activity so it will show the authentication dialog again
       Intent intent = new Intent();
       intent.putExtra("connectionID", connectionInfo.getConnectionID());
@@ -603,17 +606,22 @@ public class AppRTCDemoActivity extends Activity
 //        appRtcClient.sendMessage("{\"type\": \"bye\"}");
         Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
                 .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
-        appRtcClient.sendMessage(bye);
+        try {
+          appRtcClient.sendMessage(bye);
+        } catch(Exception e) {
+          // don't care
+        }
         try {
           appRtcClient.disconnect();
-        } catch (IOException e) {
-          // TODO Auto-generated catch block
-          e.printStackTrace();
+        } catch (Exception e) {
+          // don't care
         }
         appRtcClient = null;
       }
-      performanceTimer.cancel();
-      finish();
+      if (performanceTimer != null)
+        performanceTimer.cancel();
+      if (!isFinishing())
+        finish();
     }
   }
 

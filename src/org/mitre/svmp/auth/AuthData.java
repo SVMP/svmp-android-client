@@ -28,74 +28,35 @@ import java.util.HashMap;
  * If we do NOT have a session token (e.g. we have a password, security token, it is cleared after being accessed
  */
 public final class AuthData {
-	private static HashMap<Integer, AuthData> instances = new HashMap<Integer, AuthData>();
+    // maps ConnectionID to Request objects that contain auth info (password, etc)
+    private static HashMap<Integer, Request> authDataMap = new HashMap<Integer, Request>();
 
-	private Request authRequest;
-    private boolean hasSessionToken;
-
-	// no public instantiations
-	private AuthData() {}
+    // no public instantiations
+    private AuthData() {}
 
     // used to add auth data (password, security token, etc)
-	public static void setAuthRequest(ConnectionInfo connectionInfo, Request authRequest) {
-        // if we have a session token, discard it
-        AuthData instance = reset(connectionInfo.getConnectionID());
-
+    public static void setAuthRequest(ConnectionInfo connectionInfo, Request authRequest) {
         // store this auth data
-		instance.authRequest = authRequest;
-	}
+        authDataMap.put(connectionInfo.getConnectionID(), authRequest);
+    }
 
     public static Request getRequest(ConnectionInfo connectionInfo) {
-        AuthData instance = getInstance(connectionInfo.getConnectionID());
-
-        // get the auth data
-        Request authRequest = instance.authRequest;
-
-        // if we don't have a session token, stop storing the auth data (it's not a token, it's a password/etc)
-        if (!hasSessionToken(connectionInfo))
-            instance.authRequest = null;
-
-        // return the auth data
-        return authRequest;
+        // get the request and remove it from the map (returns null value if it doesn't exist)
+        return authDataMap.remove(connectionInfo.getConnectionID());
     }
 
-    // stores the session token and
-    public static void setSessionToken(ConnectionInfo connectionInfo, String sessionToken) {
-        if (connectionInfo != null && sessionToken != null) {
-            AuthData instance = getInstance(connectionInfo.getConnectionID());
+    public static Request makeRequest(ConnectionInfo connectionInfo, String sessionToken) {
+        // create an Authentication protobuf
+        AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
+        aBuilder.setType(AuthRequest.AuthRequestType.SESSION_TOKEN);
+        // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
+        aBuilder.setUsername(connectionInfo.domainUsername());
+        aBuilder.setSessionToken(sessionToken);
 
-            // create an Authentication protobuf
-            AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
-            aBuilder.setType(AuthRequest.AuthRequestType.SESSION_TOKEN);
-            // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
-            aBuilder.setUsername(connectionInfo.domainUsername());
-            aBuilder.setSessionToken(sessionToken);
-
-            // package the Authentication protobuf in a Request wrapper and store it
-            Request.Builder rBuilder = Request.newBuilder();
-            rBuilder.setType(Request.RequestType.AUTH);
-            rBuilder.setAuthRequest(aBuilder);
-            instance.authRequest = rBuilder.build();
-            instance.hasSessionToken = true;
-        }
-    }
-
-    public static boolean hasSessionToken(ConnectionInfo connectionInfo) {
-        AuthData instance = getInstance(connectionInfo.getConnectionID());
-        return instance.hasSessionToken;
-    }
-
-    // create a new instance and return it (discarding an old instance if necessary)
-    public static AuthData reset(int connectionID) {
-        AuthData instance = new AuthData();
-        instances.put(connectionID, instance);
-        return instance;
-    }
-
-    // if an instance doesn't exist, create a new one; return the instance
-    private static AuthData getInstance(int connectionID) {
-        if (!instances.containsKey(connectionID))
-            instances.put(connectionID, new AuthData());
-        return instances.get(connectionID);
+        // package the Authentication protobuf in a Request wrapper and store it
+        Request.Builder rBuilder = Request.newBuilder();
+        rBuilder.setType(Request.RequestType.AUTH);
+        rBuilder.setAuthRequest(aBuilder);
+        return rBuilder.build();
     }
 }
