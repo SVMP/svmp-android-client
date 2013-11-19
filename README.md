@@ -10,10 +10,12 @@ Prerequisites:
 Build Steps:
 
 1. Check out the SVMP client and protocol to a directory of your choice
+
         cd ${SVMP}
         git clone https://github.com/SVMP/svmp-protocol-def.git -b svmp-1.1
         git clone https://github.com/SVMP/svmp-android-client.git -b svmp-1.1
 2.  Build the client using ant. For example:
+
         cd ${SVMP}/svmp-android-client
         ant debug
 
