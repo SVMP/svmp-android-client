@@ -2,11 +2,13 @@ Building
 ========
 
 Prerequisites:
+
 *  Up-to-date Android SDK with at least API level 17, with ANDROID_HOME environment variable set correctly
 *  Oracle JDK 6 (make sure `JAVA_HOME` is set properly)
 *  ant
 
 Build Steps:
+
 1. Check out the SVMP client and protocol to a directory of your choice
         cd ${SVMP}
         git clone https://github.com/SVMP/svmp-protocol-def.git -b svmp-1.1
@@ -21,6 +23,7 @@ IDEs
 ====
 
 Eclipse with the ADT:
+
 1.  Check out the code as above
 2.  In Eclipse, select File -> New -> Project -> Android Project from Existing Code
 3.  Set the Root Directory to where the client code is checked out (`${SVMP}/svmp-android-client`).
