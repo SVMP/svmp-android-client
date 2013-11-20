@@ -62,7 +62,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"EncryptionType", "INTEGER"},
             {"Domain", "TEXT"},
             {"AuthType", "INTEGER DEFAULT 1"},
-            {"SessionToken", "TEXT"}
+            {"SessionToken", "TEXT DEFAULT ''"}
         }, {
             {"StartDate", "INTEGER", "PRIMARY KEY"},
             {"ConnectionID", "INTEGER"}, // foreign key
@@ -335,6 +335,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         String sessionToken = "";
         if (cursor.moveToFirst())
             sessionToken = cursor.getString(0);
+        // sessionToken should never be null; if it is, change it to an empty string
+        if (sessionToken == null)
+            sessionToken = "";
 
         return sessionToken;
     }
