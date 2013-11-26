@@ -78,9 +78,6 @@
     <string name="connectionList_toast_error">Error creating new connection</string>
     <string name="connectionList_toast_notFound">Connection not found</string>
     <string name="connectionList_toast_removed">Connection removed</string>
-    <string name="connectionList_toast_failSSL">Error connecting (check your encryption settings)</string>
-    <string name="connectionList_toast_failRefused">Error connecting (server refused connection)</string>
-    <string name="connectionList_toast_failLostConn">Lost connection to server</string>
 
     <!-- ConnectionDetails toast resources -->
     <string name="connectionDetails_toast_invalidPort">Invalid port number (must be 1 to 65535)</string>
@@ -90,9 +87,28 @@
     <string name="connectionDetails_toast_blankHost">Host must not be blank</string>
 
     <!-- SvmpActivity toast resources -->
-    <string name="svmpActivity_toast_authFailed">Authentication failed, try again</string>
     <string name="svmpActivity_toast_sessionMaxTimeout">Session reached max life timeout, please re-authenticate</string>
     <string name="svmpActivity_toast_sessionIdleTimeout">Session reached idle timeout, please re-authenticate</string>
+
+    <!-- AppRTC toast resources -->
+    <string name="appRTC_toast_connection_start">Connecting to room…</string>
+    <string name="appRTC_toast_connection_notFound">Connection info not found!</string>
+    <string name="appRTC_toast_socketConnector_failUntrustedClient">Error connecting (untrusted client certificate)</string>
+    <string name="appRTC_toast_socketConnector_failUntrustedServer">Error connecting (untrusted server certificate)</string>
+    <string name="appRTC_toast_socketConnector_failSSLHandshake">Error during SSL handshake</string>
+    <string name="appRTC_toast_socketConnector_failSSL">Error connecting (check your encryption settings)</string>
+    <string name="appRTC_toast_socketConnector_fail">Error connecting</string>
+    <string name="appRTC_toast_socketConnector_success">Connected to host</string>
+    <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
+    <string name="appRTC_toast_svmpReadyWait_fail">Kraken Attack!!!!</string>
+    <string name="appRTC_toast_svmpReadyWait_success">VM is ready</string>
+    <string name="appRTC_toast_videoParameterGetter_start">Querying for webrtc channel info</string>
+    <string name="appRTC_toast_videoParameterGetter_finish">Got channel info</string>
+    <string name="appRTC_toast_getIceServers_start">Waiting for ICE candidates…</string>
+    <string name="appRTC_toast_clientHandler_start">Creating offer…</string>
+    <string name="appRTC_toast_clientHandler_finish">Remote end hung up; dropping PeerConnection</string>
+    <string name="appRTC_toast_sdpObserver_sendOffer">Sending offer</string>
+    <string name="appRTC_toast_sdpObserver_createAnswer">Creating answer</string>
 
     <!-- SvmpActivity dialog resources -->
     <string name="authPrompt_title">Authentication required</string>

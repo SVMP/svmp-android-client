@@ -100,7 +100,7 @@ public class SvmpActivity extends Activity implements Constants {
         // if this result has an intent, and the intent has a message, display a Toast
         int resId;
         if( data != null && (resId = data.getIntExtra("message", 0)) > 0 )
-            toastLong(resId);
+            toastShort(resId);
 
         switch (resultCode) {
             default:

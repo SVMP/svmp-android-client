@@ -3,7 +3,7 @@
     <xmlproperty file="AndroidManifest.xml" prefix="mymanifest" collapseAttributes="true"/>
 
     <property name="libs.dir" value="libs" />   
-    <property name="svmp-protocol-def" value="../svmp-protocol-def" />   
+    <property name="svmp-protocol-def" value="svmp-protocol-def" />
 
     <target name="-pre-compile">
         <echo>ORIGINAL jars.path : ${toString:project.all.jars.path}</echo>

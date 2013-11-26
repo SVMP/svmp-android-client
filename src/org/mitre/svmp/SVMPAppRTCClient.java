@@ -45,14 +45,11 @@
 
 package org.mitre.svmp;
 
-import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
-import android.net.SSLCertificateSocketFactory;
 import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
+import de.duenndns.ssl.MemorizingTrustManager;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -73,14 +70,15 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.net.SocketFactory;
-import javax.net.ssl.SSLException;
+import javax.net.ssl.*;
 
 /**
  * Negotiates signaling for chatting with apprtc.appspot.com "rooms".
@@ -147,7 +145,7 @@ public class SVMPAppRTCClient implements Constants {
 
   /**
    * Disconnect from the SVMP proxy channel.
-   * @throws IOException 
+   * @throws IOException
    */
   public void disconnect() throws IOException {
     proxying = false;
@@ -161,7 +159,7 @@ public class SVMPAppRTCClient implements Constants {
       socketIn.close();
     if (socketOut != null)
       socketOut.close();
-    if (!svmpSocket.isClosed())
+    if (svmpSocket != null && !svmpSocket.isClosed())
       svmpSocket.close();
   }
   
@@ -237,7 +235,7 @@ public class SVMPAppRTCClient implements Constants {
     @Override
     protected AppRTCSignalingParameters doInBackground(Void... params) {
       try {
-        toastMe( "Querying for webrtc channel info" );
+        toastMe(R.string.appRTC_toast_videoParameterGetter_start);
         
         // send video info request
         Request.Builder req = Request.newBuilder();
@@ -259,7 +257,7 @@ public class SVMPAppRTCClient implements Constants {
 
     @Override
     protected void onPostExecute(AppRTCSignalingParameters params) {
-      toastMe("Got channel info.");
+      toastMe(R.string.appRTC_toast_videoParameterGetter_finish);
       startProxying();
 
       appRTCSignalingParameters = params;
@@ -336,12 +334,12 @@ public class SVMPAppRTCClient implements Constants {
   }
 
   // Connect to the SVMP server
-  private class SocketConnector extends AsyncTask <Void, Void, Boolean> {
+  private class SocketConnector extends AsyncTask <Void, Void, Integer> {
 
     private Request authRequest;
     @Override
-    protected Boolean doInBackground(Void... params) {
-      boolean returnVal = false;
+    protected Integer doInBackground(Void... params) {
+      int returnVal = R.string.appRTC_toast_socketConnector_fail; // resID for return message
       try {
         // get the auth request, which is either constructed from a session token or made up of auth input (password, etc)
         String sessionToken = dbHandler.getSessionToken(connectionInfo);
@@ -350,17 +348,36 @@ public class SVMPAppRTCClient implements Constants {
         else
           // get the auth data req it's removed from memory
           authRequest = AuthData.getRequest(connectionInfo);
+
         socketConnect();
-        returnVal = true;
+        if (svmpSocket instanceof SSLSocket) {
+          SSLSocket sslSocket = (SSLSocket)svmpSocket;
+          sslSocket.startHandshake(); // starts the handshake to verify the cert before continuing
+        }
+        socketOut = svmpSocket.getOutputStream();
+        socketIn = svmpSocket.getInputStream();
+        returnVal = 0;
+      } catch (SSLHandshakeException e) {
+        String msg = e.getMessage();
+        if (msg.contains("SSL handshake terminated") && msg.contains("certificate unknown")) {
+          // our client certificate isn't in the server's trust store
+          Log.e(TAG, "Untrusted client certificate!");
+          returnVal = R.string.appRTC_toast_socketConnector_failUntrustedClient;
+        }
+        else if (msg.contains("java.security.cert.CertPathValidatorException")) {
+          // the server's certificate isn't in our trust store
+          Log.e(TAG, "Untrusted server certificate!");
+          returnVal = R.string.appRTC_toast_socketConnector_failUntrustedServer;
+        }
+        else {
+          Log.e(TAG, "Error during SSL handshake: " + e.getMessage());
+          e.printStackTrace();
+          toastMe(R.string.appRTC_toast_socketConnector_failSSLHandshake);
+        }
       } catch (SSLException e) {
         if (e.getMessage().contains("I/O error during system call, Connection reset by peer")) {
           // connection failed, we tried to connect using SSL but proxy's SSL is turned off
-          toastMe(""); // cancel current toasts
-          Intent intent = new Intent();
-          intent.putExtra("connectionID", connectionInfo.getConnectionID());
-          intent.putExtra("message", R.string.connectionList_toast_failSSL);
-          activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
-          activity.finish();
+          returnVal = R.string.appRTC_toast_socketConnector_failSSL;
         }
         else {
           Log.e(TAG, e.getMessage());
@@ -372,85 +389,131 @@ public class SVMPAppRTCClient implements Constants {
     }
 
     @Override
-    protected void onPostExecute(Boolean result) {
-      toastMe( result ? "Connected to " + connectionInfo.getHost() : "Connection failed" );
-
-      if (result)
+    protected void onPostExecute(Integer result) {
+      if (result == 0) {
+        toastMe(R.string.appRTC_toast_socketConnector_success);
+        activity.setStateConnected();
         new SVMPAuthenticator().execute(authRequest);
+      }
+      else {
+        // if the connection failed, display the failure message and return to the connection list
+        toastMe(result);
+        Intent intent = new Intent();
+        activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
+        activity.finish();
+      }
     }
-      
-    private void socketConnect() throws UnknownHostException, IOException {
+
+    private void socketConnect() throws IOException,
+            KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException,
+            UnrecoverableKeyException {
+        // determine both booleans from the EncryptionType integer
+      boolean useSsl = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS
+          || connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
+      boolean sslDebug = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
+
       SocketFactory sf;
 
-      Log.d(TAG, "Socket connecting to " + connectionInfo.getHost() + ":" + DEFAULT_PORT);
+      Log.d(TAG, "Socket connecting to " + connectionInfo.getHost() + ":" + connectionInfo.getPort());
 
       if (useSsl) {
-        if (sslDebug)
-          sf = SSLCertificateSocketFactory.getInsecure(0, null);
-        else
-          sf = SSLCertificateSocketFactory.getDefault(0, null);
-     } else {
-       sf = SocketFactory.getDefault();
-     }
+        KeyManager[] keyManagers = null;
+        if (sslDebug) {
+          SSLContext sslcontext = SSLContext.getInstance("TLS");
+          sslcontext.init(keyManagers, MemorizingTrustManager.getInstanceList(activity), new SecureRandom());
+          svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
+        }
+        else {
+          // create the trust manager factory
+          TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+          // load system trusted certificates into the trust manager factory
+          tmf.init((KeyStore)null); // passing a null value will use system trust store instead
+          /*
+          // load trusted certificates from our truststore file into the trust manager factory
+          String storePassword = "clientstorepass";
+          KeyStore trustStore = KeyStore.getInstance("BKS");
+          trustStore.load(
+              activity.getResources().openRawResource(R.raw.client_tstore),
+              storePassword.toCharArray());
+          tmf.init(trustStore);
+          */
 
-     svmpSocket = sf.createSocket(connectionInfo.getHost(), connectionInfo.getPort());
-
-     socketOut = svmpSocket.getOutputStream();
-     socketIn = svmpSocket.getInputStream();
+          SSLContext sslcontext = SSLContext.getInstance("TLS");
+          sslcontext.init(keyManagers, tmf.getTrustManagers(), new SecureRandom());
+          svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
+        }
+      }
+      else {
+        sf = SocketFactory.getDefault();
+        svmpSocket = sf.createSocket(connectionInfo.getHost(), connectionInfo.getPort());
+      }
     }
   }
 
   // Perform authentication request/resposne
-  private class SVMPAuthenticator extends AsyncTask <Request, Void, Boolean> {
+  private class SVMPAuthenticator extends AsyncTask <Request, Void, Integer> {
 
     @Override
-    protected Boolean doInBackground(Request... request) {
-      if (!svmpSocket.isConnected())
-        return false;
+    protected Integer doInBackground(Request... request) {
+      int returnVal = R.string.appRTC_toast_svmpAuthenticator_fail;
 
-      if (request[0] == null)
-        return false;
-      
-      try {
-        // send authentication request
-        request[0].writeDelimitedTo(socketOut);
+      if (svmpSocket.isConnected() && request[0] != null) {
+        try {
+          // send authentication request
+          request[0].writeDelimitedTo(socketOut);
 
-        // get response
-        Response resp = Response.parseDelimitedFrom(socketIn);
-        if (resp.getType() == ResponseType.AUTH) {
-          AuthResponse authResponse = resp.getAuthResponse();
-          if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
-            // we authenticated successfully, check if we received a session token
-            if (authResponse.hasSessionToken())
-              dbHandler.updateSessionToken(connectionInfo, authResponse.getSessionToken());
+          // get response
+          Response resp = Response.parseDelimitedFrom(socketIn);
+          if (resp.getType() == ResponseType.AUTH) {
+            AuthResponse authResponse = resp.getAuthResponse();
+            if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
+              // we authenticated successfully, check if we received a session token
+              if (authResponse.hasSessionToken())
+                dbHandler.updateSessionToken(connectionInfo, authResponse.getSessionToken());
 
-            return true;
+              returnVal = 0; // success
+            }
+            // got an AuthResponse with a type of AUTH_FAIL
+            // if we used a session token and authentication failed, discard it
+            else
+              dbHandler.updateSessionToken(connectionInfo, "");
           }
+          // should be an AuthResponse with a type of AUTH_FAIL, but fail anyway if it isn't
+          // if we used a session token and authentication failed, discard it
+          else
+            dbHandler.updateSessionToken(connectionInfo, "");
+        } catch (IOException e) {
+          // client isn't using encryption, server is
+          if (e.getMessage().equals("Protocol message contained an invalid tag (zero)."))
+            returnVal = R.string.appRTC_toast_socketConnector_failSSL;
+          else
+            Log.e(TAG, e.getMessage());
         }
-
-        // should be an AuthResponse with a type of AUTH_FAIL, but fail anyway if it isn't
-        // if we used a session token and authentication failed, discard it
-        dbHandler.updateSessionToken(connectionInfo, "");
-        return false;
-      } catch (IOException e) {
-        Log.e(TAG, e.getMessage());
-        return false;
       }
+      return returnVal;
     }
 
     @Override
-    protected void onPostExecute(Boolean result) {
-      if (result) {
+    protected void onPostExecute(Integer result) {
+      if (result == 0) {
         // auth succeeded, wait for VMREADY
         (new SVMPReadyWait()).execute();
-      } else {
+      }
+      else {
         // authentication failed, handle appropriately
-        toastMe(""); // cancel current toasts
-          Intent intent = new Intent();
+        toastMe(result); // cancel current toasts
+
+        Intent intent = new Intent();
+        // if our authentication was rejected, bring up the auth prompt when the connection list resumes
+        if (result == R.string.appRTC_toast_svmpAuthenticator_fail) {
           intent.putExtra("connectionID", connectionInfo.getConnectionID());
-          intent.putExtra("message", R.string.svmpActivity_toast_authFailed);
           activity.setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
-          activity.finish();
+        }
+        // we had an SSL error, don't do anything when the connection list resumes
+        else
+          activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
+
+        activity.finish();
       }
     }
   }
@@ -473,12 +536,12 @@ public class SVMPAppRTCClient implements Constants {
 
     @Override
     protected void onPostExecute(Boolean result) {
-      toastMe(result ? "VM is ready" : "Kraken Attack!!!!");
-
       if (result) {
+          toastMe(R.string.appRTC_toast_svmpReadyWait_success);
         // auth succeeded, get room parameters
         (new VideoParameterGetter()).execute();
       } else {
+        toastMe(R.string.appRTC_toast_svmpReadyWait_fail);
         // TODO
         // got something other than VMREADY, panic
       }
@@ -512,7 +575,7 @@ public class SVMPAppRTCClient implements Constants {
         Log.i(TAG, "Server connection receive thread starting");
         while (proxying && svmpSocket != null && svmpSocket.isConnected() && socketIn != null) {
           Log.d(TAG, "Waiting for incoming message");
-          final SVMPProtocol.Response data = SVMPProtocol.Response.parseDelimitedFrom(socketIn);
+          final Response data = Response.parseDelimitedFrom(socketIn);
           Log.d(TAG, "Received incoming message object of type " + data.getType().name());
 
           if (data != null) {
@@ -532,12 +595,11 @@ public class SVMPAppRTCClient implements Constants {
     }
   }
 
-  private void toastMe(final String msg) {
+  private void toastMe(final int resID) {
     activity.runOnUiThread(new Runnable() {
       @Override
       public void run() {
-        Context context = activity.getApplicationContext();
-        activity.logAndToast(msg);
+        activity.logAndToast(resID);
       }
     });
   }

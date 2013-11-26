@@ -10,8 +10,10 @@
 
 # generated files
 bin/
+MemorizingTrustManager/bin/
 build/
 gen/
+MemorizingTrustManager/gen/
 src/org/mitre/svmp/protocol/
 src/com
 

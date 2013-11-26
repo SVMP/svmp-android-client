@@ -64,7 +64,6 @@ import android.widget.Toast;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.client.*;
 import org.mitre.svmp.performance.PointPerformanceData;
 import org.mitre.svmp.performance.SpanPerformanceData;
@@ -87,7 +86,6 @@ import org.webrtc.StatsReport;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.I420Frame;
 
-import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -97,7 +95,14 @@ import java.util.List;
 public class AppRTCDemoActivity extends Activity
     implements SVMPAppRTCClient.IceServersObserver, SensorEventListener {
     
-  private static final String TAG = "AppRTCDemoActivity";
+  private static final String TAG = AppRTCDemoActivity.class.getName();
+  private static final int STATE_NEW = 0;
+  private static final int STATE_CONNECTED = 1;
+  private int state = STATE_NEW;
+
+  public void setStateConnected() {
+      state = STATE_CONNECTED;
+  }
   
   private PeerConnection pc;
   private final PCObserver pcObserver = new PCObserver();
@@ -192,11 +197,11 @@ public class AppRTCDemoActivity extends Activity
     if (connectionInfo != null)
       connectToRoom();
     else
-      logAndToast("Connection info not found!");
+      logAndToast(R.string.appRTC_toast_connection_notFound);
   }
 
   private void connectToRoom() {
-    logAndToast("Connecting to room...");
+    logAndToast(R.string.appRTC_toast_connection_start);
     appRtcClient.connectToRoom(connectionInfo);
   }
 
@@ -209,7 +214,9 @@ public class AppRTCDemoActivity extends Activity
     // https://code.google.com/p/webrtc/issues/detail?id=1407
     // Instead, simply exit instead of pausing (the alternative leads to
     // system-borking with wedged cameras; e.g. b/8224551)
-    disconnectAndExit();
+
+    if (state != STATE_NEW)
+        disconnectAndExit();
   }
 
   @Override
@@ -265,7 +272,7 @@ public class AppRTCDemoActivity extends Activity
 //      lMS.addTrack(factory.createAudioTrack("ARDAMSa0"));
 //      pc.addStream(lMS, new MediaConstraints());
 //    }
-    logAndToast("Waiting for ICE candidates...");
+    logAndToast(R.string.appRTC_toast_getIceServers_start);
   }
 
 //  // Cycle through likely device names for the camera and return the first
@@ -305,14 +312,13 @@ public class AppRTCDemoActivity extends Activity
   }
 
   // Log |msg| and Toast about it.
-  protected void logAndToast(String msg) {
-    Log.d(TAG, msg);
+  protected void logAndToast(int resID) {
+    Log.d(TAG, getResources().getString(resID));
     if (logToast != null) {
       logToast.cancel();
     }
-    if (msg.length() > 0)
-      logToast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
-      logToast.show();
+    logToast = Toast.makeText(this, resID, Toast.LENGTH_SHORT);
+    logToast.show();
   }
 
   // Send |json| to the underlying AppEngine Channel.
@@ -410,7 +416,7 @@ public class AppRTCDemoActivity extends Activity
     @Override public void onCreateSuccess(final SessionDescription sdp) {
       runOnUiThread(new Runnable() {
           public void run() {
-            logAndToast("Sending " + sdp.type);
+            logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
             JSONObject json = new JSONObject();
             jsonPut(json, "type", sdp.type.canonicalForm());
             jsonPut(json, "sdp", sdp.description);
@@ -432,7 +438,7 @@ public class AppRTCDemoActivity extends Activity
             } else {
               if (pc.getLocalDescription() == null) {
                 // We just set the remote offer, time to create our answer.
-                logAndToast("Creating answer");
+                logAndToast(R.string.appRTC_toast_sdpObserver_createAnswer);
                 pc.createAnswer(SDPObserver.this, sdpMediaConstraints);
               } else {
                 // Sent our answer and set it as local description; drain
@@ -490,7 +496,7 @@ public class AppRTCDemoActivity extends Activity
       locationHandler.initLocationUpdates();
       rotationHandler.initRotationUpdates();
       
-      logAndToast("Creating offer...");
+      logAndToast(R.string.appRTC_toast_clientHandler_start);
       pc.createOffer(sdpObserver, sdpMediaConstraints);
     }
 
@@ -549,7 +555,7 @@ public class AppRTCDemoActivity extends Activity
                 (String) json.get("sdp"));
             pc.setRemoteDescription(sdpObserver, sdp);
           } else if (type.equals("bye")) {
-            logAndToast("Remote end hung up; dropping PeerConnection");
+            logAndToast(R.string.appRTC_toast_clientHandler_finish);
             disconnectAndExit();
           } else {
             throw new RuntimeException("Unexpected message: " + data);
@@ -612,7 +618,7 @@ public class AppRTCDemoActivity extends Activity
                 .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
         try {
           appRtcClient.sendMessage(bye);
-        } catch(Exception e) {
+        } catch (Exception e) {
           // don't care
         }
         try {

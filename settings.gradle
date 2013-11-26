@@ -1,1 +1,2 @@
 include 'svmp-protocol-def'
+include 'MemorizingTrustManager'
