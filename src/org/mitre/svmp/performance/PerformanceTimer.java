@@ -61,7 +61,7 @@ public class PerformanceTimer extends Timer {
             databaseHandler.close();
 
             // create a MeasureCpuThread and run it on an interval (start immediately)
-            measureCpuThread = new MeasureCpuThread(pointPerformanceData);
+            measureCpuThread = new MeasureCpuThread(pointPerformanceData, activity.getPackageName());
             measureCpuThread.start();
 
             // create a PingTask and run it on an interval (start immediately)
@@ -79,10 +79,16 @@ public class PerformanceTimer extends Timer {
     @Override
     public void cancel() {
         if (active) {
-            measureCpuThread.cancel();
-            pingTask.cancel();
-            measureTask.cancel();
+            if (measureCpuThread != null)
+                measureCpuThread.cancel();
+            if (pingTask != null)
+                pingTask.cancel();
+            if (measureTask != null)
+                measureTask.cancel();
         }
+        measureCpuThread = null;
+        pingTask = null;
+        measureTask = null;
         super.cancel();
     }
 }

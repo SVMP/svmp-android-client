@@ -29,9 +29,11 @@ public class MeasureCpuThread extends Thread {
 
     private boolean cancelled;
     private PointPerformanceData pointPerformanceData;
+    private String packageName;
 
-    public MeasureCpuThread(PointPerformanceData pointPerformanceData) {
+    public MeasureCpuThread(PointPerformanceData pointPerformanceData, String packageName) {
         this.pointPerformanceData = pointPerformanceData;
+        this.packageName = packageName;
     }
 
     public void run() {
@@ -50,25 +52,32 @@ public class MeasureCpuThread extends Thread {
         String topOutput = executeTop();
 
         if (topOutput.length() > 0) {
-            // output should look like this (note there are two spaces between the first three values):
-            // 10414  0  31% S    32 350368K  57072K  fg u0_a37   org.mitre.svmp.client
-            String[] split = topOutput.split(" ");
-            if (split.length >= 5 && split[4].length() >= 2)
-                try {
-                    // split: "10414", "", "0", "", "31%", ...
-                    // truncate the % sign, parse the number, and convert it to a double (0.0 to 1.0)
-                    int cpuUsageInt = Integer.parseInt(split[4].substring(0, split[4].length() - 1));
-                    cpuUsage = (double)cpuUsageInt / 100.0;
-                } catch (NumberFormatException e) {
-                    Log.e(TAG, "getCpuUsage failed parsing number: " + e.getMessage());
+            // note, whitespace in topOutput varies greatly, we need to do some splits to get the CPU usage
+            // topOutput: " 10414  0  31% S    32 350368K  57072K  fg u0_a37   org.mitre.svmp.client"
+            String[] split1 = topOutput.split("%");
+            if (split1.length > 0) {
+                // we want the first element in split1
+                // split1: "10414  0  31", ...
+                String[] split2 = split1[0].split(" ");
+                if (split2.length > 0) {
+                    // we want the last element in split2
+                    // split2: ..., "31"
+                    try {
+                        // parse the number and convert it to a double (0.0 to 1.0)
+                        int cpuUsageInt = Integer.parseInt(split2[split2.length-1]);
+                        cpuUsage = (double)cpuUsageInt / 100.0;
+                    } catch (NumberFormatException e) {
+                        Log.e(TAG, "getCpuUsage failed parsing number: " + e.getMessage());
+                    }
                 }
+            }
         }
 
         return cpuUsage;
     }
 
     private String executeTop() {
-        java.lang.Process p = null;
+        Process p = null;
         BufferedReader in = null;
         String returnString = "",
                 readString;
@@ -76,13 +85,10 @@ public class MeasureCpuThread extends Thread {
             p = Runtime.getRuntime().exec("top -n 1");
             in = new BufferedReader(new InputStreamReader(p.getInputStream()));
             while ((readString = in.readLine()) != null) {
-                if (readString.startsWith(String.valueOf(android.os.Process.myPid()))) {
+                if (readString.endsWith(packageName)) {
                     returnString = readString;
                     break;
                 }
-            }
-            while (returnString == null || returnString.contentEquals("")) {
-                returnString = in.readLine();
             }
         } catch (IOException e) {
             Log.e(TAG, "error in getting first line of top: " + e.getMessage());
