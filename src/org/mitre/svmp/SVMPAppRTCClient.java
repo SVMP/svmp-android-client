@@ -493,7 +493,8 @@ public class SVMPAppRTCClient implements Constants {
       Log.i(TAG, "Server connection send thread starting");
       while (proxying && svmpSocket != null && svmpSocket.isConnected() && socketOut != null) {
         try {
-          Log.i(TAG,"Writing message to VM...");
+          // too noisy to leave enabled
+          //Log.d(TAG,"Writing message to VM...");
           sendQueue.take().writeDelimitedTo(socketOut);
         } catch (Exception e) {
           Log.e(TAG,"Exception in sendMessage " + e.getMessage());
