@@ -461,6 +461,10 @@ public class AppRTCDemoActivity extends Activity
     }
 
     private void drainRemoteCandidates() {
+      if (queuedRemoteCandidates == null) {
+        Log.e(TAG, "Something called drainRemoteCandidates, but the queue was already nulled. !?!?!?"); 
+        return;
+      }
       for (IceCandidate candidate : queuedRemoteCandidates) {
         pc.addIceCandidate(candidate);
       }
