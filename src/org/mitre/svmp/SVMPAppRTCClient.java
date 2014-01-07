@@ -54,6 +54,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.auth.AuthData;
+import org.mitre.svmp.auth.SVMPKeyManager;
+import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.AuthResponse;
@@ -98,10 +100,6 @@ public class SVMPAppRTCClient implements Constants {
   //private LinkedList<String> sendQueue = new LinkedList<String>();
   private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
   private AppRTCSignalingParameters appRTCSignalingParameters;
-
-  // used to determine what the EncryptionType for each connection is
-  private boolean useSsl;
-  private boolean sslDebug;
   
   private ConnectionInfo connectionInfo;
   private DatabaseHandler dbHandler;
@@ -113,7 +111,7 @@ public class SVMPAppRTCClient implements Constants {
   
   private SocketSender sender = null;
   private SocketListener listener = null;
-  
+
   /**
    * Callback fired once the room's signaling parameters specify the set of
    * ICE servers to use.
@@ -134,11 +132,6 @@ public class SVMPAppRTCClient implements Constants {
 
   public void connectToRoom(ConnectionInfo connectionInfo) {
     this.connectionInfo = connectionInfo;
-
-    // determine both booleans from the EncryptionType integer
-    useSsl = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS
-            || connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
-    sslDebug = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
     
     (new SocketConnector()).execute();
   }
@@ -369,6 +362,11 @@ public class SVMPAppRTCClient implements Constants {
           Log.e(TAG, "Untrusted server certificate!");
           returnVal = R.string.appRTC_toast_socketConnector_failUntrustedServer;
         }
+        else if (msg.contains("alert bad certificate")) {
+          // the server expects a certificate but we didn't provide one
+          Log.e(TAG, "Server requires client certificate!");
+          returnVal = R.string.appRTC_toast_socketConnector_failClientCertRequired;
+        }
         else {
           Log.e(TAG, "Error during SSL handshake: " + e.getMessage());
           e.printStackTrace();
@@ -411,6 +409,9 @@ public class SVMPAppRTCClient implements Constants {
       boolean useSsl = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS
           || connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
       boolean sslDebug = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
+      // determine whether we should use client certificate authentication
+      boolean useCertificateAuth = API_ICS &&
+              (connectionInfo.getAuthType() & CertificateModule.AUTH_MODULE_ID) == CertificateModule.AUTH_MODULE_ID;
 
       SocketFactory sf;
 
@@ -418,6 +419,10 @@ public class SVMPAppRTCClient implements Constants {
 
       if (useSsl) {
         KeyManager[] keyManagers = null;
+        if (useCertificateAuth) {
+            keyManagers = new KeyManager[] {new SVMPKeyManager(activity, connectionInfo.getCertificateAlias())};
+        }
+
         if (sslDebug) {
           SSLContext sslcontext = SSLContext.getInstance("TLS");
           sslcontext.init(keyManagers, MemorizingTrustManager.getInstanceList(activity), new SecureRandom());
@@ -428,15 +433,6 @@ public class SVMPAppRTCClient implements Constants {
           TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
           // load system trusted certificates into the trust manager factory
           tmf.init((KeyStore)null); // passing a null value will use system trust store instead
-          /*
-          // load trusted certificates from our truststore file into the trust manager factory
-          String storePassword = "clientstorepass";
-          KeyStore trustStore = KeyStore.getInstance("BKS");
-          trustStore.load(
-              activity.getResources().openRawResource(R.raw.client_tstore),
-              storePassword.toCharArray());
-          tmf.init(trustStore);
-          */
 
           SSLContext sslcontext = SSLContext.getInstance("TLS");
           sslcontext.init(keyManagers, tmf.getTrustManagers(), new SecureRandom());

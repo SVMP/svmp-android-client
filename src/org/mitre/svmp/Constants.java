@@ -15,7 +15,7 @@
  */
 package org.mitre.svmp;
 
-import android.content.res.Resources;
+import android.os.Build;
 import org.mitre.svmp.client.R;
 
 /**
@@ -23,7 +23,7 @@ import org.mitre.svmp.client.R;
  */
 public interface Constants {
     public static final int DEFAULT_PORT = 8002;
-    public static final String PREFS_NAME = "SVMP_PREFERENCES";
+    public static final boolean API_ICS = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);
 
     // used to determine what the EncryptionType for each connection is
     public static final int ENCRYPTION_NONE = 0;

@@ -15,6 +15,7 @@
  */
 package org.mitre.svmp.auth;
 
+import org.mitre.svmp.Constants;
 import org.mitre.svmp.auth.module.*;
 import org.mitre.svmp.auth.type.*;
 
@@ -24,7 +25,7 @@ import java.util.List;
 /**
  * @author Joe Portner
  */
-public class AuthRegistry {
+public class AuthRegistry implements Constants {
     // get an array of all Auth Types that are registered
     public static IAuthType[] getAuthTypes() {
         return AUTH_TYPES.toArray(new IAuthType[AUTH_TYPES.size()]);
@@ -46,6 +47,11 @@ public class AuthRegistry {
         list.add(new SecurityTokenType());
         list.add(new PasswordAndSecurityTokenType());
 
+        if (API_ICS) {
+            // only for ICS and newer versions that support the KeyChain API
+            list.add(new CertificateType());
+        }
+
         return list;
     }
 
@@ -55,6 +61,11 @@ public class AuthRegistry {
         // add instances of modules here
         list.add(new PasswordModule());
         list.add(new SecurityTokenModule());
+
+        if (API_ICS) {
+            // only for ICS and newer versions that support the KeyChain API
+            list.add(new CertificateModule());
+        }
 
         return list;
     }

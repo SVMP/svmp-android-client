@@ -37,7 +37,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 6;
+    public static final int DB_VERSION = 7;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
@@ -62,7 +62,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"EncryptionType", "INTEGER"},
             {"Domain", "TEXT"},
             {"AuthType", "INTEGER DEFAULT 1"},
-            {"SessionToken", "TEXT DEFAULT ''"}
+            {"SessionToken", "TEXT DEFAULT ''"},
+            {"CertificateAlias", "TEXT DEFAULT ''"}
         }, {
             {"StartDate", "INTEGER", "PRIMARY KEY"},
             {"ConnectionID", "INTEGER"}, // foreign key
@@ -130,6 +131,8 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 createTable(TABLE_PERFORMANCE_DATA, db);
             case 5:
                 addTableColumn(TABLE_CONNECTIONS, 8, "''", db); // SessionToken column added
+            case 6:
+                addTableColumn(TABLE_CONNECTIONS, 9, "''", db); // SessionToken column added
             default:
                 break;
         }
@@ -412,9 +415,10 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             int encryptionType = cursor.getInt(5);
             String domain = cursor.getString(6);
             int authType = cursor.getInt(7);
+            String certificateAlias = cursor.getString(9);
 
             return new ConnectionInfo(connectionID, description, username, host, port, encryptionType, domain,
-                    authType);
+                    authType, certificateAlias);
         } catch( Exception e ) {
             e.printStackTrace();
             return null;
@@ -589,6 +593,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             contentValues.put("EncryptionType", connectionInfo.getEncryptionType());
             contentValues.put("Domain", connectionInfo.getDomain());
             contentValues.put("AuthType", connectionInfo.getAuthType());
+            contentValues.put("CertificateAlias", connectionInfo.getCertificateAlias());
         }
 
         return contentValues;

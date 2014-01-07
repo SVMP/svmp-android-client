@@ -45,6 +45,7 @@ public class SvmpActivity extends Activity implements Constants {
 
     // database handler
     protected DatabaseHandler dbHandler;
+    protected boolean repopulateOnResume = true; // default behavior: repopulate layout during onResume()
 
     public void onCreate(Bundle savedInstanceState, int layoutId) {
         super.onCreate(savedInstanceState);
@@ -131,8 +132,10 @@ public class SvmpActivity extends Activity implements Constants {
     @Override
     public void onResume() {
         super.onResume();
-        // repopulate the layout in case DB information has changed
-        populateLayout();
+        if (repopulateOnResume) {
+            // repopulate the layout in case DB information has changed
+            populateLayout();
+        }
         // change layout depending on preferences
         refreshPreferences();
     }
@@ -162,6 +165,7 @@ public class SvmpActivity extends Activity implements Constants {
 
             IAuthModule[] authModules = AuthRegistry.getAuthModules();
             final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
+            boolean inputRequired = false;
             // loop through the available Auth Modules;
             for (IAuthModule module : authModules)
                 // if one should be used for this Connection, let it add a View to the UI and store it in a map
@@ -170,40 +174,52 @@ public class SvmpActivity extends Activity implements Constants {
                     View view = module.generateUI(this);
                     moduleViewMap.put(module, view);
                     // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
-                    if (view != null)
+                    if (view != null) {
                         inputContainer.addView(view);
+                        inputRequired = true;
+                    }
                 }
 
-            // create a dialog
-            final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
-                    .setTitle( R.string.authPrompt_title)
-    //                .setMessage(connectionInfo.domainUsername())
-                    .setView(inputContainer)
-                    .setPositiveButton(R.string.authPrompt_button_positive_text,
-                            new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int whichButton) {
-                                    // create an Intent to send for authorization
-                                    Request authRequest = buildAuthRequest(
-                                            connectionInfo.getAuthType(),
-                                            connectionInfo.domainUsername(),
-                                            moduleViewMap);
-                                    // authorize user credentials
-                                    AuthData.setAuthRequest(connectionInfo, authRequest);
-                                    // legacy code (will change when Service is implemented)
-                                    startVideo(connectionInfo);
-                                }
-                            })
-                    .setNegativeButton(R.string.authPrompt_button_negative_text,
-                            new DialogInterface.OnClickListener() {
-                                public void onClick(DialogInterface dialog, int whichButton) {
-                                    // Do nothing.
-                                }
-                            }).create();
-            // show the dialog
-            dialog.show();
-            // request keyboard
-            dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            if (inputRequired) {
+                // create a dialog
+                final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
+                        .setTitle( R.string.authPrompt_title)
+                                //                .setMessage(connectionInfo.domainUsername())
+                        .setView(inputContainer)
+                        .setPositiveButton(R.string.authPrompt_button_positive_text,
+                                new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int whichButton) {
+                                        startVideoWithAuth(connectionInfo, moduleViewMap);
+                                    }
+                                })
+                        .setNegativeButton(R.string.authPrompt_button_negative_text,
+                                new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int whichButton) {
+                                        // Do nothing.
+                                    }
+                                }).create();
+                // show the dialog
+                dialog.show();
+                // request keyboard
+                dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            }
+            else {
+                // no input is required for the selected AuthType, so just start the next activity
+                startVideoWithAuth(connectionInfo, moduleViewMap);
+            }
         }
+    }
+
+    private void startVideoWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
+        // create an Intent to send for authorization
+        Request authRequest = buildAuthRequest(
+                connectionInfo.getAuthType(),
+                connectionInfo.domainUsername(),
+                moduleViewMap);
+        // authorize user credentials
+        AuthData.setAuthRequest(connectionInfo, authRequest);
+        // legacy code (will change when Service is implemented)
+        startVideo(connectionInfo);
     }
 
     private Request buildAuthRequest(int authTypeID, String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {

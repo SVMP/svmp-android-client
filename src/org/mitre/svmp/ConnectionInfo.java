@@ -27,14 +27,11 @@ public class ConnectionInfo implements Constants{
     private int encryptionType;
     private String domain;
     private int authType;
-
-    // overload constructor for a new ConnectionInfo that does not have a ConnectionID yet
-    public ConnectionInfo(String description, String username, String host, int port, int encryptionType, String domain, int authType) {
-        this(0, description, username, host, port, encryptionType, domain, authType);
-    }
+    private String certificateAlias;
 
     // constructor
-    public ConnectionInfo(int connectionID, String description, String username, String host, int port, int encryptionType, String domain, int authType) {
+    public ConnectionInfo(int connectionID, String description, String username, String host, int port,
+                          int encryptionType, String domain, int authType, String certificateAlias) {
         this.connectionID = connectionID;
         this.description = description;
         this.username = username;
@@ -43,6 +40,7 @@ public class ConnectionInfo implements Constants{
         this.encryptionType = encryptionType;
         this.domain = domain;
         this.authType = authType;
+        this.certificateAlias = certificateAlias;
     }
 
     // getters
@@ -76,6 +74,10 @@ public class ConnectionInfo implements Constants{
 
     public int getAuthType() {
         return authType;
+    }
+
+    public String getCertificateAlias() {
+        return certificateAlias;
     }
 
     // used to describe each ConnectionInfo in ConnectionList activity
