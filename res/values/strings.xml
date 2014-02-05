@@ -15,7 +15,7 @@
   limitations under the License.
   -->
 <resources>
-    <string name="app_name">SVMP Test Client</string>
+    <string name="app_name">SVMP Client</string>
     <string name="error">Error</string>
     <string name="errorCamera">Camera Error</string>
     <string name="codectype_prompt">Choose a codec type</string>

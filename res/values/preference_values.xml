@@ -54,6 +54,8 @@
     <string name="preferenceValue_performance_pingInterval">5000</string>
     
     <!-- Preference page elements -->
+    <string name="preferenceScreen_title">SVMP Preferences</string>
+
     <string name="preferenceCategory_connectionPreferences_title">Connection Preferences</string>
 
     <string name="preferenceScreen_sensors_title">Sensors</string>
