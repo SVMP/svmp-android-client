@@ -69,6 +69,7 @@ public class ConnectionList extends SvmpActivity {
         try {
             int position = listView.getPositionForView(view);
             authPrompt((ConnectionInfo) listView.getItemAtPosition(position));
+            startService(new Intent(this, SessionService.class));
         } catch( Exception e ) {
             // don't care
         }
