@@ -17,16 +17,19 @@ package org.mitre.svmp;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.*;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.IAuthModule;
+import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
@@ -115,15 +118,33 @@ public class SvmpActivity extends Activity implements Constants {
                 break;
             case RESULT_FINISH:
                 finish();
+                break;
             case RESULT_NEEDAUTH:
                 // we tried to authenticate but failed... try to find the ConnectionInfo we were connecting to
                 if (data != null ) {
                     int connectionID = data.getIntExtra("connectionID", 0);
                     ConnectionInfo connectionInfo = dbHandler.getConnectionInfo(connectionID);
 
-                    // we found the ConnectionInfo we were connecting to, prompt again
-                    if (connectionInfo != null)
-                        authPrompt(connectionInfo);
+                    // check to see if we found the ConnectionInfo we were connecting to
+                    if (connectionInfo != null) {
+                        // find out if we previously used a session token to authenticate
+                        String sessionToken = dbHandler.getSessionToken(connectionInfo);
+
+                        if (sessionToken.length() > 0) {
+                            // we used session token authentication and it failed
+                            // discard it and retry normal authentication
+                            dbHandler.updateSessionToken(connectionInfo, "");
+                            authPrompt(connectionInfo);
+                        }
+                        else {
+                            // we used normal authentication and it failed
+                            IAuthType authType = AuthRegistry.getAuthType(connectionInfo.getAuthType());
+                            // check to see if this AuthType needs user input (ex: CertificateType doesn't)
+                            // if it does, re-prompt the user
+                            if (authType.needsUserInput())
+                                authPrompt(connectionInfo);
+                        }
+                    }
                 }
                 break;
         }

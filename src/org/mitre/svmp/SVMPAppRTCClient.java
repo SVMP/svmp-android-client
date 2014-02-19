@@ -239,7 +239,7 @@ public class SVMPAppRTCClient implements Constants {
         Response resp = Response.parseDelimitedFrom(socketIn);
         
         // parse it and populate a SignalingParams
-        if (resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo())
+        if (resp != null && resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo())
           return getParametersForRoom(resp.getVideoInfo());
         
       } catch (Exception e) {
@@ -405,10 +405,8 @@ public class SVMPAppRTCClient implements Constants {
     private void socketConnect() throws IOException,
             KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException,
             UnrecoverableKeyException {
-        // determine both booleans from the EncryptionType integer
-      boolean useSsl = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS
-          || connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
-      boolean sslDebug = (connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS_UNTRUSTED);
+        // determine whether we should use SSL from the EncryptionType integer
+      boolean useSsl = connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS;
       // determine whether we should use client certificate authentication
       boolean useCertificateAuth = API_ICS &&
               (connectionInfo.getAuthType() & CertificateModule.AUTH_MODULE_ID) == CertificateModule.AUTH_MODULE_ID;
@@ -423,21 +421,9 @@ public class SVMPAppRTCClient implements Constants {
             keyManagers = new KeyManager[] {new SVMPKeyManager(activity, connectionInfo.getCertificateAlias())};
         }
 
-        if (sslDebug) {
-          SSLContext sslcontext = SSLContext.getInstance("TLS");
-          sslcontext.init(keyManagers, MemorizingTrustManager.getInstanceList(activity), new SecureRandom());
-          svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
-        }
-        else {
-          // create the trust manager factory
-          TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-          // load system trusted certificates into the trust manager factory
-          tmf.init((KeyStore)null); // passing a null value will use system trust store instead
-
-          SSLContext sslcontext = SSLContext.getInstance("TLS");
-          sslcontext.init(keyManagers, tmf.getTrustManagers(), new SecureRandom());
-          svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
-        }
+        SSLContext sslcontext = SSLContext.getInstance("TLS");
+        sslcontext.init(keyManagers, MemorizingTrustManager.getInstanceList(activity), new SecureRandom());
+        svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
       }
       else {
         sf = SocketFactory.getDefault();
@@ -460,7 +446,7 @@ public class SVMPAppRTCClient implements Constants {
 
           // get response
           Response resp = Response.parseDelimitedFrom(socketIn);
-          if (resp.getType() == ResponseType.AUTH) {
+          if (resp != null && resp.getType() == ResponseType.AUTH) {
             AuthResponse authResponse = resp.getAuthResponse();
             if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
               // we authenticated successfully, check if we received a session token
@@ -470,14 +456,11 @@ public class SVMPAppRTCClient implements Constants {
               returnVal = 0; // success
             }
             // got an AuthResponse with a type of AUTH_FAIL
-            // if we used a session token and authentication failed, discard it
-            else
-              dbHandler.updateSessionToken(connectionInfo, "");
           }
+          else if (resp == null)
+            returnVal = R.string.appRTC_toast_svmpAuthenticator_interrupted;
+
           // should be an AuthResponse with a type of AUTH_FAIL, but fail anyway if it isn't
-          // if we used a session token and authentication failed, discard it
-          else
-            dbHandler.updateSessionToken(connectionInfo, "");
         } catch (IOException e) {
           // client isn't using encryption, server is
           if (e.getMessage().equals("Protocol message contained an invalid tag (zero)."))
@@ -522,7 +505,7 @@ public class SVMPAppRTCClient implements Constants {
       Response resp;
       try {
         resp = Response.parseDelimitedFrom(socketIn);
-        if (resp.getType() == ResponseType.VMREADY)
+        if (resp != null && resp.getType() == ResponseType.VMREADY)
           return true;
       } catch (IOException e) {
         Log.e(TAG, e.getMessage());
@@ -538,6 +521,7 @@ public class SVMPAppRTCClient implements Constants {
         (new VideoParameterGetter()).execute();
       } else {
         toastMe(R.string.appRTC_toast_svmpReadyWait_fail);
+        activity.stopProgressDialog(); // stop the Progress Dialog
         // TODO
         // got something other than VMREADY, panic
       }

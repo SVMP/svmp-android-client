@@ -28,4 +28,8 @@ public class CertificateType implements IAuthType {
     public String getDescription() {
         return "Certificate";
     }
+
+    public boolean needsUserInput() {
+        return false;
+    }
 }

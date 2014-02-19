@@ -26,6 +26,18 @@ import java.util.List;
  * @author Joe Portner
  */
 public class AuthRegistry implements Constants {
+    // Gets an AuthType with a specific ID
+    public static IAuthType getAuthType(int id) {
+        IAuthType result = null;
+        for (IAuthType authType : AUTH_TYPES) {
+            if (authType.getID() == id) {
+                result = authType;
+                break;
+            }
+        }
+        return result;
+    }
+
     // get an array of all Auth Types that are registered
     public static IAuthType[] getAuthTypes() {
         return AUTH_TYPES.toArray(new IAuthType[AUTH_TYPES.size()]);

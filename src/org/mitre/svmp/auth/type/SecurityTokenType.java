@@ -28,4 +28,8 @@ public class SecurityTokenType implements IAuthType {
     public String getDescription() {
         return "Security Token";
     }
+
+    public boolean needsUserInput() {
+        return true;
+    }
 }

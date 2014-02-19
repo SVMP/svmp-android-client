@@ -24,4 +24,7 @@ public interface IAuthType {
 
     // string description used to add to the spinner selection when editing a ConnectionInfo
     String getDescription();
+
+    // whether this module needs user input to be used
+    boolean needsUserInput();
 }

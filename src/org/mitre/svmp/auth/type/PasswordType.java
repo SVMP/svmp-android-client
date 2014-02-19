@@ -34,4 +34,8 @@ public class PasswordType implements IAuthType {
     public String getDescription() {
         return "Password";
     }
+
+    public boolean needsUserInput() {
+        return true;
+    }
 }

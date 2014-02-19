@@ -37,7 +37,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 7;
+    public static final int DB_VERSION = 8;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
@@ -133,6 +133,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 addTableColumn(TABLE_CONNECTIONS, 8, "''", db); // SessionToken column added
             case 6:
                 addTableColumn(TABLE_CONNECTIONS, 9, "''", db); // SessionToken column added
+            case 7:
+                // changed encryption types, removed SSL/untrusted, now we just have SSL
+                db.execSQL("UPDATE Connections SET EncryptionType=1 WHERE EncryptionType=2;");
             default:
                 break;
         }

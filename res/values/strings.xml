@@ -104,6 +104,7 @@
     <string name="appRTC_toast_socketConnector_fail">Error connecting</string>
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
+    <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Kraken Attack!!!!</string>
     <string name="appRTC_toast_svmpReadyWait_success">VM is ready</string>
     <string name="appRTC_toast_videoParameterGetter_start">Querying for webrtc channel info</string>
@@ -118,6 +119,10 @@
     <string name="authPrompt_title">Authentication required</string>
     <string name="authPrompt_button_positive_text">Submit</string>
     <string name="authPrompt_button_negative_text">Cancel</string>
+
+    <!-- AppRTC dialog resources -->
+    <string name="appRTC_progressDialog_title">Starting…</string>
+    <string name="appRTC_progressDialog_message">Please wait while the connection is established. This may take a minute if the server needs to set up your environment.</string>
 
     <!-- Menu resources -->
     <string name="menu_title_preferences">Preferences</string>

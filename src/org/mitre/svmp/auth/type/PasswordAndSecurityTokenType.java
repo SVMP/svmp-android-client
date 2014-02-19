@@ -29,4 +29,8 @@ public class PasswordAndSecurityTokenType implements IAuthType {
     public String getDescription() {
         return "Password + Security Token";
     }
+
+    public boolean needsUserInput() {
+        return true;
+    }
 }

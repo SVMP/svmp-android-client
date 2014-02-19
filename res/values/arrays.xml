@@ -23,6 +23,5 @@
     <string-array name="connectionDetails_encryption_items">
         <item>No encryption</item>
         <item>SSL/TLS</item>
-        <item>SSL/TLS (accept untrusted certs)</item>
     </string-array>
 </resources>

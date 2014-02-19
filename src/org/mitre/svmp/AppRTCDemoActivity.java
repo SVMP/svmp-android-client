@@ -46,8 +46,11 @@
 package org.mitre.svmp;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -131,6 +134,7 @@ public class AppRTCDemoActivity extends Activity
   private LocationHandler locationHandler;
   private RotationHandler rotationHandler;
   private boolean connected = false;
+  private ProgressDialog pd;
   
   @Override
   public void onCreate(Bundle savedInstanceState) {
@@ -168,6 +172,7 @@ public class AppRTCDemoActivity extends Activity
     Point displaySize = new Point();
     getWindowManager().getDefaultDisplay().getSize(displaySize);
     vsv = new VideoStreamsView(this, displaySize, spanPerformanceData);
+    vsv.setBackgroundColor(Color.DKGRAY); // start this VideoStreamsView with a color of dark gray
     setContentView(vsv);
     
     touchHandler = new TouchHandler(this, spanPerformanceData, displaySize);
@@ -202,7 +207,30 @@ public class AppRTCDemoActivity extends Activity
 
   private void connectToRoom() {
     logAndToast(R.string.appRTC_toast_connection_start);
+    startProgressDialog();
     appRtcClient.connectToRoom(connectionInfo);
+  }
+
+  public void startProgressDialog() {
+    vsv.setBackgroundColor(Color.DKGRAY); // if it isn't already set, make the background color dark gray
+    pd = new ProgressDialog(AppRTCDemoActivity.this);
+    pd.setTitle(R.string.appRTC_progressDialog_title);
+    pd.setMessage(getResources().getText(R.string.appRTC_progressDialog_message));
+    pd.setIndeterminate(true);
+      pd.setOnCancelListener(new DialogInterface.OnCancelListener() {
+        @Override
+        public void onCancel(DialogInterface dialog) {
+            disconnectAndExit();
+        }
+      });
+    pd.show();
+  }
+
+  public void stopProgressDialog() {
+    if (pd != null) {
+      pd.dismiss();
+      pd = null;
+    }
   }
 
   @Override
@@ -387,6 +415,8 @@ public class AppRTCDemoActivity extends Activity
                 "Weird-looking stream: " + stream);
             stream.videoTracks.get(0).addRenderer(new VideoRenderer(
                 new VideoCallbacks(vsv, VideoStreamsView.Endpoint.REMOTE)));
+            stopProgressDialog(); // stop the Progress Dialog
+            vsv.setBackgroundColor(Color.TRANSPARENT); // video should be started now, remove the background color
           }
         });
     }

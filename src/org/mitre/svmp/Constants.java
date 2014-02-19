@@ -28,7 +28,6 @@ public interface Constants {
     // used to determine what the EncryptionType for each connection is
     public static final int ENCRYPTION_NONE = 0;
     public static final int ENCRYPTION_SSLTLS = 1;
-    public static final int ENCRYPTION_SSLTLS_UNTRUSTED = 2;
 
     // used to map sensor IDs to key names
     public static final int[] PREFERENCES_SENSORS_KEYS = {
