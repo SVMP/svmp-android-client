@@ -420,7 +420,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             int authType = cursor.getInt(7);
             String certificateAlias = cursor.getString(9);
 
-            return new ConnectionInfo(connectionID, description, username, host, port, encryptionType, domain,
+            return new ConnectionInfo(connectionID, description, username, host, port, encryptionType,
                     authType, certificateAlias);
         } catch( Exception e ) {
             e.printStackTrace();
@@ -594,7 +594,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             contentValues.put("Host", connectionInfo.getHost());
             contentValues.put("Port", connectionInfo.getPort());
             contentValues.put("EncryptionType", connectionInfo.getEncryptionType());
-            contentValues.put("Domain", connectionInfo.getDomain());
+            contentValues.put("Domain", "");
             contentValues.put("AuthType", connectionInfo.getAuthType());
             contentValues.put("CertificateAlias", connectionInfo.getCertificateAlias());
         }

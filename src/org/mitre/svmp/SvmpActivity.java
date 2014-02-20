@@ -182,7 +182,7 @@ public class SvmpActivity extends Activity implements Constants {
 
             // set the message
             TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
-            message.setText(connectionInfo.domainUsername());
+            message.setText(connectionInfo.getUsername());
 
             IAuthModule[] authModules = AuthRegistry.getAuthModules();
             final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
@@ -235,7 +235,7 @@ public class SvmpActivity extends Activity implements Constants {
         // create an Intent to send for authorization
         Request authRequest = buildAuthRequest(
                 connectionInfo.getAuthType(),
-                connectionInfo.domainUsername(),
+                connectionInfo.getUsername(),
                 moduleViewMap);
         // authorize user credentials
         AuthData.setAuthRequest(connectionInfo, authRequest);

@@ -49,8 +49,7 @@ public class ConnectionDetails extends SvmpActivity {
             descriptionView,
             usernameView,
             hostView,
-            portView,
-            domainView;
+            portView;
     private Spinner
             encryptionView,
             authTypeView;
@@ -69,7 +68,6 @@ public class ConnectionDetails extends SvmpActivity {
         usernameView = (EditText) findViewById(R.id.connectionDetails_editText_username);
         hostView = (EditText) findViewById(R.id.connectionDetails_editText_host);
         portView = (EditText) findViewById(R.id.connectionDetails_editText_port);
-        domainView = (EditText) findViewById(R.id.connectionDetails_editText_domain);
         encryptionView = (Spinner) findViewById(R.id.connectionDetails_spinner_encryption);
         authTypeView = (Spinner) findViewById(R.id.connectionDetails_spinner_authType);
         certificateView = (Button) findViewById(R.id.connectionDetails_button_certificate);
@@ -100,7 +98,6 @@ public class ConnectionDetails extends SvmpActivity {
                 usernameView.setText(connectionInfo.getUsername());
                 hostView.setText(connectionInfo.getHost());
                 portView.setText(String.valueOf(connectionInfo.getPort()));
-                domainView.setText(connectionInfo.getDomain());
                 encryptionView.setSelection(connectionInfo.getEncryptionType());
                 for (int i = 0; i < authTypes.length; i++)
                     if (authTypes[i].getID() == connectionInfo.getAuthType()) {
@@ -144,8 +141,7 @@ public class ConnectionDetails extends SvmpActivity {
         String description = descriptionView.getText().toString(),
                 username = usernameView.getText().toString(),
                 host = hostView.getText().toString(),
-                portString = portView.getText().toString(),
-                domain = domainView.getText().toString();
+                portString = portView.getText().toString();
         int port = 0;
         try {
             port = Integer.parseInt(portString);
@@ -176,7 +172,7 @@ public class ConnectionDetails extends SvmpActivity {
         else {
             // create a new ConnectionInfo object
             ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port,
-                    encryptionType, domain, authType, certificateAlias);
+                    encryptionType, authType, certificateAlias);
 
             // insert or update the ConnectionInfo in the database
             long result;

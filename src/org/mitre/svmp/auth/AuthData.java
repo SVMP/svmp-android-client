@@ -49,8 +49,7 @@ public final class AuthData {
         // create an Authentication protobuf
         AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
         aBuilder.setType(AuthRequest.AuthRequestType.SESSION_TOKEN);
-        // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
-        aBuilder.setUsername(connectionInfo.domainUsername());
+        aBuilder.setUsername(connectionInfo.getUsername());
         aBuilder.setSessionToken(sessionToken);
 
         // package the Authentication protobuf in a Request wrapper and store it

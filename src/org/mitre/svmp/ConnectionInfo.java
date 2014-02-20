@@ -25,20 +25,18 @@ public class ConnectionInfo implements Constants{
     private String host;
     private int port;
     private int encryptionType;
-    private String domain;
     private int authType;
     private String certificateAlias;
 
     // constructor
     public ConnectionInfo(int connectionID, String description, String username, String host, int port,
-                          int encryptionType, String domain, int authType, String certificateAlias) {
+                          int encryptionType, int authType, String certificateAlias) {
         this.connectionID = connectionID;
         this.description = description;
         this.username = username;
         this.host = host;
         this.port = port;
         this.encryptionType = encryptionType;
-        this.domain = domain;
         this.authType = authType;
         this.certificateAlias = certificateAlias;
     }
@@ -68,10 +66,6 @@ public class ConnectionInfo implements Constants{
         return encryptionType;
     }
 
-    public String getDomain() {
-        return domain;
-    }
-
     public int getAuthType() {
         return authType;
     }
@@ -89,10 +83,4 @@ public class ConnectionInfo implements Constants{
         return String.format("%s@%s:%d", username, host, port);
     }
 
-    // used to show the username (and optionally, the domain) in the authentication dialog
-    public String domainUsername() {
-        if (domain.length() > 0)
-            return String.format("%s\\%s", domain, username);
-        return username;
-    }
 }
