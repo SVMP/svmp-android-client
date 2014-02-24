@@ -423,7 +423,10 @@ public class SVMPAppRTCClient implements Constants {
 
         SSLContext sslcontext = SSLContext.getInstance("TLS");
         sslcontext.init(keyManagers, MemorizingTrustManager.getInstanceList(activity), new SecureRandom());
-        svmpSocket = sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
+        SSLSocket socket = (SSLSocket)sslcontext.getSocketFactory().createSocket(connectionInfo.getHost(), connectionInfo.getPort());
+        socket.setEnabledCipherSuites(ENABLED_CIPHERS);
+        socket.setEnabledProtocols(ENABLED_PROTOCOLS);
+        svmpSocket = socket;
       }
       else {
         sf = SocketFactory.getDefault();
