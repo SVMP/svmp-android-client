@@ -123,13 +123,15 @@ public class MeasureTask extends TimerTask {
     private BroadcastReceiver batteryInfoReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            synchronized (pointPerformanceData) {
-                int rawlevel = intent.getIntExtra("level", -1);
-                double scale = intent.getIntExtra("scale", -1);
-                double level = -1;
-                if (rawlevel >= 0 && scale > 0)
-                    level = rawlevel / scale;
-                pointPerformanceData.setBatteryLevel(level);
+            if (Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())) {
+                synchronized (pointPerformanceData) {
+                    int rawlevel = intent.getIntExtra("level", -1);
+                    double scale = intent.getIntExtra("scale", -1);
+                    double level = -1;
+                    if (rawlevel >= 0 && scale > 0)
+                        level = rawlevel / scale;
+                    pointPerformanceData.setBatteryLevel(level);
+                }
             }
         }
     };
