@@ -237,19 +237,12 @@ public class AppRTCDemoActivity extends Activity
   public void onPause() {
     super.onPause();
     vsv.onPause();
-    // TODO(fischman): IWBN to support pause/resume, but the WebRTC codebase
-    // isn't ready for that yet; e.g.
-    // https://code.google.com/p/webrtc/issues/detail?id=1407
-    // Instead, simply exit instead of pausing (the alternative leads to
-    // system-borking with wedged cameras; e.g. b/8224551)
-
     if (state != STATE_NEW)
         disconnectAndExit();
   }
 
   @Override
   public void onResume() {
-    // The onResume() is a lie!  See TODO(fischman) in onPause() above.
     super.onResume();
     vsv.onResume();
   }
@@ -560,7 +553,7 @@ public class AppRTCDemoActivity extends Activity
         try {
           JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
           String type;
-          // hacky workaround for the fact that peerconnection_client doesn't put a "type" on candidates
+          // peerconnection_client doesn't put a "type" on candidates
           try {
             type = (String) json.get("type");
           } catch (JSONException e) {
@@ -569,8 +562,6 @@ public class AppRTCDemoActivity extends Activity
           }
           if (type.equals("candidate")) {
             IceCandidate candidate = new IceCandidate(
-//                (String) json.get("id"),
-//                json.getInt("label"),
                 (String) json.get("sdpMid"),
                 json.getInt("sdpMLineIndex"),
                 (String) json.get("candidate"));

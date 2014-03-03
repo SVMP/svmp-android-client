@@ -82,7 +82,6 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"CellNetwork", "INTEGER"},   // what network the device is on (see TelephonyManager.NETWORK_* constants)
             {"CellValues", "TEXT"},       // a variety of cell values (depends on network type; LTE, GSM, CDMA/EVDO...)
             {"Ping", "INTEGER"}           // last ping response in ms
-            // TODO: add server channel throughput, number of lost video packets, and video packet receive jitter
         }
     };
 

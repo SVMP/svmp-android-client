@@ -155,7 +155,7 @@ public class MeasureTask extends TimerTask {
              *   LteRsrp, LteRsrq, LteRssnr, LteCqi, (isGsm?"gsm|lte":"cdma"));
              */
 
-            // measuring LTE signal strength wasn't added until API 17; this is a hacky way to do it with an older API
+            // measuring LTE signal strength wasn't added until API 17; this is a different way to do it with an older API
             if (cellNetwork == 13 /* NETWORK_TYPE_LTE */) {
                 if (parts.length >= 14) {
                     cellValuesBuilder.append(parts[8]); // LteSignalStrength

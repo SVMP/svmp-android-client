@@ -132,7 +132,7 @@ public class LocationHandler {
         if( locationResponse.getType() == LocationResponse.LocationResponseType.SUBSCRIBE ) {
             LocationSubscribe locationSubscribe = locationResponse.getSubscribe();
             String provider = locationSubscribe.getProvider();
-            Looper looper = Looper.myLooper(); // TODO: find out if we should use myLooper or mainLooper?
+            Looper looper = Looper.myLooper();
 
             // a subscribe request can either be one-time or long-term
             if( locationSubscribe.getType() == LocationSubscribe.LocationSubscribeType.SINGLE_UPDATE ) {

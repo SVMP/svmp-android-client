@@ -106,8 +106,6 @@ public class SensorHandler implements SensorEventListener, Constants {
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // TODO Auto-generated method stub
-        
     }
 
     @Override
@@ -138,7 +136,6 @@ public class SensorHandler implements SensorEventListener, Constants {
         msg.setSensor(e);
         
         activity.sendMessage(msg.build());
-        //Log.d(TAG, "Sent sensor update for type " + SensorType.valueOf(type).name());
     }
 
 }

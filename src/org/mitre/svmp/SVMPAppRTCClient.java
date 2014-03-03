@@ -97,7 +97,6 @@ public class SVMPAppRTCClient implements Constants {
   private final IceServersObserver iceServersObserver;
 
   // These members are only read/written under sendQueue's lock.
-  //private LinkedList<String> sendQueue = new LinkedList<String>();
   private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
   private AppRTCSignalingParameters appRTCSignalingParameters;
   
@@ -560,8 +559,6 @@ public class SVMPAppRTCClient implements Constants {
       } else {
         toastMe(R.string.appRTC_toast_svmpReadyWait_fail);
         activity.stopProgressDialog(); // stop the Progress Dialog
-        // TODO
-        // got something other than VMREADY, panic
       }
     }
   }

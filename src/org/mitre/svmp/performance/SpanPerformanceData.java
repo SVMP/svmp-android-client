@@ -23,7 +23,6 @@ public class SpanPerformanceData {
     private int frameCount;
     private int sensorUpdates;
     private int touchUpdates;
-    // TODO: add server channel throughput, number of lost video packets, and video packet receive jitter
 
     public SpanPerformanceData() {}
 

@@ -52,7 +52,6 @@ public class NetIntentsHandler
 				context.startActivity(dial);
 				break;
 			case ACTION_VIEW:
-				//TODO: error, or just ignore?
 				break;
 			default:
 				break;

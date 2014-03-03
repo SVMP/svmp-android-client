@@ -153,8 +153,6 @@ public class Utility {
 				.setProvider(s)
 				.setStatus(i);
 
-		//TODO: add bundle if it is not null
-
         // pack LocationProviderStatus into LocationRequest wrapper
         LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
                 .setType(LocationRequest.LocationRequestType.PROVIDERSTATUS)
