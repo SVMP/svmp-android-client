@@ -33,6 +33,7 @@
     <string name="preferenceKey_performance_takeMeasurements">performance_takeMeasurements</string>
     <string name="preferenceKey_performance_measureInterval">performance_measureInterval</string>
     <string name="preferenceKey_performance_pingInterval">performance_pingInterval</string>
+    <string name="preferenceKey_connection_useMTM">connection_useMTM</string>
 
     <!-- Preference value defaults -->
     <string name="preferenceValue_sensors_minimumDelay">1000</string>
@@ -52,6 +53,7 @@
     <string name="preferenceValue_performance_takeMeasurements">false</string>
     <string name="preferenceValue_performance_measureInterval">1000</string>
     <string name="preferenceValue_performance_pingInterval">5000</string>
+    <string name="preferenceValue_connection_useMTM">false</string>
     
     <!-- Preference page elements -->
     <string name="preferenceScreen_title">SVMP Preferences</string>
@@ -107,4 +109,13 @@
     <string name="preference_performance_wipeData_dialog_positiveButton">Proceed</string>
     <string name="preference_performance_wipeData_dialog_negativeButton">Cancel</string>
     <string name="preference_performance_wipeData_toast_success">Performance data has been wiped</string>
+
+    <string name="preferenceScreen_connection_title">Connection</string>
+    <string name="preferenceScreen_connection_summary">Control connection options</string>
+
+    <string name="preferenceCategory_security_title">Security</string>
+
+    <string name="checkBoxPreference_connection_useMTM_title">Show certificate dialog</string>
+    <string name="checkBoxPreference_connection_useMTM_summary">Allows accepting untrusted certificates</string>
+
 </resources>

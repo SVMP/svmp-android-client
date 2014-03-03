@@ -141,5 +141,20 @@
                         />
             </PreferenceCategory>
         </PreferenceScreen>
+        <PreferenceScreen
+                android:title="@string/preferenceScreen_connection_title"
+                android:summary="@string/preferenceScreen_connection_summary"
+                >
+            <PreferenceCategory
+                    android:title="@string/preferenceCategory_security_title"
+                    >
+                <CheckBoxPreference
+                        android:key="@string/preferenceKey_connection_useMTM"
+                        android:title="@string/checkBoxPreference_connection_useMTM_title"
+                        android:summary="@string/checkBoxPreference_connection_useMTM_summary"
+                        android:defaultValue="@string/preferenceValue_connection_useMTM"
+                        />
+            </PreferenceCategory>
+        </PreferenceScreen>
     </PreferenceCategory>
 </PreferenceScreen>

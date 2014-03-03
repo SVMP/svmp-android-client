@@ -22,6 +22,10 @@ import org.mitre.svmp.client.R;
  * @author Joe Portner
  */
 public interface Constants {
+    // to use a trust store to pin certain CA certificates, replace "res/raw/client_truststore.bks" with your trust store
+    // this password is used to open that file
+    public static final String TRUSTSTORE_PASSWORD = "changeme_clienttstorepass";
+
     public static final int DEFAULT_PORT = 8002;
     public static final boolean API_ICS = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);
 
