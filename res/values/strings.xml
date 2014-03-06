@@ -105,7 +105,7 @@
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
     <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
-    <string name="appRTC_toast_svmpReadyWait_fail">Kraken Attack!!!!</string>
+    <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
     <string name="appRTC_toast_svmpReadyWait_success">VM is ready</string>
     <string name="appRTC_toast_videoParameterGetter_start">Querying for webrtc channel info</string>
     <string name="appRTC_toast_videoParameterGetter_finish">Got channel info</string>
