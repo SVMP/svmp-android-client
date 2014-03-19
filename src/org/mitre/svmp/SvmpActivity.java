@@ -265,6 +265,16 @@ public class SvmpActivity extends Activity implements Constants {
 
     // starts a ClientSideActivityDirect activity for connecting to a server
     private void startVideo(ConnectionInfo connectionInfo) {
+        // if the session service is running for a different connection, stop it
+        boolean stopService = SessionService.getConnectionID() != connectionInfo.getConnectionID()
+                && SessionService.getState() != SessionService.STATE.NEW;
+        if (stopService)
+            stopService(new Intent(this, SessionService.class));
+
+        // make sure the session service is running for this connection
+        if (stopService || SessionService.getState() == SessionService.STATE.NEW)
+            startService(new Intent(this, SessionService.class).putExtra("connectionID", connectionInfo.getConnectionID()));
+
         // create explicit intent
         Intent intent = new Intent(SvmpActivity.this, AppRTCDemoActivity.class);
 

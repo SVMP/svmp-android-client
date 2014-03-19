@@ -69,7 +69,6 @@ public class ConnectionList extends SvmpActivity {
         try {
             int position = listView.getPositionForView(view);
             authPrompt((ConnectionInfo) listView.getItemAtPosition(position));
-            startService(new Intent(this, SessionService.class));
         } catch( Exception e ) {
             // don't care
         }
@@ -91,10 +90,15 @@ public class ConnectionList extends SvmpActivity {
     public void onCreateContextMenu(ContextMenu menu, View v, ContextMenu.ContextMenuInfo menuInfo) {
         if(v.getId() == R.id.connectionList_listView_connections){
             AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
-            menu.setHeaderTitle(connectionInfoList.get(info.position).getDescription());
+            ConnectionInfo connectionInfo = connectionInfoList.get(info.position);
+            menu.setHeaderTitle(connectionInfo.getDescription());
             String[] menuItems = getResources().getStringArray(R.array.connectionList_context_items);
             for(int i = 0; i < menuItems.length; i++)
                 menu.add(Menu.NONE, i, i, menuItems[i]);
+
+            // if this connection is running, display the context option to close it
+            if (SessionService.getConnectionID() == connectionInfo.getConnectionID())
+                menu.add(Menu.NONE, 100, 100, R.string.connectionList_context_stop_text);
         }
     }
     @Override
@@ -112,6 +116,10 @@ public class ConnectionList extends SvmpActivity {
                 dbHandler.deleteConnectionInfo(connectionInfoList.get(info.position).getConnectionID());
                 populateLayout();
                 toastLong(R.string.connectionList_toast_removed);
+                break;
+            case 100: // Stop
+                stopService(new Intent(ConnectionList.this, SessionService.class)); // stop the service that's running
+                recreate(); // recreate this activity to refresh the UI
                 break;
         }
         return true;

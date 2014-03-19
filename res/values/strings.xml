@@ -59,6 +59,7 @@
     <string name="connectionList_title">SVMP Connections</string>
     <string name="connectionList_button_new_text">New</string>
     <string name="connectionList_button_exit_text">Exit</string>
+    <string name="connectionList_context_stop_text">Stop service</string>
 
     <!-- ConnectionDetails layout resources -->
     <string name="connectionDetails_title">SVMP Connection Details</string>

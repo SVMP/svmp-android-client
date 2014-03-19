@@ -16,6 +16,7 @@
 package org.mitre.svmp.widgets;
 
 import android.content.Context;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -70,10 +71,21 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
         lineOneView.setText(lineOneText(t));
         lineTwoView.setText(lineTwoText(t));
 
+        // if the session service is running for this connection, make the text green; otherwise, make it light gray
+        if (isActive(t)) {
+            lineOneView.setTextColor(Color.GREEN);
+            lineTwoView.setTextColor(Color.GREEN);
+        } else {
+            lineOneView.setTextColor(Color.LTGRAY);
+            lineTwoView.setTextColor(Color.LTGRAY);
+        }
+
         return listItemView;
     }
 
     public abstract String lineOneText(T t);
 
     public abstract String lineTwoText(T t);
+
+    public abstract boolean isActive(T t);
 }
