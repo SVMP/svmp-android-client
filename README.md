@@ -1,14 +1,14 @@
 # SVMP Android Client
 
-## Building
+## Setup
 
-### Prerequisites:
+### Prerequisites
 
 *  Up-to-date Android SDK with at least API level 17, with `ANDROID_HOME` environment variable set correctly
 *  Oracle JDK 6, with `JAVA_HOME` environment variable set correctly
 *  ant
 
-### Build Steps:
+### Build Steps
 
 1. Check out the SVMP client and protocol to a directory of your choice
 
@@ -21,6 +21,43 @@
         ant debug
 
     See <http://developer.android.com/tools/building/building-cmdline.html> for additional commands.
+
+### Configuration
+
+#### Server Trust
+There are three ways to configure server trust in the client.
+
+1. **Pinned Trust Store**
+
+ If `res/raw/client_truststore.bks` is not empty, the client will use it as the pinned trust store. This means that *only* certificates that validate through that trust store will be accepted.
+
+ By default, the file is empty. If you want to use this option you must create your own trust store and compile it with the client. 
+
+ To create a BKS trust store, you need to have Java installed, download the [Bouncy Castle JAR](http://www.bouncycastle.org/download/bcprov-jdk15on-150.jar), then use the following command:
+
+        keytool -import -v -trustcacerts -alias "$CA_ALIAS" -file "$CA_CERT" -keystore "client_truststore.bks" -storetype BKS -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath "$BC_JAR"
+
+ where `CA_ALIAS` is the name of your CA, `CA_CERT` is the path to the CA certificate, and `BC_JAR` is the path to the Bouncy Castle JAR file. The command will prompt you to enter a password for the trust store. Then, open `src/org/mitre/svmp/Constants.java` and change the *TRUSTSTORE_PASSWORD* value to match. After completing all of these steps, rebuild the client.
+
+2. **Certificate Dialog**
+
+ If the Pinned Trust store is not used, and the *"Connection"* -> *"Show certificate dialog"* preference is enabled, the user will be given a prompt when an unknown certificate is encountered. The prompt options allow the user to *Abort*, accept *Once*, or accept *Always*.
+
+ If you want to use this option you must enable the aforementioned preference. By default, the preference is disabled.
+
+3. **Default Trust Store**
+
+ If the Pinned Trust Store and the Certificate Dialog are not used, the client will use the system trust store. This consists of normal trusted Android CA certs. This is the default server trust option.
+
+#### Performance Instrumentation
+
+If the *"Performance"* -> *"Take measurements"* preference is enabled, the client will record performance instrumentation measurements. These are stored in the client's SQLite database. By default, measurements are taken every 1 second. Measured values include: `FrameCount`, `SensorUpdates`, `TouchUpdates`, `CPUUsage`, `MemoryUsage`, `WifiStrength`, `BatteryLevel`, `CellNetwork`, `CellValues`, and `Ping`.
+
+Measurement records are separated every time the client connects to a server. In Preferences, you can export measurement data to CSV files or wipe existing performance data from the database.
+
+#### Sensor Data
+
+In the *"Sensors"* preferences, you can adjust what sensors are polled to send data to the server. You can also adjust how often sensor data is sent. Note: sending too much sensor data can result in poor performance. We recommend leaving these values set to their defaults.
 
 ## IDEs
 
