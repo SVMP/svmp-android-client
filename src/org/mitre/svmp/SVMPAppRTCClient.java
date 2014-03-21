@@ -388,9 +388,18 @@ public class SVMPAppRTCClient implements Constants {
     @Override
     protected void onPostExecute(Integer result) {
       if (result == 0) {
-        toastMe(R.string.appRTC_toast_socketConnector_success);
-        activity.setStateConnected();
-        new SVMPAuthenticator().execute(authRequest);
+        if (activity.isFinishing()) {
+          Log.d(TAG, "Client exited before socketConnect finished, shutting down...");
+          try {
+            disconnect();
+          } catch (IOException e) {
+            Log.e(TAG, "Exception while disconnecting: " + e);
+          }
+        } else {
+          toastMe(R.string.appRTC_toast_socketConnector_success);
+          activity.setStateConnected();
+          new SVMPAuthenticator().execute(authRequest);
+        }
       }
       else {
         // if the connection failed, display the failure message and return to the connection list
