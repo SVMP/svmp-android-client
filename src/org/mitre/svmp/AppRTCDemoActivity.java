@@ -45,6 +45,7 @@
 
 package org.mitre.svmp;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -57,13 +58,13 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.widget.Toast;
-
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -88,7 +89,6 @@ import org.webrtc.StatsObserver;
 import org.webrtc.StatsReport;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.I420Frame;
-
 import java.util.LinkedList;
 import java.util.List;
 
@@ -139,6 +139,8 @@ public class AppRTCDemoActivity extends Activity
   @Override
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+
+    hideNavBar();
 
     // connect to the database
     dbHandler = new DatabaseHandler(this);
@@ -203,6 +205,37 @@ public class AppRTCDemoActivity extends Activity
       connectToRoom();
     else
       logAndToast(R.string.appRTC_toast_connection_notFound);
+  }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (true) {
+      hideNavBar();
+    }
+  }
+
+  @SuppressLint("InlinedApi")
+  private void hideNavBar() {
+	// hide the nav and notification bars
+    View decorView = this.getWindow().getDecorView();
+    int uiOptions = 0;
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+      // use the new immersive full-screen mode
+      // https://developer.android.com/training/system-ui/immersive.html
+      uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                  | View.SYSTEM_UI_FLAG_FULLSCREEN
+                  | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                  | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                  | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
+      // ICS nav bar dimming
+      // Notification bar is done in the manifest properties for this activity:
+      //    android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+      uiOptions = View.SYSTEM_UI_FLAG_LOW_PROFILE;
+    }
+
+    decorView.setSystemUiVisibility(uiOptions);
   }
 
   private void connectToRoom() {
