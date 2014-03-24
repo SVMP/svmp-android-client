@@ -62,6 +62,7 @@ import android.os.PowerManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.Toast;
 
 import org.appspot.apprtc.VideoStreamsView;
@@ -140,6 +141,12 @@ public class AppRTCDemoActivity extends Activity
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    // hide the nav and notification bars
+    // notification bar is done in the manifest properties for this activity
+    View decorView = this.getWindow().getDecorView();
+    int uiOptions = View.SYSTEM_UI_FLAG_LOW_PROFILE;
+    decorView.setSystemUiVisibility(uiOptions);
+
     // connect to the database
     dbHandler = new DatabaseHandler(this);
 
@@ -174,7 +181,7 @@ public class AppRTCDemoActivity extends Activity
     vsv = new VideoStreamsView(this, displaySize, spanPerformanceData);
     vsv.setBackgroundColor(Color.DKGRAY); // start this VideoStreamsView with a color of dark gray
     setContentView(vsv);
-    
+
     touchHandler = new TouchHandler(this, spanPerformanceData, displaySize);
     sensorHandler = new SensorHandler(this, spanPerformanceData);
     locationHandler = new LocationHandler(this);
@@ -203,6 +210,16 @@ public class AppRTCDemoActivity extends Activity
       connectToRoom();
     else
       logAndToast(R.string.appRTC_toast_connection_notFound);
+  }
+
+  @Override
+  public void onWindowFocusChanged(boolean hasFocus) {
+    super.onWindowFocusChanged(hasFocus);
+    if (true) {
+      View decorView = this.getWindow().getDecorView();
+      int uiOptions = View.SYSTEM_UI_FLAG_LOW_PROFILE;
+      decorView.setSystemUiVisibility(uiOptions);
+    }
   }
 
   private void connectToRoom() {
