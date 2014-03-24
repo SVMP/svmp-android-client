@@ -310,6 +310,7 @@ public class SVMPAppRTCClient implements Constants {
     try {
       JSONObject json = new JSONObject(pcConfig);
       JSONArray servers = json.getJSONArray("iceServers");
+      Log.d(TAG, "ICE server JSON: " + json.toString(4));
       LinkedList<PeerConnection.IceServer> ret =
           new LinkedList<PeerConnection.IceServer>();
       for (int i = 0; i < servers.length(); ++i) {
@@ -612,9 +613,9 @@ public class SVMPAppRTCClient implements Constants {
           }
         }
         Log.i(TAG, "Server connection receive thread exiting");
-      } catch (Exception e) {
+      } catch (IOException e) {
         proxying = false;
-        Log.i(TAG, "Server connection disconnected.");
+        Log.e(TAG, "Server connection disconnected. " + e.getMessage());
       }
       return null;
     }

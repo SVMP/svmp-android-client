@@ -379,6 +379,11 @@ public class AppRTCDemoActivity extends Activity
   // Send |json| to the underlying AppEngine Channel.
   private void sendMessage(JSONObject json) {
     appRtcClient.sendMessage(json.toString());
+    try {
+      Log.d(TAG, "Sending WebRTC message: " + json.toString(4));
+    } catch (JSONException e) {
+      // whatever
+    }
   }
   
   public void sendMessage(Request msg) {
@@ -586,6 +591,7 @@ public class AppRTCDemoActivity extends Activity
       case WEBRTC:
         try {
           JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
+          Log.d(TAG, "Received WebRTC message from peer:\n" + json.toString(4));
           String type;
           // peerconnection_client doesn't put a "type" on candidates
           try {
