@@ -475,6 +475,7 @@ public class SVMPAppRTCClient implements Constants {
         sf = SocketFactory.getDefault();
         svmpSocket = sf.createSocket(connectionInfo.getHost(), connectionInfo.getPort());
       }
+      svmpSocket.setTcpNoDelay(true);
     }
   }
 
