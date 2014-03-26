@@ -27,6 +27,7 @@ public interface Constants {
     public static final String TRUSTSTORE_PASSWORD = "changeme_clienttstorepass";
 
     public static final int DEFAULT_PORT = 8002;
+    public static final boolean API_KITKAT = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT);
     public static final boolean API_ICS = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);
 
     // used to determine what the EncryptionType for each connection is
