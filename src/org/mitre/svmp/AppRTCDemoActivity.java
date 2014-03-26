@@ -69,6 +69,8 @@ import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.client.*;
+import org.mitre.svmp.observers.PCObserver;
+import org.mitre.svmp.observers.SDPObserver;
 import org.mitre.svmp.performance.PerformanceTimer;
 import org.mitre.svmp.performance.PointPerformanceData;
 import org.mitre.svmp.performance.SpanPerformanceData;
@@ -78,9 +80,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.webrtc.*;
-import org.webrtc.VideoRenderer.I420Frame;
 
-import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -97,18 +97,16 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
         state = STATE_CONNECTED;
     }
 
-    private PeerConnection pc;
-    private final PCObserver pcObserver = new PCObserver();
-    private final SDPObserver sdpObserver = new SDPObserver();
     private MediaConstraints sdpMediaConstraints;
 
     private final SVMPChannelClient.MessageHandler clientHandler = new ClientHandler();
     private SVMPAppRTCClient appRtcClient = new SVMPAppRTCClient(this, clientHandler, this);
 
+    private SDPObserver sdpObserver;
     private VideoStreamsView vsv;
+    private PCObserver pcObserver;
     private Toast logToast;
-    private LinkedList<IceCandidate> queuedRemoteCandidates =
-            new LinkedList<IceCandidate>();
+
     // Synchronize on quit[0] to avoid teardown-related crashes.
     private final Boolean[] quit = new Boolean[]{false};
     private PowerManager.WakeLock wakeLock;
@@ -181,6 +179,10 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
                 AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
         audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
 
+        //Create observers.
+        sdpObserver = new SDPObserver(this);
+        pcObserver = new PCObserver(this);
+
         sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
                 "OfferToReceiveAudio", "false"));
@@ -229,6 +231,26 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
         decorView.setSystemUiVisibility(uiOptions);
     }
 
+    public VideoStreamsView getVSV() {
+        return vsv;
+    }
+
+    public PCObserver getPCObserver() {
+        return pcObserver;
+    }
+
+    public MediaConstraints getSdpMediaConstraints() {
+        return sdpMediaConstraints;
+    }
+
+    public boolean isInitiator() {
+        return appRtcClient.isInitiator();
+    }
+
+    public SVMPAppRTCClient getBinder() {
+        return appRtcClient;
+    }
+
     private void connectToRoom() {
         logAndToast(R.string.appRTC_toast_connection_start);
         startProgressDialog();
@@ -273,35 +295,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
     @Override
     public void onIceServers(List<PeerConnection.IceServer> iceServers) {
-        PeerConnectionFactory factory = new PeerConnectionFactory();
-
-        pc = factory.createPeerConnection(iceServers, appRtcClient.pcConstraints(), pcObserver);
-        {
-            final PeerConnection finalPC = pc;
-            final Runnable repeatedStatsLogger = new Runnable() {
-                public void run() {
-                    synchronized (quit[0]) {
-                        if (quit[0]) {
-                            return;
-                        }
-                        final Runnable runnableThis = this;
-                        boolean success = finalPC.getStats(new StatsObserver() {
-                            public void onComplete(StatsReport[] reports) {
-                                for (StatsReport report : reports) {
-                                    Log.d(TAG, "Stats: " + report.toString());
-                                }
-                                vsv.postDelayed(runnableThis, 10000);
-                            }
-                        }, null);
-                        if (!success) {
-                            throw new RuntimeException("getStats() return false!");
-                        }
-                    }
-                }
-            };
-            vsv.postDelayed(repeatedStatsLogger, 10000);
-        }
-        logAndToast(R.string.appRTC_toast_getIceServers_start);
+        pcObserver.onIceServers(iceServers);
     }
 
     @Override
@@ -319,178 +313,26 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     }
 
     // Log |msg| and Toast about it.
-    protected void logAndToast(int resID) {
+    public void logAndToast(final int resID) {
         Log.d(TAG, getResources().getString(resID));
-        if (logToast != null) {
-            logToast.cancel();
-        }
-        logToast = Toast.makeText(this, resID, Toast.LENGTH_SHORT);
-        logToast.show();
+        this.runOnUiThread(new Runnable() {
+            public void run() {
+                if (logToast != null) {
+                    logToast.cancel();
+                }
+                logToast = Toast.makeText(AppRTCDemoActivity.this, resID, Toast.LENGTH_SHORT);
+                logToast.show();
+            }
+        });
     }
 
     // Send |json| to the underlying AppEngine Channel.
-    private void sendMessage(JSONObject json) {
+    public void sendMessage(JSONObject json) {
         appRtcClient.sendMessage(json.toString());
     }
 
     public void sendMessage(Request msg) {
         appRtcClient.sendMessage(msg);
-    }
-
-    // Put a |key|->|value| mapping in |json|.
-    private static void jsonPut(JSONObject json, String key, Object value) {
-        try {
-            json.put(key, value);
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    // Implementation detail: observe ICE & stream changes and react accordingly.
-    private class PCObserver implements PeerConnection.Observer {
-        @Override
-        public void onIceCandidate(final IceCandidate candidate) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    JSONObject json = new JSONObject();
-                    // peerconnection_client is brain dead...
-                    // it uses the presence or lack of the "type" field to differentiate sdp from candidate
-                    // type present -> sdp, type absent -> candidate
-                    jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
-                    jsonPut(json, "sdpMid", candidate.sdpMid);
-                    jsonPut(json, "candidate", candidate.sdp);
-                    sendMessage(json);
-                }
-            });
-        }
-
-        @Override
-        public void onError() {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    throw new RuntimeException("PeerConnection error!");
-                }
-            });
-        }
-
-        @Override
-        public void onSignalingChange(PeerConnection.SignalingState newState) {
-        }
-
-        @Override
-        public void onIceConnectionChange(PeerConnection.IceConnectionState newState) {
-        }
-
-        @Override
-        public void onIceGatheringChange(PeerConnection.IceGatheringState newState) {
-        }
-
-        @Override
-        public void onAddStream(final MediaStream stream) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    abortUnless(//stream.audioTracks.size() == 1 &&
-                            stream.videoTracks.size() == 1,
-                            "Weird-looking stream: " + stream);
-                    stream.videoTracks.get(0).addRenderer(new VideoRenderer(
-                            new VideoCallbacks(vsv, VideoStreamsView.Endpoint.REMOTE)));
-                    stopProgressDialog(); // stop the Progress Dialog
-                    vsv.setBackgroundColor(Color.TRANSPARENT); // video should be started now, remove the background color
-                }
-            });
-        }
-
-        @Override
-        public void onRemoveStream(final MediaStream stream) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    stream.videoTracks.get(0).dispose();
-                }
-            });
-        }
-
-        @Override
-        public void onDataChannel(final DataChannel dc) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    throw new RuntimeException(
-                            "AppRTC doesn't use data channels, but got: " + dc.label() + " anyway!");
-                }
-            });
-        }
-    }
-
-    // Implementation detail: handle offer creation/signaling and answer setting,
-    // as well as adding remote ICE candidates once the answer SDP is set.
-    private class SDPObserver implements SdpObserver {
-        @Override
-        public void onCreateSuccess(final SessionDescription sdp) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
-                    JSONObject json = new JSONObject();
-                    jsonPut(json, "type", sdp.type.canonicalForm());
-                    jsonPut(json, "sdp", sdp.description);
-                    sendMessage(json);
-                    pc.setLocalDescription(sdpObserver, sdp);
-                }
-            });
-        }
-
-        @Override
-        public void onSetSuccess() {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    if (appRtcClient.isInitiator()) {
-                        if (pc.getRemoteDescription() != null) {
-                            // We've set our local offer and received & set the remote
-                            // answer, so drain candidates.
-                            drainRemoteCandidates();
-                        }
-                    }
-                    else {
-                        if (pc.getLocalDescription() == null) {
-                            // We just set the remote offer, time to create our answer.
-                            logAndToast(R.string.appRTC_toast_sdpObserver_createAnswer);
-                            pc.createAnswer(SDPObserver.this, sdpMediaConstraints);
-                        } else {
-                            // Sent our answer and set it as local description; drain
-                            // candidates.
-                            drainRemoteCandidates();
-                        }
-                    }
-                }
-            });
-        }
-
-        @Override
-        public void onCreateFailure(final String error) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    throw new RuntimeException("createSDP error: " + error);
-                }
-            });
-        }
-
-        @Override
-        public void onSetFailure(final String error) {
-            runOnUiThread(new Runnable() {
-                public void run() {
-                    throw new RuntimeException("setSDP error: " + error);
-                }
-            });
-        }
-
-        private void drainRemoteCandidates() {
-            if (queuedRemoteCandidates == null) {
-                Log.e(TAG, "Something called drainRemoteCandidates, but the queue was already nulled. !?!?!?");
-                return;
-            }
-            for (IceCandidate candidate : queuedRemoteCandidates) {
-                pc.addIceCandidate(candidate);
-            }
-            queuedRemoteCandidates = null;
-        }
     }
 
     // Implementation detail: handler for receiving SVMP protocol messages and
@@ -512,7 +354,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
             rotationHandler.initRotationUpdates();
 
             logAndToast(R.string.appRTC_toast_clientHandler_start);
-            pc.createOffer(sdpObserver, sdpMediaConstraints);
+            pcObserver.getPC().createOffer(sdpObserver, sdpMediaConstraints);
         }
 
         public void onMessage(Response data) {
@@ -552,21 +394,17 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
                             json.put("type", "candidate");
                             type = (String) json.get("type");
                         }
+
+                        //Check out the type of WebRTC message.
                         if (type.equals("candidate")) {
-                            IceCandidate candidate = new IceCandidate(
-                                    (String) json.get("sdpMid"),
-                                    json.getInt("sdpMLineIndex"),
-                                    (String) json.get("candidate"));
-                            if (queuedRemoteCandidates != null) {
-                                queuedRemoteCandidates.add(candidate);
-                            } else {
-                                pc.addIceCandidate(candidate);
-                            }
+                            getPCObserver().addIceCandidate(
+                                    new IceCandidate((String) json.get("sdpMid"), json.getInt("sdpMLineIndex"), (String) json.get("candidate"))
+                            );
                         } else if (type.equals("answer") || type.equals("offer")) {
                             SessionDescription sdp = new SessionDescription(
                                     SessionDescription.Type.fromCanonicalForm(type),
                                     (String) json.get("sdp"));
-                            pc.setRemoteDescription(sdpObserver, sdp);
+                            getPCObserver().getPC().setRemoteDescription(sdpObserver, sdp);
                         } else if (type.equals("bye")) {
                             logAndToast(R.string.appRTC_toast_clientHandler_finish);
                             disconnectAndExit();
@@ -620,11 +458,9 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
                 return;
             }
             quit[0] = true;
+            pcObserver.quit();
+            stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
             wakeLock.release();
-            if (pc != null) {
-                pc.dispose();
-                pc = null;
-            }
             if (appRtcClient != null) {
                 Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
                         .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
@@ -644,33 +480,6 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
                 performanceTimer.cancel();
             if (!isFinishing())
                 finish();
-        }
-    }
-
-    // Implementation detail: bridge the VideoRenderer.Callbacks interface to the
-    // VideoStreamsView implementation.
-    private class VideoCallbacks implements VideoRenderer.Callbacks {
-        private final VideoStreamsView view;
-        private final VideoStreamsView.Endpoint stream;
-
-        public VideoCallbacks(
-                VideoStreamsView view, VideoStreamsView.Endpoint stream) {
-            this.view = view;
-            this.stream = stream;
-        }
-
-        @Override
-        public void setSize(final int width, final int height) {
-            view.queueEvent(new Runnable() {
-                public void run() {
-                    view.setSize(stream, width, height);
-                }
-            });
-        }
-
-        @Override
-        public void renderFrame(I420Frame frame) {
-            view.queueFrame(stream, frame);
         }
     }
 
