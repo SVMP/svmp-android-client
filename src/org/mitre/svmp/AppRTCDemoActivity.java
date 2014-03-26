@@ -48,9 +48,7 @@ package org.mitre.svmp;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
+import android.content.*;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
@@ -59,6 +57,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -100,7 +99,9 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     private MediaConstraints sdpMediaConstraints;
 
     private final SVMPChannelClient.MessageHandler clientHandler = new ClientHandler();
-    private SVMPAppRTCClient appRtcClient = new SVMPAppRTCClient(this, clientHandler, this);
+    private SVMPAppRTCClient appRtcClient;
+    private SessionService service;
+    private boolean bound = false;
 
     private SDPObserver sdpObserver;
     private VideoStreamsView vsv;
@@ -254,8 +255,28 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     private void connectToRoom() {
         logAndToast(R.string.appRTC_toast_connection_start);
         startProgressDialog();
-        appRtcClient.connectToRoom(connectionInfo);
+
+        bindService(new Intent(this, SessionService.class), serviceConnection, 0);
     }
+
+    /** Defines callbacks for service binding, passed to bindService() */
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder iBinder) {
+            // We've bound to SessionService, cast the IBinder and get SessionService instance
+            appRtcClient = (SVMPAppRTCClient) iBinder;
+            service = appRtcClient.getService();
+            bound = true;
+
+            // after we have bound to the service, begin the connection
+            appRtcClient.connectToRoom(AppRTCDemoActivity.this, clientHandler, AppRTCDemoActivity.this);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            bound = false;
+        }
+    };
 
     public void startProgressDialog() {
         vsv.setBackgroundColor(Color.DKGRAY); // if it isn't already set, make the background color dark gray
@@ -458,6 +479,17 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
                 return;
             }
             quit[0] = true;
+
+            // Unbind from the service
+            if (bound) {
+                unbindService(serviceConnection);
+                bound = false;
+            }
+
+            // TODO: stopping service here, remove this eventually
+            Intent intent = new Intent(this, SessionService.class);
+            stopService(intent);
+
             pcObserver.quit();
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
             wakeLock.release();

@@ -46,7 +46,7 @@ public class SessionService extends Service {
     public static int getConnectionID() { return connectionID; }
 
     // local variables
-    private final IBinder binder = new SessionBinder(); // Binder given to clients
+    private IBinder binder; // Binder given to clients
     private DatabaseHandler databaseHandler;
     private ConnectionInfo connectionInfo;
 
@@ -97,6 +97,9 @@ public class SessionService extends Service {
 
         // get connection information from database
         connectionInfo = databaseHandler.getConnectionInfo(connectionID);
+
+        // create binder object
+        binder = new SVMPAppRTCClient(this, connectionInfo);
 
         // show notification
         showNotification();

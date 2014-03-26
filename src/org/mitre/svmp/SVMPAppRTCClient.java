@@ -47,6 +47,7 @@ package org.mitre.svmp;
 
 import android.content.Intent;
 import android.os.AsyncTask;
+import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
 import org.json.JSONArray;
@@ -84,11 +85,12 @@ import java.util.concurrent.LinkedBlockingQueue;
  * call connectToRoom().  Once that's done call sendMessage() and wait for the
  * registered handler to be called with received messages.
  */
-public class SVMPAppRTCClient implements Constants {
-    private static final String TAG = "SVMPAppRTCClient";
-    private final AppRTCDemoActivity activity;
-    private final SVMPChannelClient.MessageHandler gaeHandler;
-    private final IceServersObserver iceServersObserver;
+public class SVMPAppRTCClient extends Binder implements Constants {
+    private static final String TAG = SVMPAppRTCClient.class.getName();
+    private final SessionService service;
+    private AppRTCDemoActivity activity;
+    private SVMPChannelClient.MessageHandler gaeHandler;
+    private IceServersObserver iceServersObserver;
 
     // These members are only read/written under sendQueue's lock.
     private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
@@ -113,19 +115,24 @@ public class SVMPAppRTCClient implements Constants {
         public void onIceServers(List<PeerConnection.IceServer> iceServers);
     }
 
-    public SVMPAppRTCClient(
-            AppRTCDemoActivity activity, SVMPChannelClient.MessageHandler gaeHandler,
+    public SVMPAppRTCClient(SessionService service, ConnectionInfo connectionInfo) {
+        this.service = service;
+        this.connectionInfo = connectionInfo;
+    }
+
+    public void connectToRoom(AppRTCDemoActivity activity, SVMPChannelClient.MessageHandler gaeHandler,
             IceServersObserver iceServersObserver) {
         this.activity = activity;
         this.gaeHandler = gaeHandler;
         this.iceServersObserver = iceServersObserver;
         this.dbHandler = new DatabaseHandler(activity);
-    }
-
-    public void connectToRoom(ConnectionInfo connectionInfo) {
-        this.connectionInfo = connectionInfo;
 
         (new SocketConnector()).execute();
+    }
+
+    public SessionService getService() {
+        // Return this instance of SessionService so clients can call public methods
+        return this.service;
     }
 
     /**
@@ -422,14 +429,14 @@ public class SVMPAppRTCClient implements Constants {
                 KeyManager[] keyManagers = null;
                 // if certificate authentication is enabled, use a key manager with the provided alias
                 if (useCertificateAuth) {
-                    keyManagers = new KeyManager[]{new SVMPKeyManager(activity, connectionInfo.getCertificateAlias())};
+                    keyManagers = new KeyManager[]{new SVMPKeyManager(service, connectionInfo.getCertificateAlias())};
                 }
 
                 // set up trust managers
                 TrustManager[] trustManagers = null;
 
                 KeyStore localTrustStore = KeyStore.getInstance("BKS");
-                InputStream in = activity.getResources().openRawResource(R.raw.client_truststore);
+                InputStream in = service.getResources().openRawResource(R.raw.client_truststore);
                 localTrustStore.load(in, TRUSTSTORE_PASSWORD.toCharArray());
                 TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
                 trustManagerFactory.init(localTrustStore);
@@ -446,7 +453,7 @@ public class SVMPAppRTCClient implements Constants {
                     // by default useMTM is false ("Show certificate dialog" in developer preferences)
                     // this creates a certificate dialog to decide what to do with untrusted certificates, instead of flat-out rejecting them
                     Log.d(TAG, "socketConnect: Static BKS trust store is empty but MTM is enabled, using MTM to check server cert trust");
-                    trustManagers = MemorizingTrustManager.getInstanceList(activity);
+                    trustManagers = MemorizingTrustManager.getInstanceList(service);
                 } else {
                     Log.d(TAG, "socketConnect: Static BKS trust store is empty and MTM is disabled, using system trust store to check server cert trust");
                     // leaving trustManagers null accomplishes this
