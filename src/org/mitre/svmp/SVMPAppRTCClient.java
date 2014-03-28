@@ -145,7 +145,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
      *
      * @throws IOException
      */
-    public void disconnect() throws IOException {
+    public void disconnect() {
         proxying = false;
         if (dbHandler != null)
             dbHandler.close();
@@ -153,12 +153,24 @@ public class SVMPAppRTCClient extends Binder implements Constants {
             sender.cancel(true);
         if (listener != null)
             listener.cancel(true);
-        if (socketIn != null)
-            socketIn.close();
-        if (socketOut != null)
-            socketOut.close();
-        if (svmpSocket != null && !svmpSocket.isClosed())
-            svmpSocket.close();
+        try {
+            if (socketIn != null)
+                socketIn.close();
+        } catch(IOException e) {
+            Log.e(TAG, "Exception closing InputStream: " + e.getMessage());
+        }
+        try {
+            if (socketOut != null)
+                socketOut.close();
+        } catch(IOException e) {
+            Log.e(TAG, "Exception closing OutputStream: " + e.getMessage());
+        }
+        try {
+            if (svmpSocket != null && !svmpSocket.isClosed())
+                svmpSocket.close();
+        } catch(IOException e) {
+            Log.e(TAG, "Exception closing Socket: " + e.getMessage());
+        }
     }
 
     private void startProxying() {
@@ -393,11 +405,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
                 // the client will soon be independent of the activity, this conditional will be obsolete
                 if (activity.isFinishing()) {
                     Log.d(TAG, "Client exited before socketConnect finished, shutting down...");
-                    try {
-                        disconnect();
-                    } catch (IOException e) {
-                        Log.e(TAG, "Exception while disconnecting: " + e);
-                    }
+                    disconnect();
                 } else {
                     machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // STARTED -> CONNECTED
                     new SVMPAuthenticator().execute(authRequest);
