@@ -772,7 +772,7 @@ public class AppRTCDemoActivity extends Activity
     // connectionID
     public void needAuth(int messageResID) {
       // clear timed out session information from memory
-      dbHandler.updateSessionToken(connectionInfo, "");
+      dbHandler.clearSessionInfo(connectionInfo);
       // send a result message to the calling activity so it will show the authentication dialog again
       Intent intent = new Intent();
       intent.putExtra("connectionID", connectionInfo.getConnectionID());

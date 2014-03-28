@@ -37,7 +37,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 8;
+    public static final int DB_VERSION = 9;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
@@ -63,7 +63,10 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"Domain", "TEXT"},
             {"AuthType", "INTEGER DEFAULT 1"},
             {"SessionToken", "TEXT DEFAULT ''"},
-            {"CertificateAlias", "TEXT DEFAULT ''"}
+            {"CertificateAlias", "TEXT DEFAULT ''"},
+            {"SessionExpires", "INTEGER DEFAULT 0"},
+            {"SessionGracePeriod", "INTEGER DEFAULT 0"},
+            {"LastDisconnected", "INTEGER DEFAULT 0"} // what time the client disconnected (used to find if session token is still good)
         }, {
             {"StartDate", "INTEGER", "PRIMARY KEY"},
             {"ConnectionID", "INTEGER"}, // foreign key
@@ -131,10 +134,16 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             case 5:
                 addTableColumn(TABLE_CONNECTIONS, 8, "''", db); // SessionToken column added
             case 6:
-                addTableColumn(TABLE_CONNECTIONS, 9, "''", db); // SessionToken column added
+                addTableColumn(TABLE_CONNECTIONS, 9, "''", db); // CertificateAlias column added
             case 7:
                 // changed encryption types, removed SSL/untrusted, now we just have SSL
                 db.execSQL("UPDATE Connections SET EncryptionType=1 WHERE EncryptionType=2;");
+            case 8:
+                // changed session handling, now the client is aware when a session token is not valid
+                db.execSQL("UPDATE Connections SET SessionToken='';"); // clear out all existing session tokens
+                addTableColumn(TABLE_CONNECTIONS, 10, "0", db); // SessionExpires column added
+                addTableColumn(TABLE_CONNECTIONS, 11, "0", db); // SessionGracePeriod column added
+                addTableColumn(TABLE_CONNECTIONS, 12, "0", db); // LastDisconnected column added
             default:
                 break;
         }
@@ -323,12 +332,12 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return cursor;
     }
 
-    // returns an empty string if the connection doesn't have a session token
+    // returns an empty string if the connection doesn't have a valid session token
     public String getSessionToken(ConnectionInfo connectionInfo) {
         // run the query
         Cursor cursor = getDb().query(
                 Tables[TABLE_CONNECTIONS], // table
-                new String[] {"SessionToken"}, // columns (null == "*")
+                new String[] {"SessionToken", "SessionExpires", "SessionGracePeriod", "LastDisconnected"}, // columns (null == "*")
                 "ConnectionID=?", // selection ('where' clause)
                 new String[] {String.valueOf(connectionInfo.getConnectionID())}, // selection args
                 null, // group by
@@ -338,11 +347,36 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
         // try to get results and find a Session Token to return
         String sessionToken = "";
-        if (cursor.moveToFirst())
-            sessionToken = cursor.getString(0);
-        // sessionToken should never be null; if it is, change it to an empty string
-        if (sessionToken == null)
-            sessionToken = "";
+        if (cursor.moveToFirst()) {
+            String token = cursor.getString(0);
+
+            if (token != null && token.length() > 0) {
+                // we have a token, check to see if it's valid
+                long expires = cursor.getLong(1); // the longest the session is valid before it expires
+                int gracePeriod = cursor.getInt(2); // the grace period, in seconds, the client has to reconnect
+                long disconnected = cursor.getLong(3); // the time the client last disconnected
+
+                SimpleDateFormat sdf = new SimpleDateFormat("h:mm:ss a");
+                Log.v(TAG, String.format("Found session info, [token: '%s', expires: '%s', gracePeriod: '%d' seconds, disconnected: '%s']",
+                        token, sdf.format(new Date(expires)), gracePeriod, sdf.format(new Date(disconnected))
+                ));
+
+                // find the earliest date this session is no longer valid, either by expiring or exceeding the grace period)
+                long time = disconnected + (1000 * gracePeriod);
+                if (disconnected == 0 || expires < time)
+                    time = expires;
+                Date expireDate = new Date(time);
+
+                if (expireDate.after(new Date())) {
+                    // the session hasn't expired yet, get the token
+                    sessionToken = token;
+                }
+                else {
+                    // we have session info, but it's expired; clear it
+                    clearSessionInfo(connectionInfo);
+                }
+            }
+        }
 
         return sessionToken;
     }
@@ -551,10 +585,31 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
     }
 
-    protected long updateSessionToken(ConnectionInfo connectionInfo, String sessionToken) {
-        // create content values (we're only updating the SessionToken column)
+    protected long updateSessionInfo(ConnectionInfo connectionInfo, String token, long expires, int gracePeriod) {
+        // create content values
         ContentValues contentValues = new ContentValues();
-        contentValues.put("SessionToken", sessionToken);
+        contentValues.put("SessionToken", token);
+        contentValues.put("SessionExpires", expires); // when max length from initial connect time is reached, session expires
+        contentValues.put("SessionGracePeriod", gracePeriod);
+
+        // attempt update
+        return updateRecord(
+                TABLE_CONNECTIONS,
+                contentValues,
+                "ConnectionID=?",
+                String.valueOf(connectionInfo.getConnectionID())
+        );
+    }
+
+    protected long clearSessionInfo(ConnectionInfo connectionInfo) {
+        return updateSessionInfo(connectionInfo, "", 0, 0);
+    }
+
+    // when the client disconnects, we store the timestamp
+    protected long updateLastDisconnected(ConnectionInfo connectionInfo, long disconnected) {
+        // create content values
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("LastDisconnected", disconnected);
 
         // attempt update
         return updateRecord(

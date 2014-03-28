@@ -133,7 +133,7 @@ public class SvmpActivity extends Activity implements Constants {
                         if (sessionToken.length() > 0) {
                             // we used session token authentication and it failed
                             // discard it and retry normal authentication
-                            dbHandler.updateSessionToken(connectionInfo, "");
+                            dbHandler.clearSessionInfo(connectionInfo);
                             authPrompt(connectionInfo);
                         }
                         else {
