@@ -23,6 +23,7 @@ import android.content.Intent;
 import android.os.*;
 import android.util.Log;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.StateMachine.STATE;
 
 /**
  * @author Joe Portner
@@ -31,41 +32,52 @@ import org.mitre.svmp.client.R;
  * 2. Start the service (so it doesn't stop on unbind)
  * 3. Bind to the service
  */
-public class SessionService extends Service {
+public class SessionService extends Service implements StateObserver {
     private static final String TAG = SessionService.class.getName();
     private static final int NOTIFICATION_ID = 0;
 
-    public static enum STATE {
-        NEW, STARTED, AUTH, READY, RUNNING
-    }
-    private static STATE state = STATE.NEW;
-    private static int connectionID;
+    // only one service is started at a time, acts as a singleton for static getters
+    private static SessionService service;
 
     // public getters for state and connectionID (used by activities)
-    public static STATE getState() { return state; }
-    public static int getConnectionID() { return connectionID; }
+    public static STATE getState() {
+        STATE value = STATE.NEW;
+        if (service != null && service.machine != null)
+            value = service.machine.getState();
+        return value;
+    }
+    public static int getConnectionID() {
+        int value = 0;
+        if (service != null && service.connectionInfo != null)
+            value = service.connectionInfo.getConnectionID();
+        return value;
+    }
 
     // local variables
     private IBinder binder; // Binder given to clients
+    private StateMachine machine;
     private DatabaseHandler databaseHandler;
     private ConnectionInfo connectionInfo;
 
     @Override
     public void onCreate() {
         Log.v(TAG, "onCreate");
+
+        service = this;
+        machine = new StateMachine();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.v(TAG, "onStartCommand");
 
-        if (state == STATE.NEW) {
+        if (getState() == STATE.NEW) {
             // change state and get connectionID from intent
-            state = STATE.STARTED;
-            connectionID = intent.getIntExtra("connectionID", 0);
+            machine.setState(STATE.STARTED, 0);
+            int connectionID = intent.getIntExtra("connectionID", 0);
 
             // begin connecting to the server
-            startup();
+            startup(connectionID);
         }
 
         return START_NOT_STICKY; // run until explicitly stopped.
@@ -73,23 +85,22 @@ public class SessionService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        Log.v(TAG, String.format("onBind (state: %s)", state));
+        Log.v(TAG, String.format("onBind (state: %s)", getState()));
+
         return binder;
     }
 
     @Override
     public void onDestroy() {
         Log.v(TAG, "onDestroy");
-        shutdown();
 
-        // reset state
-        state = STATE.NEW;
-        connectionID = 0;
+        // before we destroy this service, shut down its components
+        shutdown();
 
         super.onDestroy();
     }
 
-    private void startup() {
+    private void startup(int connectionID) {
         Log.i(TAG, "Starting background service.");
 
         // connect to the database
@@ -99,7 +110,7 @@ public class SessionService extends Service {
         connectionInfo = databaseHandler.getConnectionInfo(connectionID);
 
         // create binder object
-        binder = new SVMPAppRTCClient(this, connectionInfo);
+        binder = new SVMPAppRTCClient(this, machine, connectionInfo);
 
         // show notification
         showNotification();
@@ -107,6 +118,9 @@ public class SessionService extends Service {
 
     private void shutdown() {
         Log.i(TAG, "Shutting down background service.");
+
+        // reset singleton
+        service = null;
 
         // hide notification
         hideNotification();
@@ -135,18 +149,6 @@ public class SessionService extends Service {
                 .cancel(NOTIFICATION_ID);
     }
 
-/*********************************************************
- **                    INNER CLASSES                    **
- *********************************************************/
-
-    /**
-     * Class used for the client Binder.  Because we know this service always
-     * runs in the same process as its clients, we don't need to deal with IPC.
-     */
-    public class SessionBinder extends Binder {
-        SessionService getService() {
-            // Return this instance of LocalService so clients can call public methods
-            return SessionService.this;
-        }
+    public void onStateChange(STATE oldState, STATE newState, int resID) {
     }
 }

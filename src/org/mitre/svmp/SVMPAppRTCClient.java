@@ -45,7 +45,6 @@
 
 package org.mitre.svmp;
 
-import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
@@ -61,6 +60,7 @@ import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
+import org.mitre.svmp.StateMachine.STATE;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;
 
@@ -87,8 +87,10 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public class SVMPAppRTCClient extends Binder implements Constants {
     private static final String TAG = SVMPAppRTCClient.class.getName();
-    private final SessionService service;
-    private AppRTCDemoActivity activity;
+
+    private StateMachine machine;
+    private SessionService service = null;
+    private AppRTCDemoActivity activity = null;
     private SVMPChannelClient.MessageHandler gaeHandler;
     private IceServersObserver iceServersObserver;
 
@@ -115,14 +117,17 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         public void onIceServers(List<PeerConnection.IceServer> iceServers);
     }
 
-    public SVMPAppRTCClient(SessionService service, ConnectionInfo connectionInfo) {
+    public SVMPAppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
         this.service = service;
+        this.machine = machine;
+        machine.addObserver(service);
         this.connectionInfo = connectionInfo;
     }
 
     public void connectToRoom(AppRTCDemoActivity activity, SVMPChannelClient.MessageHandler gaeHandler,
             IceServersObserver iceServersObserver) {
         this.activity = activity;
+        machine.addObserver(activity);
         this.gaeHandler = gaeHandler;
         this.iceServersObserver = iceServersObserver;
         this.dbHandler = new DatabaseHandler(activity);
@@ -198,10 +203,6 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         return appRTCSignalingParameters.pcConstraints;
     }
 
-    public MediaConstraints videoConstraints() {
-        return appRTCSignalingParameters.videoConstraints;
-    }
-
     // Struct holding the signaling parameters of an AppRTC room.
     private class AppRTCSignalingParameters {
         public final List<PeerConnection.IceServer> iceServers;
@@ -227,9 +228,8 @@ public class SVMPAppRTCClient extends Binder implements Constants {
 
         @Override
         protected AppRTCSignalingParameters doInBackground(Void... params) {
+            AppRTCSignalingParameters value = null;
             try {
-                toastMe(R.string.appRTC_toast_videoParameterGetter_start);
-
                 // send video info request
                 Request.Builder req = Request.newBuilder();
                 req.setType(RequestType.VIDEO_PARAMS);
@@ -240,22 +240,27 @@ public class SVMPAppRTCClient extends Binder implements Constants {
 
                 // parse it and populate a SignalingParams
                 if (resp != null && resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo())
-                    return getParametersForRoom(resp.getVideoInfo());
+                    value = getParametersForRoom(resp.getVideoInfo());
 
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
             }
-            return null;
+            return value;
         }
 
         @Override
         protected void onPostExecute(AppRTCSignalingParameters params) {
-            toastMe(R.string.appRTC_toast_videoParameterGetter_finish);
-            startProxying();
+            if (params != null) {
+                machine.setState(STATE.RUNNING, R.string.appRTC_toast_videoParameterGetter_success); // READY -> RUNNING
+                startProxying();
 
-            appRTCSignalingParameters = params;
-            iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
-            gaeHandler.onOpen();
+                appRTCSignalingParameters = params;
+                iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
+                gaeHandler.onOpen();
+            }
+            else {
+                machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
+            }
         }
 
         private AppRTCSignalingParameters getParametersForRoom(VideoStreamInfo info) {
@@ -367,8 +372,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
                     returnVal = R.string.appRTC_toast_socketConnector_failClientCertRequired;
                 } else {
                     Log.e(TAG, "Error during SSL handshake: " + e.getMessage());
-                    e.printStackTrace();
-                    toastMe(R.string.appRTC_toast_socketConnector_failSSLHandshake);
+                    returnVal = R.string.appRTC_toast_socketConnector_failSSLHandshake;
                 }
             } catch (SSLException e) {
                 if (e.getMessage().contains("I/O error during system call, Connection reset by peer")) {
@@ -386,6 +390,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         @Override
         protected void onPostExecute(Integer result) {
             if (result == 0) {
+                // the client will soon be independent of the activity, this conditional will be obsolete
                 if (activity.isFinishing()) {
                     Log.d(TAG, "Client exited before socketConnect finished, shutting down...");
                     try {
@@ -394,16 +399,11 @@ public class SVMPAppRTCClient extends Binder implements Constants {
                         Log.e(TAG, "Exception while disconnecting: " + e);
                     }
                 } else {
-                    toastMe(R.string.appRTC_toast_socketConnector_success);
-                    activity.setStateConnected();
+                    machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // STARTED -> CONNECTED
                     new SVMPAuthenticator().execute(authRequest);
                 }
             } else {
-                // if the connection failed, display the failure message and return to the connection list
-                toastMe(result);
-                Intent intent = new Intent();
-                activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
-                activity.finish();
+                machine.setState(STATE.ERROR, result); // STARTED -> ERROR
             }
         }
 
@@ -515,23 +515,12 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         @Override
         protected void onPostExecute(Integer result) {
             if (result == 0) {
+                machine.setState(STATE.AUTH, R.string.appRTC_toast_svmpAuthenticator_success); // CONNECTED -> AUTH
                 // auth succeeded, wait for VMREADY
                 (new SVMPReadyWait()).execute();
             } else {
                 // authentication failed, handle appropriately
-                toastMe(result); // cancel current toasts
-
-                Intent intent = new Intent();
-                // if our authentication was rejected, bring up the auth prompt when the connection list resumes
-                if (result == R.string.appRTC_toast_svmpAuthenticator_fail) {
-                    intent.putExtra("connectionID", connectionInfo.getConnectionID());
-                    activity.setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
-                }
-                // we had an SSL error, don't do anything when the connection list resumes
-                else
-                    activity.setResult(SvmpActivity.RESULT_CANCELED, intent);
-
-                activity.finish();
+                machine.setState(STATE.ERROR, result); // CONNECTED -> ERROR
             }
         }
     }
@@ -555,12 +544,11 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         @Override
         protected void onPostExecute(Boolean result) {
             if (result) {
-                toastMe(R.string.appRTC_toast_svmpReadyWait_success);
+                machine.setState(STATE.READY, R.string.appRTC_toast_svmpReadyWait_success); // AUTH -> READY
                 // auth succeeded, get room parameters
                 (new VideoParameterGetter()).execute();
             } else {
-                toastMe(R.string.appRTC_toast_svmpReadyWait_fail);
-                activity.stopProgressDialog(); // stop the Progress Dialog
+                machine.setState(STATE.ERROR, R.string.appRTC_toast_svmpReadyWait_fail); // AUTH -> ERROR
             }
         }
     }
@@ -610,14 +598,5 @@ public class SVMPAppRTCClient extends Binder implements Constants {
             }
             return null;
         }
-    }
-
-    private void toastMe(final int resID) {
-        activity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                activity.logAndToast(resID);
-            }
-        });
     }
 }

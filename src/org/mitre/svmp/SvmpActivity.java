@@ -17,12 +17,10 @@ package org.mitre.svmp;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.*;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +30,7 @@ import org.mitre.svmp.auth.module.IAuthModule;
 import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
+import org.mitre.svmp.StateMachine.STATE;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -267,12 +266,12 @@ public class SvmpActivity extends Activity implements Constants {
     private void startVideo(ConnectionInfo connectionInfo) {
         // if the session service is running for a different connection, stop it
         boolean stopService = SessionService.getConnectionID() != connectionInfo.getConnectionID()
-                && SessionService.getState() != SessionService.STATE.NEW;
+                && SessionService.getState() != STATE.NEW;
         if (stopService)
             stopService(new Intent(this, SessionService.class));
 
         // make sure the session service is running for this connection
-        if (stopService || SessionService.getState() == SessionService.STATE.NEW)
+        if (stopService || SessionService.getState() == STATE.NEW)
             startService(new Intent(this, SessionService.class).putExtra("connectionID", connectionInfo.getConnectionID()));
 
         // create explicit intent

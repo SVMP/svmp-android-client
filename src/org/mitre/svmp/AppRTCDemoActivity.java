@@ -55,7 +55,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -78,22 +77,17 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.webrtc.*;
+import org.mitre.svmp.StateMachine.STATE;
 
 import java.util.List;
 
 /**
  * Main Activity of the SVMP Android client application.
  */
-public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.IceServersObserver, SensorEventListener, Constants {
+public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.IceServersObserver, StateObserver,
+        SensorEventListener, Constants {
 
     private static final String TAG = AppRTCDemoActivity.class.getName();
-    private static final int STATE_NEW = 0;
-    private static final int STATE_CONNECTED = 1;
-    private int state = STATE_NEW;
-
-    public void setStateConnected() {
-        state = STATE_CONNECTED;
-    }
 
     private MediaConstraints sdpMediaConstraints;
 
@@ -120,7 +114,8 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     private SensorHandler sensorHandler;
     private LocationHandler locationHandler;
     private RotationHandler rotationHandler;
-    private boolean connected = false;
+    private boolean connected = false; // if this is true, we have established a socket connection
+    private boolean proxying = false; // if this is true, we have finished the handshakes and the connection is running
     private ProgressDialog pd;
 
     @Override
@@ -291,7 +286,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     public void onPause() {
         super.onPause();
         vsv.onPause();
-        if (state != STATE_NEW)
+        if (connected)
             disconnectAndExit();
     }
 
@@ -350,7 +345,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
             if (!appRtcClient.isInitiator()) {
                 return;
             }
-            connected = true;
+            proxying = true;
 
             // create a timer to start taking measurements
             performanceTimer = new PerformanceTimer(AppRTCDemoActivity.this, spanPerformanceData, pointPerformanceData,
@@ -460,7 +455,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
     // Disconnect from remote resources, dispose of local resources, and exit.
     private void disconnectAndExit() {
-        connected = false;
+        proxying = false;
         synchronized (quit[0]) {
             if (quit[0]) {
                 return;
@@ -502,7 +497,56 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     }
 
     public boolean isConnected() {
-        return connected;
+        return proxying;
+    }
+
+    public void onStateChange(STATE oldState, STATE newState, int resID) {
+        // if the state change included a message, log it and display a toast popup message
+        if (resID > 0)
+            logAndToast(resID);
+
+        switch(newState) {
+            case CONNECTED:
+                connected = true;
+                break;
+            case AUTH:
+                break;
+            case READY:
+                break;
+            case RUNNING:
+                break;
+            case ERROR:
+                // by default, when the connection list resumes, don't do anything
+                Intent intent = new Intent();
+                setResult(SvmpActivity.RESULT_CANCELED, intent);
+
+                // if we are in an error state, check the previous state and act appropriately
+                switch(oldState) {
+                    case STARTED: // failed to connect the socket and transition to CONNECTED
+                        // the socket connection failed, display the failure message and return to the connection list
+                        break;
+                    case CONNECTED: // failed to authenticate and transition to AUTH
+                        if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
+                            // our authentication was rejected, bring up the auth prompt when the connection list resumes
+                            intent.putExtra("connectionID", connectionInfo.getConnectionID());
+                            setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
+                        }
+                        // otherwise, we had an SSL error, display the failure message and return to the connection list
+                        break;
+                    case AUTH: // failed to receive ready message and transition to READY
+                        break;
+                    case READY: // failed to receive video parameters and transition to RUNNING
+                        break;
+                    case RUNNING: // failed after already running
+                        break;
+                }
+
+                // finish this activity and return to the connection list
+                finish();
+                break;
+            default:
+                break;
+        }
     }
 
     /////////////////////////////////////////////////////////////////////
@@ -510,13 +554,13 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
     /////////////////////////////////////////////////////////////////////
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        if (connected)
+        if (proxying)
             sensorHandler.onAccuracyChanged(sensor, accuracy);
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (connected)
+        if (proxying)
             sensorHandler.onSensorChanged(event);
     }
 
@@ -534,7 +578,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        return connected && touchHandler.onTouchEvent(event);
+        return proxying && touchHandler.onTouchEvent(event);
     }
 
     @Override

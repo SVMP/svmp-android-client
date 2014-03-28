@@ -106,10 +106,11 @@
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
     <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
+    <string name="appRTC_toast_svmpAuthenticator_success">Authenticated successfully</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
-    <string name="appRTC_toast_svmpReadyWait_success">VM is ready</string>
-    <string name="appRTC_toast_videoParameterGetter_start">Querying for webrtc channel info</string>
-    <string name="appRTC_toast_videoParameterGetter_finish">Got channel info</string>
+    <string name="appRTC_toast_svmpReadyWait_success">VM is ready, querying for WebRTC channel info</string>
+    <string name="appRTC_toast_videoParameterGetter_fail">Failed to get channel info</string>
+    <string name="appRTC_toast_videoParameterGetter_success">Got channel info</string>
     <string name="appRTC_toast_getIceServers_start">Waiting for ICE candidates…</string>
     <string name="appRTC_toast_clientHandler_start">Creating offer…</string>
     <string name="appRTC_toast_clientHandler_finish">Remote end hung up; dropping PeerConnection</string>
