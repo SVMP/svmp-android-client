@@ -58,7 +58,6 @@ import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.os.PowerManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -110,7 +109,6 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
     // Synchronize on quit[0] to avoid teardown-related crashes.
     private final Boolean[] quit = new Boolean[]{false};
-    private PowerManager.WakeLock wakeLock;
 
     private DatabaseHandler dbHandler;
     private ConnectionInfo connectionInfo;
@@ -155,11 +153,6 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 //            EnumSet.of(Logging.TraceLevel.TRACE_ALL),
 //            Logging.Severity.LS_SENSITIVE);
 
-        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        wakeLock = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "AppRTCDemo");
-        wakeLock.acquire();
-
         Point displaySize = new Point();
         getWindowManager().getDefaultDisplay().getSize(displaySize);
         vsv = new VideoStreamsView(this, displaySize, spanPerformanceData);
@@ -173,12 +166,6 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
         abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
                 "Failed to initializeAndroidGlobals");
-
-        AudioManager audioManager =
-                ((AudioManager) getSystemService(AUDIO_SERVICE));
-        audioManager.setMode(audioManager.isWiredHeadsetOn() ?
-                AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
-        audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
 
         //Create observers.
         sdpObserver = new SDPObserver(this);
@@ -492,7 +479,6 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
             pcObserver.quit();
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
-            wakeLock.release();
             if (appRtcClient != null) {
                 Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
                         .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
