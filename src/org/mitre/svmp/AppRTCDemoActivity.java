@@ -57,10 +57,8 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.AudioManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.PowerManager;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -122,7 +120,6 @@ public class AppRTCDemoActivity extends Activity
       new LinkedList<IceCandidate>();
   // Synchronize on quit[0] to avoid teardown-related crashes.
   private final Boolean[] quit = new Boolean[] { false };
-  private PowerManager.WakeLock wakeLock;
 
   private DatabaseHandler dbHandler;
   private ConnectionInfo connectionInfo;
@@ -167,10 +164,6 @@ public class AppRTCDemoActivity extends Activity
     //     EnumSet.of(Logging.TraceLevel.TRACE_ALL),
     //     Logging.Severity.LS_SENSITIVE);
 
-    PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-    wakeLock = powerManager.newWakeLock(
-        PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "AppRTCDemo");
-    wakeLock.acquire();
 
     Point displaySize = new Point();
     getWindowManager().getDefaultDisplay().getSize(displaySize);
@@ -186,11 +179,6 @@ public class AppRTCDemoActivity extends Activity
     abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
         "Failed to initializeAndroidGlobals");
 
-    AudioManager audioManager =
-        ((AudioManager) getSystemService(AUDIO_SERVICE));
-    audioManager.setMode(audioManager.isWiredHeadsetOn() ?
-        AudioManager.MODE_IN_CALL : AudioManager.MODE_IN_COMMUNICATION);
-    audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
 
     sdpMediaConstraints = new MediaConstraints();
     sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
@@ -668,7 +656,6 @@ public class AppRTCDemoActivity extends Activity
         return;
       }
       quit[0] = true;
-      wakeLock.release();
       if (pc != null) {
         pc.dispose();
         pc = null;
