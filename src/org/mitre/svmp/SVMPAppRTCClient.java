@@ -72,6 +72,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.security.*;
 import java.security.cert.CertificateException;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -147,6 +148,10 @@ public class SVMPAppRTCClient extends Binder implements Constants {
      */
     public void disconnect() {
         proxying = false;
+
+        // we're disconnecting, update the database record with the current timestamp
+        dbHandler.updateLastDisconnected(connectionInfo, new Date().getTime());
+
         if (dbHandler != null)
             dbHandler.close();
         if (sender != null)
@@ -498,9 +503,14 @@ public class SVMPAppRTCClient extends Binder implements Constants {
                     if (resp != null && resp.getType() == ResponseType.AUTH) {
                         AuthResponse authResponse = resp.getAuthResponse();
                         if (authResponse.getType() == AuthResponse.AuthResponseType.AUTH_OK) {
-                            // we authenticated successfully, check if we received a session token
-                            if (authResponse.hasSessionToken())
-                                dbHandler.updateSessionToken(connectionInfo, authResponse.getSessionToken());
+                            // we authenticated successfully, check if we received session information
+                            if (authResponse.hasSessionInfo()) {
+                                SessionInfo sessionInfo = authResponse.getSessionInfo();
+                                String token = sessionInfo.getToken();
+                                long expires = new Date().getTime() + (1000 * sessionInfo.getMaxLength());
+                                int gracePeriod = sessionInfo.getGracePeriod();
+                                dbHandler.updateSessionInfo(connectionInfo, token, expires, gracePeriod);
+                            }
 
                             returnVal = 0; // success
                         }
