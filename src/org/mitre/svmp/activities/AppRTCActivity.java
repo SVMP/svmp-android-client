@@ -90,8 +90,7 @@ import java.util.List;
 /**
  * Main Activity of the SVMP Android client application.
  */
-public class AppRTCActivity extends Activity implements IceServersObserver, StateObserver,
-        SensorEventListener, Constants {
+public class AppRTCActivity extends Activity implements IceServersObserver, StateObserver, Constants {
 
     private static final String TAG = AppRTCActivity.class.getName();
 
@@ -115,7 +114,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     private ConnectionInfo connectionInfo;
 
     private TouchHandler touchHandler;
-    private SensorHandler sensorHandler;
     private LocationHandler locationHandler;
     private RotationHandler rotationHandler;
     private boolean connected = false; // if this is true, we have established a socket connection
@@ -158,7 +156,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         setContentView(vsv);
 
         touchHandler = new TouchHandler(this, displaySize, performanceAdapter);
-        sensorHandler = new SensorHandler(this, performanceAdapter);
         locationHandler = new LocationHandler(this);
         rotationHandler = new RotationHandler(this);
 
@@ -348,7 +345,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
             proxying = true;
 
             touchHandler.sendScreenInfoMessage();
-            sensorHandler.initSensors();
             locationHandler.initLocationUpdates();
             rotationHandler.initRotationUpdates();
 
@@ -542,26 +538,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
                 break;
         }
     }
-
-    /////////////////////////////////////////////////////////////////////
-    // Bridge the SensorEventListener callbacks to the SensorHandler
-    /////////////////////////////////////////////////////////////////////
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        if (proxying)
-            sensorHandler.onAccuracyChanged(sensor, accuracy);
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (proxying)
-            sensorHandler.onSensorChanged(event);
-    }
-
-    public SensorManager getSensorManager() {
-        return (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-    }
-
 
     /////////////////////////////////////////////////////////////////////
     // Bridge input callbacks to the Touch Input Handler

@@ -45,13 +45,14 @@
 
 package org.mitre.svmp.apprtc;
 
+import android.hardware.*;
+import android.hardware.SensorEvent;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
+import org.mitre.svmp.client.SensorHandler;
 import org.mitre.svmp.performance.PerformanceTimer;
-import org.mitre.svmp.performance.PointPerformanceData;
-import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.services.SessionService;
 import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.auth.AuthData;
@@ -88,7 +89,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * call connectToRoom().  Once that's done call sendMessage() and wait for the
  * registered handler to be called with received messages.
  */
-public class AppRTCClient extends Binder implements Constants {
+public class AppRTCClient extends Binder implements SensorEventListener, Constants {
     private static final String TAG = AppRTCClient.class.getName();
 
     // service and activity objects
@@ -105,15 +106,18 @@ public class AppRTCClient extends Binder implements Constants {
     // common variables
     private ConnectionInfo connectionInfo;
     private DatabaseHandler dbHandler;
+    private boolean proxying = false;
 
     // performance instrumentation
     private PerformanceTimer performance;
+
+    // client components
+    private SensorHandler sensorHandler;
 
     // variables for networking
     private Socket svmpSocket;
     private InputStream socketIn;
     private OutputStream socketOut;
-    private boolean proxying = false;
     private SocketSender sender = null;
     private SocketListener listener = null;
 
@@ -123,7 +127,9 @@ public class AppRTCClient extends Binder implements Constants {
         machine.addObserver(service);
         this.connectionInfo = connectionInfo;
 
-        performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
+        this.dbHandler = new DatabaseHandler(service);
+        this.performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
+        this.sensorHandler = new SensorHandler(service, this);
     }
 
     public void connectToRoom(AppRTCActivity activity, AppRTCHelper.MessageHandler gaeHandler,
@@ -132,7 +138,6 @@ public class AppRTCClient extends Binder implements Constants {
         machine.addObserver(activity);
         this.gaeHandler = gaeHandler;
         this.iceServersObserver = iceServersObserver;
-        this.dbHandler = new DatabaseHandler(activity);
 
         (new SocketConnector()).execute();
     }
@@ -156,11 +161,14 @@ public class AppRTCClient extends Binder implements Constants {
 
         // we're disconnecting, update the database record with the current timestamp
         dbHandler.updateLastDisconnected(connectionInfo, new Date().getTime());
+        dbHandler.close();
 
-        if (dbHandler != null)
-            dbHandler.close();
-        if (performance != null)
-            performance.cancel();
+        performance.cancel(); // stop taking performance measurements
+
+        // clean up client components
+        sensorHandler.cleanupSensors(); // stop forwarding sensor data
+
+        // clean up networking objects
         if (sender != null)
             sender.cancel(true);
         if (listener != null)
@@ -471,7 +479,9 @@ public class AppRTCClient extends Binder implements Constants {
                 appRTCSignalingParameters = params;
                 iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
                 gaeHandler.onOpen();
+
                 performance.start(); // start taking performance measurements
+                sensorHandler.initSensors(); // start forwarding sensor data
             }
             else {
                 machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
@@ -524,5 +534,18 @@ public class AppRTCClient extends Binder implements Constants {
             }
             return null;
         }
+    }
+
+    // Bridge the SensorEventListener callbacks to the SensorHandler
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        if (proxying)
+            sensorHandler.onAccuracyChanged(sensor, accuracy);
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (proxying)
+            sensorHandler.onSensorChanged(event);
     }
 }

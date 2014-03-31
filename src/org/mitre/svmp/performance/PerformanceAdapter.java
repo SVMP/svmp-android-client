@@ -27,12 +27,6 @@ public class PerformanceAdapter {
             spanPerformanceData.incrementFrameCount();
     }
 
-    // used by SensorHandler to record sensor updates
-    public void incrementSensorUpdates() {
-        if (spanPerformanceData != null)
-            spanPerformanceData.incrementSensorUpdates();
-    }
-
     // used by TouchHandler to record touch updates
     public void incrementTouchUpdates() {
         if (spanPerformanceData != null)
