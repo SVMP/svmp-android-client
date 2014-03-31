@@ -79,6 +79,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Negotiates signaling for chatting with apprtc.appspot.com "rooms".
  * Uses the client<->server specifics of the apprtc AppEngine webapp.
  *
+ * Now extended to act as a Binder object between a Service and an Activity.
+ *
  * To use: create an instance of this object (registering a message handler) and
  * call connectToRoom().  Once that's done call sendMessage() and wait for the
  * registered handler to be called with received messages.
@@ -177,25 +179,11 @@ public class AppRTCClient extends Binder implements Constants {
         listener.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-    public boolean isProxying() {
-        return proxying;
-    }
-
     /**
      * Queue a message for sending to the room's channel and send it if already
      * connected (other wise queued messages are drained when the channel is
      * eventually established).
      */
-    public synchronized void sendMessage(String msg) {
-        WebRTCMessage.Builder rtcmsg = WebRTCMessage.newBuilder();
-        rtcmsg.setJson(msg);
-
-        sendMessage(Request.newBuilder()
-                .setType(RequestType.WEBRTC)
-                .setWebrtcMsg(rtcmsg)
-                .build());
-    }
-
     public synchronized void sendMessage(Request msg) {
         if (proxying)
             sendQueue.add(msg);
@@ -209,50 +197,7 @@ public class AppRTCClient extends Binder implements Constants {
         return appRTCSignalingParameters.pcConstraints;
     }
 
-    // AsyncTask that converts an AppRTC room URL into the set of signaling
-    // parameters to use with that room.
-    private class VideoParameterGetter
-            extends AsyncTask<Void, Void, AppRTCSignalingParameters> {
-
-        @Override
-        protected AppRTCSignalingParameters doInBackground(Void... params) {
-            AppRTCSignalingParameters value = null;
-            try {
-                // send video info request
-                Request.Builder req = Request.newBuilder();
-                req.setType(RequestType.VIDEO_PARAMS);
-                req.build().writeDelimitedTo(socketOut);
-
-                // get video info response
-                Response resp = Response.parseDelimitedFrom(socketIn);
-
-                // parse it and populate a SignalingParams
-                if (resp != null && (resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo()))
-                    value = AppRTCHelper.getParametersForRoom(resp.getVideoInfo());
-
-            } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
-            }
-            return value;
-        }
-
-        @Override
-        protected void onPostExecute(AppRTCSignalingParameters params) {
-            if (params != null) {
-                machine.setState(STATE.RUNNING, R.string.appRTC_toast_videoParameterGetter_success); // READY -> RUNNING
-                startProxying();
-
-                appRTCSignalingParameters = params;
-                iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
-                gaeHandler.onOpen();
-            }
-            else {
-                machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
-            }
-        }
-    }
-
-    // Connect to the SVMP server
+    // STEP 1: STARTED -> CONNECTED, Connect to the SVMP server
     private class SocketConnector extends AsyncTask<Void, Void, Integer> {
 
         private Request authRequest;
@@ -324,9 +269,8 @@ public class AppRTCClient extends Binder implements Constants {
             }
         }
 
-        private void socketConnect() throws IOException,
-                KeyStoreException, NoSuchAlgorithmException, CertificateException, KeyManagementException,
-                UnrecoverableKeyException {
+        private void socketConnect() throws IOException, KeyStoreException, NoSuchAlgorithmException,
+                CertificateException, KeyManagementException, UnrecoverableKeyException {
             // determine whether we should use SSL from the EncryptionType integer
             boolean useSsl = connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS;
             // find out if we should use the MemorizingTrustManager instead of the system trust store (set in Preferences)
@@ -390,7 +334,7 @@ public class AppRTCClient extends Binder implements Constants {
         }
     }
 
-    // Perform authentication request/response
+    // STEP 2: CONNECTED -> AUTH, Perform authentication request/response
     private class SVMPAuthenticator extends AsyncTask<Request, Void, Integer> {
 
         @Override
@@ -447,7 +391,7 @@ public class AppRTCClient extends Binder implements Constants {
         }
     }
 
-    // AsynTask that waits for the VMREADY message from the SVMP server
+    // STEP 3: AUTH -> READY, AsyncTask that waits for the VMREADY message from the SVMP server
     private class SVMPReadyWait extends AsyncTask<Void, Void, Boolean> {
         @Override
         protected Boolean doInBackground(Void... params) {
@@ -471,6 +415,49 @@ public class AppRTCClient extends Binder implements Constants {
                 (new VideoParameterGetter()).execute();
             } else {
                 machine.setState(STATE.ERROR, R.string.appRTC_toast_svmpReadyWait_fail); // AUTH -> ERROR
+            }
+        }
+    }
+
+    // STEP 4: READY -> RUNNING, AsyncTask that converts an AppRTC room URL into the set of signaling parameters to use
+    // with that room.
+    private class VideoParameterGetter
+            extends AsyncTask<Void, Void, AppRTCSignalingParameters> {
+
+        @Override
+        protected AppRTCSignalingParameters doInBackground(Void... params) {
+            AppRTCSignalingParameters value = null;
+            try {
+                // send video info request
+                Request.Builder req = Request.newBuilder();
+                req.setType(RequestType.VIDEO_PARAMS);
+                req.build().writeDelimitedTo(socketOut);
+
+                // get video info response
+                Response resp = Response.parseDelimitedFrom(socketIn);
+
+                // parse it and populate a SignalingParams
+                if (resp != null && (resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo()))
+                    value = AppRTCHelper.getParametersForRoom(resp.getVideoInfo());
+
+            } catch (Exception e) {
+                Log.e(TAG, e.getMessage());
+            }
+            return value;
+        }
+
+        @Override
+        protected void onPostExecute(AppRTCSignalingParameters params) {
+            if (params != null) {
+                machine.setState(STATE.RUNNING, R.string.appRTC_toast_videoParameterGetter_success); // READY -> RUNNING
+                startProxying();
+
+                appRTCSignalingParameters = params;
+                iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
+                gaeHandler.onOpen();
+            }
+            else {
+                machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
             }
         }
     }

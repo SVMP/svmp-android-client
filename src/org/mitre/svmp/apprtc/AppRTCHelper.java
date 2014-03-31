@@ -4,7 +4,10 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.Request;
+import org.mitre.svmp.protocol.SVMPProtocol.Response;
+import org.mitre.svmp.protocol.SVMPProtocol.VideoStreamInfo;
+import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection.IceServer;
 
@@ -26,7 +29,7 @@ public class AppRTCHelper {
      */
     public static interface MessageHandler {
         public void onOpen();
-        public void onMessage(SVMPProtocol.Response data);
+        public void onMessage(Response data);
         public void onClose();
         public void onError(int code, String description);
     }
@@ -39,6 +42,16 @@ public class AppRTCHelper {
         public void onIceServers(List<IceServer> iceServers);
     }
 
+    public static Request makeWebRTCRequest(JSONObject json) {
+        WebRTCMessage.Builder rtcmsg = WebRTCMessage.newBuilder();
+        rtcmsg.setJson(json.toString());
+
+        return Request.newBuilder()
+                .setType(Request.RequestType.WEBRTC)
+                .setWebrtcMsg(rtcmsg)
+                .build();
+    }
+
     // Put a |key|->|value| mapping in |json|.
     public static void jsonPut(JSONObject json, String key, Object value) {
         try {
@@ -48,7 +61,7 @@ public class AppRTCHelper {
         }
     }
 
-    public static AppRTCSignalingParameters getParametersForRoom(SVMPProtocol.VideoStreamInfo info) {
+    public static AppRTCSignalingParameters getParametersForRoom(VideoStreamInfo info) {
         MediaConstraints pcConstraints = constraintsFromJSON(info.getPcConstraints());
         Log.d(TAG, "pcConstraints: " + pcConstraints);
 

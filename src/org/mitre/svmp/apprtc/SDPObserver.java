@@ -69,7 +69,7 @@ public class SDPObserver implements SdpObserver {
                 AppRTCHelper.jsonPut(json, "type", sdp.type.canonicalForm());
                 AppRTCHelper.jsonPut(json, "sdp", sdp.description);
 
-                activity.sendMessage(json);
+                activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
                 activity.getPCObserver().getPC().setLocalDescription(parent, sdp);
             }
         }).start();

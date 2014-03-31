@@ -337,11 +337,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         });
     }
 
-    // Send |json| to the underlying AppEngine Channel.
-    public void sendMessage(JSONObject json) {
-        appRtcClient.sendMessage(json.toString());
-    }
-
     public void sendMessage(Request msg) {
         appRtcClient.sendMessage(msg);
     }

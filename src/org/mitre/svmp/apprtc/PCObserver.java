@@ -117,7 +117,7 @@ public class PCObserver implements PeerConnection.Observer {
                 AppRTCHelper.jsonPut(json, "sdpMid", candidate.sdpMid);
                 AppRTCHelper.jsonPut(json, "candidate", candidate.sdp);
 
-                activity.sendMessage(json);
+                activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
             }
         });
     }
