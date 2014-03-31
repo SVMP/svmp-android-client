@@ -34,7 +34,7 @@ import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.util.Log;
 
-import org.mitre.svmp.performance.SpanPerformanceData;
+import org.mitre.svmp.performance.PerformanceAdapter;
 import org.webrtc.VideoRenderer.I420Frame;
 
 import java.nio.ByteBuffer;
@@ -74,9 +74,9 @@ public class VideoStreamsView
       new EnumMap<Endpoint, I420Frame>(Endpoint.class);
 
   // used for performance instrumentation
-  private SpanPerformanceData spanPerformanceData;
+  private PerformanceAdapter spi;
 
-  public VideoStreamsView(Context c, Point screenDimensions, SpanPerformanceData spanPerformanceData) {
+  public VideoStreamsView(Context c, Point screenDimensions, PerformanceAdapter spi) {
     super(c);
     this.screenDimensions = screenDimensions;
     setEGLContextClientVersion(2);
@@ -84,7 +84,7 @@ public class VideoStreamsView
     setRenderMode(RENDERMODE_WHEN_DIRTY);
 
     // used for performance instrumentation
-    this.spanPerformanceData = spanPerformanceData;
+    this.spi = spi;
   }
 
   /** Queue |frame| to be uploaded. */
@@ -178,7 +178,7 @@ public class VideoStreamsView
     ++numFramesSinceLastLog;
 
     // used for performance instrumentation
-    this.spanPerformanceData.incrementFrameCount();
+    this.spi.incrementFrameCount();
 
     long now = System.nanoTime();
     if (lastFPSLogTime == -1 || now - lastFPSLogTime > 1e9) {

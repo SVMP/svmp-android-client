@@ -73,9 +73,7 @@ import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.common.StateObserver;
 import org.mitre.svmp.apprtc.PCObserver;
 import org.mitre.svmp.apprtc.SDPObserver;
-import org.mitre.svmp.performance.PerformanceTimer;
-import org.mitre.svmp.performance.PointPerformanceData;
-import org.mitre.svmp.performance.SpanPerformanceData;
+import org.mitre.svmp.performance.PerformanceAdapter;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
@@ -102,6 +100,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     private final MessageHandler clientHandler = new ClientHandler();
     private AppRTCClient appRtcClient;
     private SessionService service;
+    private PerformanceAdapter performanceAdapter;
     private boolean bound = false;
 
     private SDPObserver sdpObserver;
@@ -114,9 +113,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
     private DatabaseHandler dbHandler;
     private ConnectionInfo connectionInfo;
-    private PerformanceTimer performanceTimer;
-    private SpanPerformanceData spanPerformanceData;
-    private PointPerformanceData pointPerformanceData;
 
     private TouchHandler touchHandler;
     private SensorHandler sensorHandler;
@@ -135,9 +131,8 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         // connect to the database
         dbHandler = new DatabaseHandler(this);
 
-        // create an object to hold performance measurements
-        spanPerformanceData = new SpanPerformanceData();
-        pointPerformanceData = new PointPerformanceData();
+        // adapter that helps record performance measurements
+        performanceAdapter = new PerformanceAdapter();
 
         // Since the error-handling of this demo consists of throwing
         // RuntimeExceptions and we assume that'll terminate the app, we install
@@ -158,12 +153,12 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
         Point displaySize = new Point();
         getWindowManager().getDefaultDisplay().getSize(displaySize);
-        vsv = new VideoStreamsView(this, displaySize, spanPerformanceData);
+        vsv = new VideoStreamsView(this, displaySize, performanceAdapter);
         vsv.setBackgroundColor(Color.DKGRAY); // start this VideoStreamsView with a color of dark gray
         setContentView(vsv);
 
-        touchHandler = new TouchHandler(this, spanPerformanceData, displaySize);
-        sensorHandler = new SensorHandler(this, spanPerformanceData);
+        touchHandler = new TouchHandler(this, displaySize, performanceAdapter);
+        sensorHandler = new SensorHandler(this, performanceAdapter);
         locationHandler = new LocationHandler(this);
         rotationHandler = new RotationHandler(this);
 
@@ -256,6 +251,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
             // We've bound to SessionService, cast the IBinder and get SessionService instance
             appRtcClient = (AppRTCClient) iBinder;
             service = appRtcClient.getService();
+            performanceAdapter.setPerformanceData(appRtcClient.getPerformance());
             bound = true;
 
             // after we have bound to the service, begin the connection
@@ -265,6 +261,9 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             bound = false;
+            appRtcClient = null;
+            service = null;
+            performanceAdapter.clearPerformanceData();
         }
     };
 
@@ -311,8 +310,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
     @Override
     public void onDestroy() {
-        if (performanceTimer != null)
-            performanceTimer.cancel();
         super.onDestroy();
     }
 
@@ -349,10 +346,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
                 return;
             }
             proxying = true;
-
-            // create a timer to start taking measurements
-            performanceTimer = new PerformanceTimer(AppRTCActivity.this, spanPerformanceData, pointPerformanceData,
-                    connectionInfo.getConnectionID());
 
             touchHandler.sendScreenInfoMessage();
             sensorHandler.initSensors();
@@ -424,7 +417,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
                 case PING:
                     long endDate = System.currentTimeMillis(); // immediately get end date
                     if (data.hasPingResponse())
-                        pointPerformanceData.setPing(data.getPingResponse().getStartDate(), endDate);
+                        performanceAdapter.setPing(data.getPingResponse().getStartDate(), endDate);
                     break;
                 default:
                     Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
@@ -492,8 +485,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
                 }
                 appRtcClient = null;
             }
-            if (performanceTimer != null)
-                performanceTimer.cancel();
             if (!isFinishing())
                 finish();
         }

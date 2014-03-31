@@ -49,6 +49,9 @@ import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
+import org.mitre.svmp.performance.PerformanceTimer;
+import org.mitre.svmp.performance.PointPerformanceData;
+import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.services.SessionService;
 import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.auth.AuthData;
@@ -88,6 +91,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class AppRTCClient extends Binder implements Constants {
     private static final String TAG = AppRTCClient.class.getName();
 
+    // service and activity objects
     private StateMachine machine;
     private SessionService service = null;
     private AppRTCActivity activity = null;
@@ -98,14 +102,18 @@ public class AppRTCClient extends Binder implements Constants {
     private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
     private AppRTCSignalingParameters appRTCSignalingParameters;
 
+    // common variables
     private ConnectionInfo connectionInfo;
     private DatabaseHandler dbHandler;
 
+    // performance instrumentation
+    private PerformanceTimer performance;
+
+    // variables for networking
     private Socket svmpSocket;
     private InputStream socketIn;
     private OutputStream socketOut;
     private boolean proxying = false;
-
     private SocketSender sender = null;
     private SocketListener listener = null;
 
@@ -114,6 +122,8 @@ public class AppRTCClient extends Binder implements Constants {
         this.machine = machine;
         machine.addObserver(service);
         this.connectionInfo = connectionInfo;
+
+        performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
     }
 
     public void connectToRoom(AppRTCActivity activity, AppRTCHelper.MessageHandler gaeHandler,
@@ -132,6 +142,10 @@ public class AppRTCClient extends Binder implements Constants {
         return this.service;
     }
 
+    public PerformanceTimer getPerformance() {
+        return performance;
+    }
+
     /**
      * Disconnect from the SVMP proxy channel.
      *
@@ -145,6 +159,8 @@ public class AppRTCClient extends Binder implements Constants {
 
         if (dbHandler != null)
             dbHandler.close();
+        if (performance != null)
+            performance.cancel();
         if (sender != null)
             sender.cancel(true);
         if (listener != null)
@@ -455,6 +471,7 @@ public class AppRTCClient extends Binder implements Constants {
                 appRTCSignalingParameters = params;
                 iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
                 gaeHandler.onOpen();
+                performance.start(); // start taking performance measurements
             }
             else {
                 machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR

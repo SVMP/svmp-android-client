@@ -21,7 +21,7 @@ import java.util.List;
 import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.Utility;
-import org.mitre.svmp.performance.SpanPerformanceData;
+import org.mitre.svmp.performance.PerformanceAdapter;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorType;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
@@ -36,7 +36,7 @@ public class SensorHandler implements SensorEventListener, Constants {
     private static final String TAG = SensorHandler.class.getName();
 
     private AppRTCActivity activity;
-    private SpanPerformanceData spanPerformanceData;
+    private PerformanceAdapter spi;
     private SensorManager sm;
     
     private List<Sensor> registeredSensors = new ArrayList<Sensor>(PREFERENCES_SENSORS_KEYS.length);
@@ -47,9 +47,9 @@ public class SensorHandler implements SensorEventListener, Constants {
     // minimum allowed time between sensor updates in nanoseconds
     private long minimumSensorDelay;
     
-    public SensorHandler(AppRTCActivity activity, SpanPerformanceData spanPerformanceData) {
+    public SensorHandler(AppRTCActivity activity, PerformanceAdapter spi) {
         this.activity = activity;
-        this.spanPerformanceData = spanPerformanceData;
+        this.spi = spi;
         this.sm = activity.getSensorManager();
         
         // get preferences to determine which sensors we should listen to
@@ -119,7 +119,7 @@ public class SensorHandler implements SensorEventListener, Constants {
         lastSensorUpdate[type] = event.timestamp;
 
         // increment the sensor update count for performance measurement
-        spanPerformanceData.incrementSensorUpdates();
+        spi.incrementSensorUpdates();
 
         // assemble the message
         SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();

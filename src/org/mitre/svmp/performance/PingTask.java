@@ -15,8 +15,7 @@
  */
 package org.mitre.svmp.performance;
 
-import android.util.Log;
-import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.protocol.SVMPProtocol.Ping;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
@@ -28,28 +27,23 @@ import java.util.TimerTask;
  * Controlled by PerformanceTimer
  */
 public class PingTask extends TimerTask {
-    private static final String TAG = PingTask.class.getName();
+    private AppRTCClient binder;
 
-    private AppRTCActivity activity;
-
-    public PingTask(AppRTCActivity activity) {
-        this.activity = activity;
+    public PingTask(AppRTCClient binder) {
+        this.binder = binder;
     }
 
     public void run() {
+        binder.sendMessage(makePingRequest());
+    }
+
+    private Request makePingRequest() {
         Ping.Builder pBuilder = Ping.newBuilder();
         pBuilder.setStartDate(System.currentTimeMillis());
 
-        Request.Builder rBuilder = Request.newBuilder();
-        rBuilder.setType(Request.RequestType.PING);
-        rBuilder.setPingRequest(pBuilder);
-        Request request = rBuilder.build();
-
-        if (activity.isConnected())
-        try {
-            activity.sendMessage(request);
-        } catch (Exception e) {
-            Log.d(TAG, "Exception when sending message: " + e.getMessage());
-        }
+        return Request.newBuilder()
+                .setType(Request.RequestType.PING)
+                .setPingRequest(pBuilder)
+                .build();
     }
 }
