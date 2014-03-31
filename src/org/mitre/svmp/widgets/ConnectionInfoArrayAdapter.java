@@ -16,8 +16,8 @@
 package org.mitre.svmp.widgets;
 
 import android.content.Context;
-import org.mitre.svmp.ConnectionInfo;
-import org.mitre.svmp.SessionService;
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.services.SessionService;
 
 /**
  * @author Joe Portner

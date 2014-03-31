@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.services;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -22,8 +22,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.*;
 import android.util.Log;
+import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.client.R;
-import org.mitre.svmp.StateMachine.STATE;
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.DatabaseHandler;
+import org.mitre.svmp.common.StateMachine;
+import org.mitre.svmp.common.StateMachine.STATE;
+import org.mitre.svmp.common.StateObserver;
 
 /**
  * @author Joe Portner
@@ -110,7 +115,7 @@ public class SessionService extends Service implements StateObserver {
         connectionInfo = databaseHandler.getConnectionInfo(connectionID);
 
         // create binder object
-        binder = new SVMPAppRTCClient(this, machine, connectionInfo);
+        binder = new AppRTCClient(this, machine, connectionInfo);
 
         // show notification
         showNotification();

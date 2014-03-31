@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-// Derived from AppRTCDemoActivity from the libjingle / webrtc AppRTCDemo
+// Derived from AppRTCActivity from the libjingle / webrtc AppRTCDemo
 // example application distributed under the following license.
 /*
  * libjingle
@@ -41,7 +41,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.mitre.svmp.observers;
+package org.mitre.svmp.apprtc;
 
 import org.appspot.apprtc.VideoStreamsView;
 import org.webrtc.VideoRenderer;

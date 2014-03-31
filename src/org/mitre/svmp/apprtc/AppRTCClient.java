@@ -43,23 +43,24 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.mitre.svmp;
+package org.mitre.svmp.apprtc;
 
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
-import org.mitre.svmp.AppRTCHelper.MessageHandler;
-import org.mitre.svmp.AppRTCHelper.IceServersObserver;
+import org.mitre.svmp.services.SessionService;
+import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.SVMPKeyManager;
 import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.common.*;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
-import org.mitre.svmp.StateMachine.STATE;
+import org.mitre.svmp.common.StateMachine.STATE;
 import org.webrtc.MediaConstraints;
 
 import javax.net.SocketFactory;
@@ -82,14 +83,14 @@ import java.util.concurrent.LinkedBlockingQueue;
  * call connectToRoom().  Once that's done call sendMessage() and wait for the
  * registered handler to be called with received messages.
  */
-public class SVMPAppRTCClient extends Binder implements Constants {
-    private static final String TAG = SVMPAppRTCClient.class.getName();
+public class AppRTCClient extends Binder implements Constants {
+    private static final String TAG = AppRTCClient.class.getName();
 
     private StateMachine machine;
     private SessionService service = null;
-    private AppRTCDemoActivity activity = null;
-    private MessageHandler gaeHandler;
-    private IceServersObserver iceServersObserver;
+    private AppRTCActivity activity = null;
+    private AppRTCHelper.MessageHandler gaeHandler;
+    private AppRTCHelper.IceServersObserver iceServersObserver;
 
     // These members are only read/written under sendQueue's lock.
     private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
@@ -106,15 +107,15 @@ public class SVMPAppRTCClient extends Binder implements Constants {
     private SocketSender sender = null;
     private SocketListener listener = null;
 
-    public SVMPAppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
+    public AppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
         this.service = service;
         this.machine = machine;
         machine.addObserver(service);
         this.connectionInfo = connectionInfo;
     }
 
-    public void connectToRoom(AppRTCDemoActivity activity, MessageHandler gaeHandler,
-            IceServersObserver iceServersObserver) {
+    public void connectToRoom(AppRTCActivity activity, AppRTCHelper.MessageHandler gaeHandler,
+            AppRTCHelper.IceServersObserver iceServersObserver) {
         this.activity = activity;
         machine.addObserver(activity);
         this.gaeHandler = gaeHandler;

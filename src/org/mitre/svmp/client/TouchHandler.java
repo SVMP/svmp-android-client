@@ -15,8 +15,8 @@
  */
 package org.mitre.svmp.client;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Constants;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
@@ -33,14 +33,14 @@ public class TouchHandler implements Constants {
 
     private static final String TAG = TouchHandler.class.getName();
     
-    private AppRTCDemoActivity activity;
+    private AppRTCActivity activity;
     private SpanPerformanceData spanPerformanceData;
     private Point displaySize;
     
     private float xScaleFactor, yScaleFactor = 0;
     private boolean gotScreenInfo = false;
 
-    public TouchHandler(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData, Point displaySize) {
+    public TouchHandler(AppRTCActivity activity, SpanPerformanceData spanPerformanceData, Point displaySize) {
 //        super(context);
         
         this.activity = activity;

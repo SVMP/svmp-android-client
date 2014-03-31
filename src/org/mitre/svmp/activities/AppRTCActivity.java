@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-// Derived from AppRTCDemoActivity from the libjingle / webrtc AppRTCDemo
+// Derived from AppRTCActivity from the libjingle / webrtc AppRTCDemo
 // example application distributed under the following license.
 /*
  * libjingle
@@ -43,7 +43,7 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-package org.mitre.svmp;
+package org.mitre.svmp.activities;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -65,9 +65,14 @@ import android.widget.Toast;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.client.*;
-import org.mitre.svmp.observers.PCObserver;
-import org.mitre.svmp.observers.SDPObserver;
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.Constants;
+import org.mitre.svmp.common.DatabaseHandler;
+import org.mitre.svmp.common.StateObserver;
+import org.mitre.svmp.apprtc.PCObserver;
+import org.mitre.svmp.apprtc.SDPObserver;
 import org.mitre.svmp.performance.PerformanceTimer;
 import org.mitre.svmp.performance.PointPerformanceData;
 import org.mitre.svmp.performance.SpanPerformanceData;
@@ -76,25 +81,26 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
+import org.mitre.svmp.services.SessionService;
 import org.webrtc.*;
-import org.mitre.svmp.AppRTCHelper.MessageHandler;
-import org.mitre.svmp.AppRTCHelper.IceServersObserver;
-import org.mitre.svmp.StateMachine.STATE;
+import org.mitre.svmp.apprtc.AppRTCHelper.MessageHandler;
+import org.mitre.svmp.apprtc.AppRTCHelper.IceServersObserver;
+import org.mitre.svmp.common.StateMachine.STATE;
 
 import java.util.List;
 
 /**
  * Main Activity of the SVMP Android client application.
  */
-public class AppRTCDemoActivity extends Activity implements IceServersObserver, StateObserver,
+public class AppRTCActivity extends Activity implements IceServersObserver, StateObserver,
         SensorEventListener, Constants {
 
-    private static final String TAG = AppRTCDemoActivity.class.getName();
+    private static final String TAG = AppRTCActivity.class.getName();
 
     private MediaConstraints sdpMediaConstraints;
 
     private final MessageHandler clientHandler = new ClientHandler();
-    private SVMPAppRTCClient appRtcClient;
+    private AppRTCClient appRtcClient;
     private SessionService service;
     private boolean bound = false;
 
@@ -232,7 +238,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
         return appRtcClient.isInitiator();
     }
 
-    public SVMPAppRTCClient getBinder() {
+    public AppRTCClient getBinder() {
         return appRtcClient;
     }
 
@@ -248,12 +254,12 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
         @Override
         public void onServiceConnected(ComponentName className, IBinder iBinder) {
             // We've bound to SessionService, cast the IBinder and get SessionService instance
-            appRtcClient = (SVMPAppRTCClient) iBinder;
+            appRtcClient = (AppRTCClient) iBinder;
             service = appRtcClient.getService();
             bound = true;
 
             // after we have bound to the service, begin the connection
-            appRtcClient.connectToRoom(AppRTCDemoActivity.this, clientHandler, AppRTCDemoActivity.this);
+            appRtcClient.connectToRoom(AppRTCActivity.this, clientHandler, AppRTCActivity.this);
         }
 
         @Override
@@ -264,7 +270,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
 
     public void startProgressDialog() {
         vsv.setBackgroundColor(Color.DKGRAY); // if it isn't already set, make the background color dark gray
-        pd = new ProgressDialog(AppRTCDemoActivity.this);
+        pd = new ProgressDialog(AppRTCActivity.this);
         pd.setTitle(R.string.appRTC_progressDialog_title);
         pd.setMessage(getResources().getText(R.string.appRTC_progressDialog_message));
         pd.setIndeterminate(true);
@@ -325,7 +331,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
                 if (logToast != null) {
                     logToast.cancel();
                 }
-                logToast = Toast.makeText(AppRTCDemoActivity.this, resID, Toast.LENGTH_SHORT);
+                logToast = Toast.makeText(AppRTCActivity.this, resID, Toast.LENGTH_SHORT);
                 logToast.show();
             }
         });
@@ -350,7 +356,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
             proxying = true;
 
             // create a timer to start taking measurements
-            performanceTimer = new PerformanceTimer(AppRTCDemoActivity.this, spanPerformanceData, pointPerformanceData,
+            performanceTimer = new PerformanceTimer(AppRTCActivity.this, spanPerformanceData, pointPerformanceData,
                     connectionInfo.getConnectionID());
 
             touchHandler.sendScreenInfoMessage();
@@ -386,7 +392,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
                 case INTENT:
                 case NOTIFICATION:
                     //Inspect this message to see if it's an intent or notification.
-                    NetIntentsHandler.inspect(data, AppRTCDemoActivity.this);
+                    NetIntentsHandler.inspect(data, AppRTCActivity.this);
                     break;
                 case WEBRTC:
                     try {
@@ -432,7 +438,7 @@ public class AppRTCDemoActivity extends Activity implements IceServersObserver, 
         }
 
         // when authentication fails, or a session maxTimeout or idleTimeout message is received, stop the
-        // AppRTCDemoActivity, close the connection, and cause the ConnectionList activity to reconnect to this
+        // AppRTCActivity, close the connection, and cause the ConnectionList activity to reconnect to this
         // connectionID
         public void needAuth(int messageResID) {
             // clear timed out session information from memory

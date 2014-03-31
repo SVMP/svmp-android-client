@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.activities;
 
 import android.annotation.TargetApi;
 import android.content.Intent;
@@ -28,6 +28,8 @@ import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.auth.type.IAuthType;
@@ -112,9 +114,9 @@ public class ConnectionDetails extends SvmpActivity {
         }
         // this is a new connection, fill in the default port
         else
-            portView.setText(String.valueOf(DEFAULT_PORT));
+            portView.setText(String.valueOf(Constants.DEFAULT_PORT));
 
-        if (!API_ICS) {
+        if (!Constants.API_ICS) {
             // the SDK is lower than ICS, remove the Certificate selection table rows
             findViewById(R.id.connectionDetails_tableRow_certificate_1).setVisibility(View.GONE);
             findViewById(R.id.connectionDetails_tableRow_certificate_2).setVisibility(View.GONE);
@@ -165,7 +167,7 @@ public class ConnectionDetails extends SvmpActivity {
             toastShort(R.string.connectionDetails_toast_blankUsername);
         else if( host.length() == 0 )
             toastShort(R.string.connectionDetails_toast_blankHost);
-        else if( encryptionType == ENCRYPTION_NONE && certAuthType )
+        else if( encryptionType == Constants.ENCRYPTION_NONE && certAuthType )
             toastShort(R.string.connectionDetails_toast_certAuthNeedsSsl);
         else if( certAuthType && !certAliasIsSet)
             toastShort(R.string.connectionDetails_toast_certAuthNeedsAlias);
@@ -199,7 +201,7 @@ public class ConnectionDetails extends SvmpActivity {
     // certificate button is clicked
     @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     public void onClick_Certificate(View v) {
-        if (API_ICS) {
+        if (Constants.API_ICS) {
             // get the prior certificate alias (if it exists)
             String certificateAlias = getCertificateAlias();
             if (certificateAlias.length() == 0)

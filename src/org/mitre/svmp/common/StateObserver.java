@@ -1,6 +1,6 @@
-package org.mitre.svmp;
+package org.mitre.svmp.common;
 
-import org.mitre.svmp.StateMachine.STATE;
+import org.mitre.svmp.common.StateMachine.STATE;
 
 /**
  * @author Joe Portner

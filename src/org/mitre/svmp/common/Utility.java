@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.common;
 
 import android.content.Context;
 import android.content.SharedPreferences;

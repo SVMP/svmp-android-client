@@ -1,4 +1,4 @@
-package org.mitre.svmp;
+package org.mitre.svmp.apprtc;
 
 import android.util.Log;
 import org.json.JSONArray;

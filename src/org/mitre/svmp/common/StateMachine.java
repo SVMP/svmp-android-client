@@ -1,4 +1,4 @@
-package org.mitre.svmp;
+package org.mitre.svmp.common;
 
 import android.util.Log;
 

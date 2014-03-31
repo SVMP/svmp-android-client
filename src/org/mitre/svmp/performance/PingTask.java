@@ -16,7 +16,7 @@
 package org.mitre.svmp.performance;
 
 import android.util.Log;
-import org.mitre.svmp.AppRTCDemoActivity;
+import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.protocol.SVMPProtocol.Ping;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
@@ -30,9 +30,9 @@ import java.util.TimerTask;
 public class PingTask extends TimerTask {
     private static final String TAG = PingTask.class.getName();
 
-    private AppRTCDemoActivity activity;
+    private AppRTCActivity activity;
 
-    public PingTask(AppRTCDemoActivity activity) {
+    public PingTask(AppRTCActivity activity) {
         this.activity = activity;
     }
 

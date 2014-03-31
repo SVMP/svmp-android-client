@@ -15,9 +15,9 @@
  */
 package org.mitre.svmp.performance;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.DatabaseHandler;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.common.DatabaseHandler;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.client.R;
 
 import java.util.Date;
@@ -35,7 +35,7 @@ public class PerformanceTimer extends Timer {
     private MeasureTask measureTask;
     private PingTask pingTask;
 
-    public PerformanceTimer(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData,
+    public PerformanceTimer(AppRTCActivity activity, SpanPerformanceData spanPerformanceData,
                             PointPerformanceData pointPerformanceData, int connectionID) {
         // find out if we should take measurements (set in Preferences)
         active = Utility.getPrefBool(activity,

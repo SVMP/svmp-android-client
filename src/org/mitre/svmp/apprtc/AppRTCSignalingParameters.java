@@ -1,4 +1,4 @@
-package org.mitre.svmp;
+package org.mitre.svmp.apprtc;
 
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;

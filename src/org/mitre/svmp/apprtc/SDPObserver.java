@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-// Derived from AppRTCDemoActivity from the libjingle / webrtc AppRTCDemo
+// Derived from AppRTCActivity from the libjingle / webrtc AppRTCDemo
 // example application distributed under the following license.
 /*
  * libjingle
@@ -41,11 +41,10 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.mitre.svmp.observers;
+package org.mitre.svmp.apprtc;
 
 import org.json.JSONObject;
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.AppRTCHelper;
+import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.client.R;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
@@ -54,9 +53,9 @@ import org.webrtc.SessionDescription;
 // as well as adding remote ICE candidates once the answer SDP is set.
 public class SDPObserver implements SdpObserver {
     protected static final String TAG = SDPObserver.class.getName();
-    AppRTCDemoActivity activity;
+    AppRTCActivity activity;
 
-    public SDPObserver(AppRTCDemoActivity activity) {
+    public SDPObserver(AppRTCActivity activity) {
         this.activity = activity;
     }
 

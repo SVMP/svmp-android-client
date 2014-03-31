@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.activities;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -29,8 +29,12 @@ import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.IAuthModule;
 import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.Constants;
+import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
-import org.mitre.svmp.StateMachine.STATE;
+import org.mitre.svmp.common.StateMachine.STATE;
+import org.mitre.svmp.services.SessionService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,10 +44,10 @@ import java.util.Map;
  */
 public class SvmpActivity extends Activity implements Constants {
     private static final int REQUESTCODE_VIDEO = 100;
-    protected final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
-    protected final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
-    protected final static int RESULT_FINISH = 102; // finish the parent activity
-    protected final static int RESULT_NEEDAUTH = 103; // need to authenticate
+    public final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
+    public final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
+    public final static int RESULT_FINISH = 102; // finish the parent activity
+    public final static int RESULT_NEEDAUTH = 103; // need to authenticate
 
     // database handler
     protected DatabaseHandler dbHandler;
@@ -275,7 +279,7 @@ public class SvmpActivity extends Activity implements Constants {
             startService(new Intent(this, SessionService.class).putExtra("connectionID", connectionInfo.getConnectionID()));
 
         // create explicit intent
-        Intent intent = new Intent(SvmpActivity.this, AppRTCDemoActivity.class);
+        Intent intent = new Intent(SvmpActivity.this, AppRTCActivity.class);
 
         // add data to intent
         intent.putExtra("connectionID", connectionInfo.getConnectionID());

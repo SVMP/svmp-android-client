@@ -15,8 +15,7 @@ limitations under the License.
 */
 package org.mitre.svmp.client;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.client.R;
+import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.protocol.SVMPProtocol;
 
 import android.app.Notification;
@@ -63,7 +62,7 @@ public class NetIntentsHandler
 			toast("Notification received!",context);
 	    	    
 	    	//Build intents.
-	        Intent inner_intent = new Intent(context, AppRTCDemoActivity.class);
+	        Intent inner_intent = new Intent(context, AppRTCActivity.class);
 	        PendingIntent pIntent = PendingIntent.getActivity(context, 0, inner_intent, 0);
 	        
 	        //Decode image

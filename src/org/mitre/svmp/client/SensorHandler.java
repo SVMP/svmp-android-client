@@ -18,9 +18,9 @@ package org.mitre.svmp.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Constants;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.common.Constants;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorType;
@@ -35,7 +35,7 @@ import android.util.Log;
 public class SensorHandler implements SensorEventListener, Constants {
     private static final String TAG = SensorHandler.class.getName();
 
-    private AppRTCDemoActivity activity;
+    private AppRTCActivity activity;
     private SpanPerformanceData spanPerformanceData;
     private SensorManager sm;
     
@@ -47,7 +47,7 @@ public class SensorHandler implements SensorEventListener, Constants {
     // minimum allowed time between sensor updates in nanoseconds
     private long minimumSensorDelay;
     
-    public SensorHandler(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData) {
+    public SensorHandler(AppRTCActivity activity, SpanPerformanceData spanPerformanceData) {
         this.activity = activity;
         this.spanPerformanceData = spanPerformanceData;
         this.sm = activity.getSensorManager();

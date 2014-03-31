@@ -23,8 +23,8 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 
 import java.util.HashMap;
@@ -37,13 +37,13 @@ import java.util.List;
 public class LocationHandler {
     private static final String TAG = LocationHandler.class.getName();
 
-    private AppRTCDemoActivity activity;
+    private AppRTCActivity activity;
     private LocationManager lm;
 
     // keeps track of what LocationListeners there are for a given LocationProvider
     private HashMap<String,SVMPLocationListener> locationListeners = new HashMap<String, SVMPLocationListener>();
 
-    public LocationHandler(AppRTCDemoActivity activity) {
+    public LocationHandler(AppRTCActivity activity) {
         this.activity = activity;
         lm = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
     }

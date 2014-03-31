@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-// Derived from AppRTCDemoActivity from the libjingle / webrtc AppRTCDemo
+// Derived from AppRTCActivity from the libjingle / webrtc AppRTCDemo
 // example application distributed under the following license.
 /*
  * libjingle
@@ -41,14 +41,13 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package org.mitre.svmp.observers;
+package org.mitre.svmp.apprtc;
 
 import android.graphics.Color;
 import android.util.Log;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONObject;
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.AppRTCHelper;
+import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.client.R;
 import org.webrtc.*;
 
@@ -58,12 +57,12 @@ import java.util.List;
 //Implementation detail: observe ICE & stream changes and react accordingly.
 public class PCObserver implements PeerConnection.Observer {
     static final String TAG = PCObserver.class.getName();
-    AppRTCDemoActivity activity;
+    AppRTCActivity activity;
     PeerConnection pc;
     LinkedList<IceCandidate> queuedRemoteCandidates;
     boolean quit;
 
-    public PCObserver(AppRTCDemoActivity activity) {
+    public PCObserver(AppRTCActivity activity) {
         this.activity = activity;
         queuedRemoteCandidates = new LinkedList<IceCandidate>();
         quit = false;

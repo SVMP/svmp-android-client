@@ -13,18 +13,18 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.activities;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.ContextMenu;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.*;
 
+import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.services.SessionService;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.widgets.ConnectionInfoArrayAdapter;
 
