@@ -159,11 +159,12 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         }
     }
 
+    // only used during onUpgrade
     private void addTableColumn(int tableID, int colNum, String defaultVal, SQLiteDatabase db) {
         String query = String.format("ALTER TABLE %s ADD COLUMN %s %s DEFAULT %s",
-                Tables[TABLE_CONNECTIONS], // table name
-                TableColumns[TABLE_CONNECTIONS][colNum][0], // column name
-                TableColumns[TABLE_CONNECTIONS][colNum][1], // column type
+                Tables[tableID], // table name
+                TableColumns[tableID][colNum][0], // column name
+                TableColumns[tableID][colNum][1], // column type
                 defaultVal);
         // try to create the table with the constructed query
         try {
@@ -251,15 +252,6 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             e.printStackTrace();
         }
     }
-
-    /*private void recreateTables(SQLiteDatabase db) {
-        // drop older table(s) if they exist
-        for (String table : Tables)
-            db.execSQL("DROP TABLE IF EXISTS " + table);
-
-        // create tables again
-        onCreate(db);
-    }*/
 
     public List<ConnectionInfo> getConnectionInfoList() {
         // run the query
