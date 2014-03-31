@@ -49,9 +49,8 @@ import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import org.mitre.svmp.AppRTCHelper.MessageHandler;
+import org.mitre.svmp.AppRTCHelper.IceServersObserver;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.SVMPKeyManager;
 import org.mitre.svmp.auth.module.CertificateModule;
@@ -62,7 +61,6 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response.ResponseType;
 import org.mitre.svmp.StateMachine.STATE;
 import org.webrtc.MediaConstraints;
-import org.webrtc.PeerConnection;
 
 import javax.net.SocketFactory;
 import javax.net.ssl.*;
@@ -73,8 +71,6 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -92,7 +88,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
     private StateMachine machine;
     private SessionService service = null;
     private AppRTCDemoActivity activity = null;
-    private SVMPChannelClient.MessageHandler gaeHandler;
+    private MessageHandler gaeHandler;
     private IceServersObserver iceServersObserver;
 
     // These members are only read/written under sendQueue's lock.
@@ -110,14 +106,6 @@ public class SVMPAppRTCClient extends Binder implements Constants {
     private SocketSender sender = null;
     private SocketListener listener = null;
 
-    /**
-     * Callback fired once the room's signaling parameters specify the set of
-     * ICE servers to use.
-     */
-    public static interface IceServersObserver {
-        public void onIceServers(List<PeerConnection.IceServer> iceServers);
-    }
-
     public SVMPAppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
         this.service = service;
         this.machine = machine;
@@ -125,7 +113,7 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         this.connectionInfo = connectionInfo;
     }
 
-    public void connectToRoom(AppRTCDemoActivity activity, SVMPChannelClient.MessageHandler gaeHandler,
+    public void connectToRoom(AppRTCDemoActivity activity, MessageHandler gaeHandler,
             IceServersObserver iceServersObserver) {
         this.activity = activity;
         machine.addObserver(activity);
@@ -220,24 +208,6 @@ public class SVMPAppRTCClient extends Binder implements Constants {
         return appRTCSignalingParameters.pcConstraints;
     }
 
-    // Struct holding the signaling parameters of an AppRTC room.
-    private class AppRTCSignalingParameters {
-        public final List<PeerConnection.IceServer> iceServers;
-        public final boolean initiator;
-        public final MediaConstraints pcConstraints;
-        public final MediaConstraints videoConstraints;
-
-        public AppRTCSignalingParameters(
-                List<PeerConnection.IceServer> iceServers,
-                boolean initiator, MediaConstraints pcConstraints,
-                MediaConstraints videoConstraints) {
-            this.initiator = initiator;
-            this.iceServers = iceServers;
-            this.pcConstraints = pcConstraints;
-            this.videoConstraints = videoConstraints;
-        }
-    }
-
     // AsyncTask that converts an AppRTC room URL into the set of signaling
     // parameters to use with that room.
     private class VideoParameterGetter
@@ -256,8 +226,8 @@ public class SVMPAppRTCClient extends Binder implements Constants {
                 Response resp = Response.parseDelimitedFrom(socketIn);
 
                 // parse it and populate a SignalingParams
-                if (resp != null && resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo())
-                    value = getParametersForRoom(resp.getVideoInfo());
+                if (resp != null && (resp.getType() == ResponseType.VIDSTREAMINFO || resp.hasVideoInfo()))
+                    value = AppRTCHelper.getParametersForRoom(resp.getVideoInfo());
 
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
@@ -278,73 +248,6 @@ public class SVMPAppRTCClient extends Binder implements Constants {
             else {
                 machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
             }
-        }
-
-        private AppRTCSignalingParameters getParametersForRoom(VideoStreamInfo info) {
-            MediaConstraints pcConstraints = constraintsFromJSON(info.getPcConstraints());
-            Log.d(TAG, "pcConstraints: " + pcConstraints);
-
-            MediaConstraints videoConstraints = constraintsFromJSON(info.getVideoConstraints());
-            Log.d(TAG, "videoConstraints: " + videoConstraints);
-
-            LinkedList<PeerConnection.IceServer> iceServers = iceServersFromPCConfigJSON(info.getIceServers());
-
-            return new AppRTCSignalingParameters(iceServers, true, pcConstraints, videoConstraints);
-
-        }
-
-        private MediaConstraints constraintsFromJSON(String jsonString) {
-            try {
-                MediaConstraints constraints = new MediaConstraints();
-                JSONObject json = new JSONObject(jsonString);
-                JSONObject mandatoryJSON = json.optJSONObject("mandatory");
-                if (mandatoryJSON != null) {
-                    JSONArray mandatoryKeys = mandatoryJSON.names();
-                    if (mandatoryKeys != null) {
-                        for (int i = 0; i < mandatoryKeys.length(); ++i) {
-                            String key = (String) mandatoryKeys.getString(i);
-                            String value = mandatoryJSON.getString(key);
-                            constraints.mandatory.add(
-                                    new MediaConstraints.KeyValuePair(key, value));
-                        }
-                    }
-                }
-                JSONArray optionalJSON = json.optJSONArray("optional");
-                if (optionalJSON != null) {
-                    for (int i = 0; i < optionalJSON.length(); ++i) {
-                        JSONObject keyValueDict = optionalJSON.getJSONObject(i);
-                        String key = keyValueDict.names().getString(0);
-                        String value = keyValueDict.getString(key);
-                        constraints.optional.add(
-                                new MediaConstraints.KeyValuePair(key, value));
-                    }
-                }
-                return constraints;
-            } catch (JSONException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    // Return the list of ICE servers described by a WebRTCPeerConnection
-    // configuration string.
-    private LinkedList<PeerConnection.IceServer> iceServersFromPCConfigJSON(
-            String pcConfig) {
-        try {
-            JSONObject json = new JSONObject(pcConfig);
-            JSONArray servers = json.getJSONArray("iceServers");
-            LinkedList<PeerConnection.IceServer> ret =
-                    new LinkedList<PeerConnection.IceServer>();
-            for (int i = 0; i < servers.length(); ++i) {
-                JSONObject server = servers.getJSONObject(i);
-                String url = server.getString("url");
-                String credential =
-                        server.has("credential") ? server.getString("credential") : "";
-                ret.add(new PeerConnection.IceServer(url, "", credential));
-            }
-            return ret;
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
         }
     }
 

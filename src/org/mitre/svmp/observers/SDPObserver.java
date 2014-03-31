@@ -45,7 +45,7 @@ package org.mitre.svmp.observers;
 
 import org.json.JSONObject;
 import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.AppRTCHelper;
 import org.mitre.svmp.client.R;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
@@ -67,8 +67,8 @@ public class SDPObserver implements SdpObserver {
             public void run() {
                 activity.logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
                 JSONObject json = new JSONObject();
-                Utility.jsonPut(json, "type", sdp.type.canonicalForm());
-                Utility.jsonPut(json, "sdp", sdp.description);
+                AppRTCHelper.jsonPut(json, "type", sdp.type.canonicalForm());
+                AppRTCHelper.jsonPut(json, "sdp", sdp.description);
 
                 activity.sendMessage(json);
                 activity.getPCObserver().getPC().setLocalDescription(parent, sdp);

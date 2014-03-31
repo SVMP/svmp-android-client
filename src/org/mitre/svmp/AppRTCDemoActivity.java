@@ -77,6 +77,8 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.webrtc.*;
+import org.mitre.svmp.AppRTCHelper.MessageHandler;
+import org.mitre.svmp.AppRTCHelper.IceServersObserver;
 import org.mitre.svmp.StateMachine.STATE;
 
 import java.util.List;
@@ -84,14 +86,14 @@ import java.util.List;
 /**
  * Main Activity of the SVMP Android client application.
  */
-public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.IceServersObserver, StateObserver,
+public class AppRTCDemoActivity extends Activity implements IceServersObserver, StateObserver,
         SensorEventListener, Constants {
 
     private static final String TAG = AppRTCDemoActivity.class.getName();
 
     private MediaConstraints sdpMediaConstraints;
 
-    private final SVMPChannelClient.MessageHandler clientHandler = new ClientHandler();
+    private final MessageHandler clientHandler = new ClientHandler();
     private SVMPAppRTCClient appRtcClient;
     private SessionService service;
     private boolean bound = false;
@@ -340,7 +342,7 @@ public class AppRTCDemoActivity extends Activity implements SVMPAppRTCClient.Ice
 
     // Implementation detail: handler for receiving SVMP protocol messages and
     // dispatching them appropriately.
-    private class ClientHandler implements SVMPChannelClient.MessageHandler {
+    private class ClientHandler implements MessageHandler {
         public void onOpen() {
             if (!appRtcClient.isInitiator()) {
                 return;

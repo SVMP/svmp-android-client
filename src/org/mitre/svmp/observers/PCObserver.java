@@ -48,7 +48,7 @@ import android.util.Log;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONObject;
 import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.AppRTCHelper;
 import org.mitre.svmp.client.R;
 import org.webrtc.*;
 
@@ -114,9 +114,9 @@ public class PCObserver implements PeerConnection.Observer {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 JSONObject json = new JSONObject();
-                Utility.jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
-                Utility.jsonPut(json, "sdpMid", candidate.sdpMid);
-                Utility.jsonPut(json, "candidate", candidate.sdp);
+                AppRTCHelper.jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
+                AppRTCHelper.jsonPut(json, "sdpMid", candidate.sdpMid);
+                AppRTCHelper.jsonPut(json, "candidate", candidate.sdp);
 
                 activity.sendMessage(json);
             }

@@ -233,13 +233,4 @@ public class Utility {
         // build the Request
         return rBuilder.build();
     }
-
-    // Put a |key|->|value| mapping in |json|.
-    public static void jsonPut(JSONObject json, String key, Object value) {
-        try {
-            json.put(key, value);
-        } catch (JSONException e) {
-            throw new RuntimeException(e);
-        }
-    }
 }
