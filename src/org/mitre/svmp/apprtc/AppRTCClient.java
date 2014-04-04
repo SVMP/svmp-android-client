@@ -96,17 +96,16 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
     private StateMachine machine;
     private SessionService service = null;
     private AppRTCActivity activity = null;
-    private AppRTCHelper.MessageHandler gaeHandler;
-    private AppRTCHelper.IceServersObserver iceServersObserver;
 
     // These members are only read/written under sendQueue's lock.
     private BlockingQueue<SVMPProtocol.Request> sendQueue = new LinkedBlockingQueue<SVMPProtocol.Request>();
-    private AppRTCSignalingParameters appRTCSignalingParameters;
+    private AppRTCSignalingParameters signalingParams;
 
     // common variables
     private ConnectionInfo connectionInfo;
     private DatabaseHandler dbHandler;
     private boolean proxying = false;
+    private boolean bound = false;
 
     // performance instrumentation
     private PerformanceTimer performance;
@@ -121,6 +120,7 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
     private SocketSender sender = null;
     private SocketListener listener = null;
 
+    // STEP 0: NEW -> STARTED
     public AppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
         this.service = service;
         this.machine = machine;
@@ -130,16 +130,28 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         this.dbHandler = new DatabaseHandler(service);
         this.performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
         this.sensorHandler = new SensorHandler(service, this);
+
+        machine.setState(STATE.STARTED, 0);
+        (new SocketConnector()).execute();
     }
 
-    public void connectToRoom(AppRTCActivity activity, AppRTCHelper.MessageHandler gaeHandler,
-            AppRTCHelper.IceServersObserver iceServersObserver) {
+    // called from activity
+    public void connectToRoom(AppRTCActivity activity) {
         this.activity = activity;
         machine.addObserver(activity);
-        this.gaeHandler = gaeHandler;
-        this.iceServersObserver = iceServersObserver;
+        this.bound = true;
 
-        (new SocketConnector()).execute();
+        // if the state is already running, we are reconnecting
+        if (machine.getState() == STATE.RUNNING) {
+            activity.onOpen();
+        }
+    }
+
+    // called from activity
+    public void disconnectFromRoom() {
+        this.bound = false;
+        machine.removeObserver(activity);
+        this.activity = null;
     }
 
     public SessionService getService() {
@@ -149,6 +161,10 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
 
     public PerformanceTimer getPerformance() {
         return performance;
+    }
+
+    public AppRTCSignalingParameters getSignalingParams() {
+        return signalingParams;
     }
 
     /**
@@ -214,11 +230,11 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
     }
 
     public boolean isInitiator() {
-        return appRTCSignalingParameters.initiator;
+        return signalingParams.initiator;
     }
 
     public MediaConstraints pcConstraints() {
-        return appRTCSignalingParameters.pcConstraints;
+        return signalingParams.pcConstraints;
     }
 
     // STEP 1: STARTED -> CONNECTED, Connect to the SVMP server
@@ -269,10 +285,11 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     // connection failed, we tried to connect using SSL but proxy's SSL is turned off
                     returnVal = R.string.appRTC_toast_socketConnector_failSSL;
                 } else {
-                    Log.e(TAG, e.getMessage());
+                    Log.e(TAG, "SSLException: " + e.getMessage());
                 }
             } catch (Exception e) {
-                Log.e(TAG, e.getMessage());
+                Log.e(TAG, "Exception: " + e.getMessage());
+                e.printStackTrace();
             }
             return returnVal;
         }
@@ -280,14 +297,8 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         @Override
         protected void onPostExecute(Integer result) {
             if (result == 0) {
-                // the client will soon be independent of the activity, this conditional will be obsolete
-                if (activity.isFinishing()) {
-                    Log.d(TAG, "Client exited before socketConnect finished, shutting down...");
-                    disconnect();
-                } else {
-                    machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // STARTED -> CONNECTED
-                    new SVMPAuthenticator().execute(authRequest);
-                }
+                machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // STARTED -> CONNECTED
+                new SVMPAuthenticator().execute(authRequest);
             } else {
                 machine.setState(STATE.ERROR, result); // STARTED -> ERROR
             }
@@ -298,7 +309,7 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
             // determine whether we should use SSL from the EncryptionType integer
             boolean useSsl = connectionInfo.getEncryptionType() == ENCRYPTION_SSLTLS;
             // find out if we should use the MemorizingTrustManager instead of the system trust store (set in Preferences)
-            boolean useMTM = Utility.getPrefBool(activity,
+            boolean useMTM = Utility.getPrefBool(service,
                     R.string.preferenceKey_connection_useMTM,
                     R.string.preferenceValue_connection_useMTM);
             // determine whether we should use client certificate authentication
@@ -476,9 +487,10 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                 machine.setState(STATE.RUNNING, R.string.appRTC_toast_videoParameterGetter_success); // READY -> RUNNING
                 startProxying();
 
-                appRTCSignalingParameters = params;
-                iceServersObserver.onIceServers(appRTCSignalingParameters.iceServers);
-                gaeHandler.onOpen();
+                signalingParams = params;
+                service.onOpen();
+                if (bound)
+                    activity.onOpen();
 
                 performance.start(); // start taking performance measurements
                 sensorHandler.initSensors(); // start forwarding sensor data
@@ -520,11 +532,14 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     Log.d(TAG, "Received incoming message object of type " + data.getType().name());
 
                     if (data != null) {
-                        activity.runOnUiThread(new Runnable() {
-                            public void run() {
-                                gaeHandler.onMessage(data);
-                            }
-                        });
+                        boolean consumed = service.onMessage(data);
+                        if (!consumed && bound) {
+                            activity.runOnUiThread(new Runnable() {
+                                public void run() {
+                                    activity.onMessage(data);
+                                }
+                            });
+                        }
                     }
                 }
                 Log.i(TAG, "Server connection receive thread exiting");

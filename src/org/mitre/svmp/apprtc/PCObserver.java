@@ -154,7 +154,7 @@ public class PCObserver implements PeerConnection.Observer {
     public void onAddStream(final MediaStream stream) {
         new Thread(new Runnable() {
             public void run() {
-                abortUnless(//stream.audioTracks.size() == 1 &&
+                AppRTCHelper.abortUnless(//stream.audioTracks.size() == 1 &&
                         stream.videoTracks.size() == 1,
                         "Weird-looking stream: " + stream);
                 stream.videoTracks.get(0).addRenderer(new VideoRenderer(
@@ -195,10 +195,5 @@ public class PCObserver implements PeerConnection.Observer {
             pc.dispose();
             pc = null;
         }
-    }
-
-    private void abortUnless(boolean condition, String msg) {
-        if (!condition)
-            throw new RuntimeException(msg);
     }
 }

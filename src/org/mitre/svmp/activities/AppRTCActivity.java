@@ -51,10 +51,6 @@ import android.app.ProgressDialog;
 import android.content.*;
 import android.graphics.Color;
 import android.graphics.Point;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -65,38 +61,28 @@ import android.widget.Toast;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.mitre.svmp.apprtc.AppRTCClient;
+import org.mitre.svmp.apprtc.*;
 import org.mitre.svmp.client.*;
 import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.common.StateObserver;
-import org.mitre.svmp.apprtc.PCObserver;
-import org.mitre.svmp.apprtc.SDPObserver;
 import org.mitre.svmp.performance.PerformanceAdapter;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
-import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
-import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
-import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage.WebRTCType;
 import org.mitre.svmp.services.SessionService;
 import org.webrtc.*;
-import org.mitre.svmp.apprtc.AppRTCHelper.MessageHandler;
-import org.mitre.svmp.apprtc.AppRTCHelper.IceServersObserver;
 import org.mitre.svmp.common.StateMachine.STATE;
-
-import java.util.List;
 
 /**
  * Main Activity of the SVMP Android client application.
  */
-public class AppRTCActivity extends Activity implements IceServersObserver, StateObserver, Constants {
+public class AppRTCActivity extends Activity implements StateObserver, MessageHandler, Constants {
 
     private static final String TAG = AppRTCActivity.class.getName();
 
     private MediaConstraints sdpMediaConstraints;
 
-    private final MessageHandler clientHandler = new ClientHandler();
     private AppRTCClient appRtcClient;
     private SessionService service;
     private PerformanceAdapter performanceAdapter;
@@ -114,9 +100,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     private ConnectionInfo connectionInfo;
 
     private TouchHandler touchHandler;
-    private LocationHandler locationHandler;
     private RotationHandler rotationHandler;
-    private boolean connected = false; // if this is true, we have established a socket connection
     private boolean proxying = false; // if this is true, we have finished the handshakes and the connection is running
     private ProgressDialog pd;
 
@@ -156,10 +140,9 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         setContentView(vsv);
 
         touchHandler = new TouchHandler(this, displaySize, performanceAdapter);
-        locationHandler = new LocationHandler(this);
         rotationHandler = new RotationHandler(this);
 
-        abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
+        AppRTCHelper.abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
                 "Failed to initializeAndroidGlobals");
 
         //Create observers.
@@ -252,12 +235,13 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
             bound = true;
 
             // after we have bound to the service, begin the connection
-            appRtcClient.connectToRoom(AppRTCActivity.this, clientHandler, AppRTCActivity.this);
+            appRtcClient.connectToRoom(AppRTCActivity.this);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             bound = false;
+            appRtcClient.disconnectFromRoom();
             appRtcClient = null;
             service = null;
             performanceAdapter.clearPerformanceData();
@@ -290,8 +274,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     public void onPause() {
         super.onPause();
         vsv.onPause();
-        if (connected)
-            disconnectAndExit();
+        disconnectAndExit();
     }
 
     @Override
@@ -301,20 +284,8 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     }
 
     @Override
-    public void onIceServers(List<PeerConnection.IceServer> iceServers) {
-        pcObserver.onIceServers(iceServers);
-    }
-
-    @Override
     public void onDestroy() {
         super.onDestroy();
-    }
-
-    // Poor-man's assert(): die with |msg| unless |condition| is true.
-    private static void abortUnless(boolean condition, String msg) {
-        if (!condition) {
-            throw new RuntimeException(msg);
-        }
     }
 
     // Log |msg| and Toast about it.
@@ -335,114 +306,94 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
         appRtcClient.sendMessage(msg);
     }
 
-    // Implementation detail: handler for receiving SVMP protocol messages and
-    // dispatching them appropriately.
-    private class ClientHandler implements MessageHandler {
-        public void onOpen() {
-            if (!appRtcClient.isInitiator()) {
-                return;
-            }
-            proxying = true;
-
-            touchHandler.sendScreenInfoMessage();
-            locationHandler.initLocationUpdates();
-            rotationHandler.initRotationUpdates();
-
-            logAndToast(R.string.appRTC_toast_clientHandler_start);
-            pcObserver.getPC().createOffer(sdpObserver, sdpMediaConstraints);
+    // MessageHandler interface method
+    // Called when the client connection is established
+    public void onOpen() {
+        if (!appRtcClient.isInitiator()) {
+            return;
         }
+        proxying = true;
 
-        public void onMessage(Response data) {
-            switch (data.getType()) {
-                case AUTH:
-                    if (data.hasAuthResponse()) {
-                        switch (data.getAuthResponse().getType()) {
-                            case SESSION_MAX_TIMEOUT:
-                                needAuth(R.string.svmpActivity_toast_sessionMaxTimeout);
-                                break;
-                            case SESSION_IDLE_TIMEOUT:
-                                needAuth(R.string.svmpActivity_toast_sessionIdleTimeout);
-                                break;
-                        }
+        // set up ICE servers
+        pcObserver.onIceServers(appRtcClient.getSignalingParams().iceServers);
+
+        touchHandler.sendScreenInfoMessage();
+        rotationHandler.initRotationUpdates();
+
+        logAndToast(R.string.appRTC_toast_clientHandler_start);
+        pcObserver.getPC().createOffer(sdpObserver, sdpMediaConstraints);
+    }
+
+    // MessageHandler interface method
+    // Called when a message is sent from the server, and the SessionService doesn't consume it
+    public boolean onMessage(Response data) {
+        switch (data.getType()) {
+            case AUTH:
+                if (data.hasAuthResponse()) {
+                    switch (data.getAuthResponse().getType()) {
+                        case SESSION_MAX_TIMEOUT:
+                            needAuth(R.string.svmpActivity_toast_sessionMaxTimeout);
+                            break;
+                        case SESSION_IDLE_TIMEOUT:
+                            needAuth(R.string.svmpActivity_toast_sessionIdleTimeout);
+                            break;
                     }
-                    break;
-                case SCREENINFO:
-                    handleScreenInfo(data);
-                    break;
-                case LOCATION:
-                    handleLocationResponse(data);
-                    break;
-                // This is an ACK to the video STOP request.
-                case INTENT:
-                case NOTIFICATION:
-                    //Inspect this message to see if it's an intent or notification.
-                    NetIntentsHandler.inspect(data, AppRTCActivity.this);
-                    break;
-                case WEBRTC:
+                }
+                break;
+            case SCREENINFO:
+                handleScreenInfo(data);
+                break;
+            case WEBRTC:
+                try {
+                    JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
+                    String type;
+                    // peerconnection_client doesn't put a "type" on candidates
                     try {
-                        JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
-                        String type;
-                        // peerconnection_client doesn't put a "type" on candidates
-                        try {
-                            type = (String) json.get("type");
-                        } catch (JSONException e) {
-                            json.put("type", "candidate");
-                            type = (String) json.get("type");
-                        }
-
-                        //Check out the type of WebRTC message.
-                        if (type.equals("candidate")) {
-                            getPCObserver().addIceCandidate(
-                                    new IceCandidate((String) json.get("sdpMid"), json.getInt("sdpMLineIndex"), (String) json.get("candidate"))
-                            );
-                        } else if (type.equals("answer") || type.equals("offer")) {
-                            SessionDescription sdp = new SessionDescription(
-                                    SessionDescription.Type.fromCanonicalForm(type),
-                                    (String) json.get("sdp"));
-                            getPCObserver().getPC().setRemoteDescription(sdpObserver, sdp);
-                        } else if (type.equals("bye")) {
-                            logAndToast(R.string.appRTC_toast_clientHandler_finish);
-                            disconnectAndExit();
-                        } else {
-                            throw new RuntimeException("Unexpected message: " + data);
-                        }
+                        type = (String) json.get("type");
                     } catch (JSONException e) {
-                        throw new RuntimeException(e);
+                        json.put("type", "candidate");
+                        type = (String) json.get("type");
                     }
-                    break;
-                case PING:
-                    long endDate = System.currentTimeMillis(); // immediately get end date
-                    if (data.hasPingResponse())
-                        performanceAdapter.setPing(data.getPingResponse().getStartDate(), endDate);
-                    break;
-                default:
-                    Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
-            }
 
+                    //Check out the type of WebRTC message.
+                    if (type.equals("candidate")) {
+                        getPCObserver().addIceCandidate(
+                                new IceCandidate((String) json.get("sdpMid"), json.getInt("sdpMLineIndex"), (String) json.get("candidate"))
+                        );
+                    } else if (type.equals("answer") || type.equals("offer")) {
+                        SessionDescription sdp = new SessionDescription(
+                                SessionDescription.Type.fromCanonicalForm(type),
+                                (String) json.get("sdp"));
+                        getPCObserver().getPC().setRemoteDescription(sdpObserver, sdp);
+                    } else if (type.equals("bye")) {
+                        logAndToast(R.string.appRTC_toast_clientHandler_finish);
+                        disconnectAndExit();
+                    } else {
+                        throw new RuntimeException("Unexpected message: " + data);
+                    }
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            default:
+                Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
         }
+        return true;
+    }
 
-        // when authentication fails, or a session maxTimeout or idleTimeout message is received, stop the
-        // AppRTCActivity, close the connection, and cause the ConnectionList activity to reconnect to this
-        // connectionID
-        public void needAuth(int messageResID) {
-            // clear timed out session information from memory
-            dbHandler.clearSessionInfo(connectionInfo);
-            // send a result message to the calling activity so it will show the authentication dialog again
-            Intent intent = new Intent();
-            intent.putExtra("connectionID", connectionInfo.getConnectionID());
-            if (messageResID > 0)
-                intent.putExtra("message", messageResID); // toast to show to user when the activity finishes
-            setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
-            disconnectAndExit();
-        }
-
-        public void onClose() {
-            disconnectAndExit();
-        }
-
-        public void onError(int code, String description) {
-            disconnectAndExit();
-        }
+    // when authentication fails, or a session maxTimeout or idleTimeout message is received, stop the
+    // AppRTCActivity, close the connection, and cause the ConnectionList activity to reconnect to this
+    // connectionID
+    public void needAuth(int messageResID) {
+        // clear timed out session information from memory
+        dbHandler.clearSessionInfo(connectionInfo);
+        // send a result message to the calling activity so it will show the authentication dialog again
+        Intent intent = new Intent();
+        intent.putExtra("connectionID", connectionInfo.getConnectionID());
+        if (messageResID > 0)
+            intent.putExtra("message", messageResID); // toast to show to user when the activity finishes
+        setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
+        disconnectAndExit();
     }
 
     // Disconnect from remote resources, dispose of local resources, and exit.
@@ -456,8 +407,17 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
             // Unbind from the service
             if (bound) {
+                // TODO: currently, sending a BYE message causes the VM to close the connection... we don't want that
+//                if (appRtcClient.getState() == STATE.RUNNING) {
+//                    Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
+//                            .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
+//                    try {
+//                        sendMessage(bye);
+//                    } catch (Exception e) {
+//                        // don't care
+//                    }
+//                }
                 unbindService(serviceConnection);
-                bound = false;
             }
 
             // TODO: stopping service here, remove this eventually
@@ -466,21 +426,7 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
             pcObserver.quit();
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
-            if (appRtcClient != null) {
-                Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
-                        .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
-                try {
-                    appRtcClient.sendMessage(bye);
-                } catch (Exception e) {
-                    // don't care
-                }
-                try {
-                    appRtcClient.disconnect();
-                } catch (Exception e) {
-                    // don't care
-                }
-                appRtcClient = null;
-            }
+
             if (!isFinishing())
                 finish();
         }
@@ -497,7 +443,6 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
 
         switch(newState) {
             case CONNECTED:
-                connected = true;
                 break;
             case AUTH:
                 break;
@@ -517,6 +462,8 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
                         break;
                     case CONNECTED: // failed to authenticate and transition to AUTH
                         if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
+                            // clear timed out session information from memory
+                            dbHandler.clearSessionInfo(connectionInfo);
                             // our authentication was rejected, bring up the auth prompt when the connection list resumes
                             intent.putExtra("connectionID", connectionInfo.getConnectionID());
                             setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
@@ -564,12 +511,5 @@ public class AppRTCActivity extends Activity implements IceServersObserver, Stat
     @Override
     public boolean onTrackballEvent(MotionEvent event) {
         return super.onTrackballEvent(event);
-    }
-
-    /////////////////////////////////////////////////////////////////////
-    // Bridge LocationListener callbacks to the Location Handler
-    /////////////////////////////////////////////////////////////////////
-    private void handleLocationResponse(Response msg) {
-        locationHandler.handleLocationResponse(msg);
     }
 }

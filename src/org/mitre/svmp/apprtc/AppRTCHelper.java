@@ -5,14 +5,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
-import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.mitre.svmp.protocol.SVMPProtocol.VideoStreamInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.WebRTCMessage;
 import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection.IceServer;
 
 import java.util.LinkedList;
-import java.util.List;
 
 /**
  * @author Joe Portner
@@ -20,27 +18,6 @@ import java.util.List;
  */
 public class AppRTCHelper {
     private static final String TAG = AppRTCHelper.class.getName();
-
-    /**
-     * Callback interface for messages delivered on the Google AppEngine channel.
-     *
-     * Methods are guaranteed to be invoked on the UI thread of |activity| passed
-     * to GAEChannelClient's constructor.
-     */
-    public static interface MessageHandler {
-        public void onOpen();
-        public void onMessage(Response data);
-        public void onClose();
-        public void onError(int code, String description);
-    }
-
-    /**
-     * Callback fired once the room's signaling parameters specify the set of
-     * ICE servers to use.
-     */
-    public static interface IceServersObserver {
-        public void onIceServers(List<IceServer> iceServers);
-    }
 
     public static Request makeWebRTCRequest(JSONObject json) {
         WebRTCMessage.Builder rtcmsg = WebRTCMessage.newBuilder();
@@ -50,6 +27,13 @@ public class AppRTCHelper {
                 .setType(Request.RequestType.WEBRTC)
                 .setWebrtcMsg(rtcmsg)
                 .build();
+    }
+
+    // Poor-man's assert(): die with |msg| unless |condition| is true.
+    public static void abortUnless(boolean condition, String msg) {
+        if (!condition) {
+            throw new RuntimeException(msg);
+        }
     }
 
     // Put a |key|->|value| mapping in |json|.

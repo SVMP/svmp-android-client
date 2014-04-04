@@ -23,9 +23,10 @@ import android.location.LocationProvider;
 import android.os.Bundle;
 import android.os.Looper;
 import android.util.Log;
-import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
+import org.mitre.svmp.services.SessionService;
 
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,15 +38,15 @@ import java.util.List;
 public class LocationHandler {
     private static final String TAG = LocationHandler.class.getName();
 
-    private AppRTCActivity activity;
+    private AppRTCClient binder;
     private LocationManager lm;
 
     // keeps track of what LocationListeners there are for a given LocationProvider
     private HashMap<String,SVMPLocationListener> locationListeners = new HashMap<String, SVMPLocationListener>();
 
-    public LocationHandler(AppRTCActivity activity) {
-        this.activity = activity;
-        lm = (LocationManager) activity.getSystemService(Context.LOCATION_SERVICE);
+    public LocationHandler(SessionService service, AppRTCClient binder) {
+        this.binder = binder;
+        lm = (LocationManager) service.getSystemService(Context.LOCATION_SERVICE);
     }
 
     public void removeLUpdates(String provider) {
@@ -90,7 +91,7 @@ public class LocationHandler {
         Request request = Utility.toRequest_LocationUpdate(location);
 
         // send the Request to the VM
-        activity.sendMessage(request);
+        binder.sendMessage(request);
     }
 
     // called when a onProviderEnabled or onProviderDisabled triggers, converts the data and sends it to the VM
@@ -98,7 +99,7 @@ public class LocationHandler {
         Request request = Utility.toRequest_LocationProviderEnabled(s, isEnabled);
 
         // send the Request to the VM
-        activity.sendMessage(request);
+        binder.sendMessage(request);
     }
 
     // called when a onStatusChanged triggers, converts the data and sends it to the VM
@@ -106,7 +107,7 @@ public class LocationHandler {
         Request request = Utility.toRequest_LocationProviderStatus(s, i, bundle);
 
         // send the Request to the VM
-        activity.sendMessage(request);
+        binder.sendMessage(request);
     }
 
     private void sendLocationProviderMessages() {
@@ -120,7 +121,7 @@ public class LocationHandler {
                 Request request = Utility.toRequest_LocationProviderInfo(provider);
 
                 // send the Request to the VM
-                activity.sendMessage(request);
+                binder.sendMessage(request);
             }
         }
     }

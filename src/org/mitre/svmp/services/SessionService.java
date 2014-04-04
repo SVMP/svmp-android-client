@@ -23,12 +23,17 @@ import android.content.Intent;
 import android.os.*;
 import android.util.Log;
 import org.mitre.svmp.apprtc.AppRTCClient;
+import org.mitre.svmp.apprtc.MessageHandler;
+import org.mitre.svmp.client.LocationHandler;
+import org.mitre.svmp.client.NetIntentsHandler;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.common.StateMachine;
 import org.mitre.svmp.common.StateMachine.STATE;
 import org.mitre.svmp.common.StateObserver;
+import org.mitre.svmp.performance.PerformanceAdapter;
+import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
 /**
  * @author Joe Portner
@@ -37,7 +42,7 @@ import org.mitre.svmp.common.StateObserver;
  * 2. Start the service (so it doesn't stop on unbind)
  * 3. Bind to the service
  */
-public class SessionService extends Service implements StateObserver {
+public class SessionService extends Service implements StateObserver, MessageHandler {
     private static final String TAG = SessionService.class.getName();
     private static final int NOTIFICATION_ID = 0;
 
@@ -59,10 +64,14 @@ public class SessionService extends Service implements StateObserver {
     }
 
     // local variables
-    private IBinder binder; // Binder given to clients
+    private AppRTCClient binder; // Binder given to clients
     private StateMachine machine;
+    private PerformanceAdapter performanceAdapter;
     private DatabaseHandler databaseHandler;
     private ConnectionInfo connectionInfo;
+
+    // client components
+    private LocationHandler locationHandler;
 
     @Override
     public void onCreate() {
@@ -70,6 +79,7 @@ public class SessionService extends Service implements StateObserver {
 
         service = this;
         machine = new StateMachine();
+        performanceAdapter = new PerformanceAdapter();
     }
 
     @Override
@@ -117,6 +127,12 @@ public class SessionService extends Service implements StateObserver {
         // create binder object
         binder = new AppRTCClient(this, machine, connectionInfo);
 
+        // attach the performance adapter to the binder's performance data objects
+        performanceAdapter.setPerformanceData(binder.getPerformance());
+
+        // create a location handler object
+        locationHandler = new LocationHandler(this, binder);
+
         // show notification
         showNotification();
     }
@@ -130,8 +146,14 @@ public class SessionService extends Service implements StateObserver {
         // hide notification
         hideNotification();
 
+        // clean up location updates
+        locationHandler.cleanupLocationUpdates();
+
         // disconnect from the database
         databaseHandler.close();
+
+        // try to disconnect the client object
+        binder.disconnect();
     }
 
     private void showNotification() {
@@ -155,5 +177,47 @@ public class SessionService extends Service implements StateObserver {
     }
 
     public void onStateChange(STATE oldState, STATE newState, int resID) {
+    }
+
+    // Google AppEngine message handler method
+    @Override
+    public void onOpen() {
+        if (!binder.isInitiator()) {
+            return;
+        }
+
+        locationHandler.initLocationUpdates();
+    }
+
+    // Google AppEngine message handler method
+    // Handler for receiving SVMP protocol messages and dispatching them appropriately
+    // Returns true if the message is consumed, false if it is not
+    @Override
+    public boolean onMessage(Response data) {
+        boolean consumed = true;
+        switch (data.getType()) {
+            case AUTH:
+            case SCREENINFO:
+            case WEBRTC:
+                consumed = false; // pass this message on to the activity message handler
+                break;
+            case LOCATION:
+                locationHandler.handleLocationResponse(data);
+                break;
+            // This is an ACK to the video STOP request.
+            case INTENT:
+            case NOTIFICATION:
+                //Inspect this message to see if it's an intent or notification.
+                NetIntentsHandler.inspect(data, SessionService.this);
+                break;
+            case PING:
+                long endDate = System.currentTimeMillis(); // immediately get end date
+                if (data.hasPingResponse())
+                    performanceAdapter.setPing(data.getPingResponse().getStartDate(), endDate);
+                break;
+            default:
+                Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
+        }
+        return consumed;
     }
 }
