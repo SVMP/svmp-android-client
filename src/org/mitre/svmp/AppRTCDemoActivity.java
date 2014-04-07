@@ -51,6 +51,8 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.hardware.Sensor;
@@ -62,8 +64,11 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
+
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -88,6 +93,7 @@ import org.webrtc.StatsObserver;
 import org.webrtc.StatsReport;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.I420Frame;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -138,6 +144,8 @@ public class AppRTCDemoActivity extends Activity
   public void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    // lock the application to the natural "up" orientation of the physical device
+    setRequestedOrientation(getDeviceDefaultOrientation());
     hideNavBar();
 
     // connect to the database
@@ -202,6 +210,24 @@ public class AppRTCDemoActivity extends Activity
     if (true) {
       hideNavBar();
     }
+  }
+
+  // returns what value we should request for screen orientation, either portrait or landscape
+  private int getDeviceDefaultOrientation() {
+      WindowManager windowManager =  (WindowManager) getSystemService(WINDOW_SERVICE);
+      Configuration config = getResources().getConfiguration();
+      int rotation = windowManager.getDefaultDisplay().getRotation();
+
+      int value = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+      if ( ((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) &&
+              config.orientation == Configuration.ORIENTATION_LANDSCAPE)
+          || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) &&
+              config.orientation == Configuration.ORIENTATION_PORTRAIT))
+      {
+        value = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+      }
+
+      return value;
   }
 
   @SuppressLint("InlinedApi")
