@@ -94,8 +94,12 @@ import org.webrtc.StatsReport;
 import org.webrtc.VideoRenderer;
 import org.webrtc.VideoRenderer.I420Frame;
 
+
+import java.util.EnumSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Main Activity of the SVMP Android client application.
@@ -112,10 +116,13 @@ public class AppRTCDemoActivity extends Activity
       state = STATE_CONNECTED;
   }
   
+  private PeerConnectionFactory factory;
+  //private VideoSource videoSource;
+
   private PeerConnection pc;
   private final PCObserver pcObserver = new PCObserver();
   private final SDPObserver sdpObserver = new SDPObserver();
-  private MediaConstraints sdpMediaConstraints;
+  
   
   private final SVMPChannelClient.MessageHandler clientHandler = new ClientHandler();
   private SVMPAppRTCClient appRtcClient = new SVMPAppRTCClient(this, clientHandler, this);
@@ -126,6 +133,7 @@ public class AppRTCDemoActivity extends Activity
       new LinkedList<IceCandidate>();
   // Synchronize on quit[0] to avoid teardown-related crashes.
   private final Boolean[] quit = new Boolean[] { false };
+  private MediaConstraints sdpMediaConstraints;
 
   private DatabaseHandler dbHandler;
   private ConnectionInfo connectionInfo;
@@ -187,10 +195,9 @@ public class AppRTCDemoActivity extends Activity
     abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
         "Failed to initializeAndroidGlobals");
 
-
     sdpMediaConstraints = new MediaConstraints();
     sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-        "OfferToReceiveAudio", "false"));
+        "OfferToReceiveAudio", "true"));
     sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
         "OfferToReceiveVideo", "true"));
 
@@ -295,12 +302,26 @@ public class AppRTCDemoActivity extends Activity
     vsv.onResume();
   }
 
+ // Just for fun (and to regression-test bug 2302) make sure that DataChannels
+  // can be created, queried, and disposed.
+  private static void createDataChannelToRegressionTestBug2302(
+      PeerConnection pc) {
+    DataChannel dc = pc.createDataChannel("dcLabel", new DataChannel.Init());
+    abortUnless("dcLabel".equals(dc.label()), "Unexpected label corruption?");
+    dc.close();
+    dc.dispose();
+  }
+
   @Override
   public void onIceServers(List<PeerConnection.IceServer> iceServers) {
-    PeerConnectionFactory factory = new PeerConnectionFactory();
+    factory = new PeerConnectionFactory();
 
-    pc = factory.createPeerConnection(
-        iceServers, appRtcClient.pcConstraints(), pcObserver);
+    MediaConstraints pcConstraints = appRtcClient.pcConstraints();
+    pcConstraints.optional.add(
+        new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
+    pc = factory.createPeerConnection(iceServers, pcConstraints, pcObserver);
+
+    createDataChannelToRegressionTestBug2302(pc);
 
     {
       final PeerConnection finalPC = pc;
@@ -390,6 +411,15 @@ public class AppRTCDemoActivity extends Activity
     logToast.show();
   }
 
+//  private void logAndToast(String msg) {
+//    Log.d(TAG, msg);
+//    if (logToast != null) {
+//      logToast.cancel();
+//    }
+//    logToast = Toast.makeText(this, msg, Toast.LENGTH_SHORT);
+//    logToast.show();
+//  }
+
   // Send |json| to the underlying AppEngine Channel.
   private void sendMessage(JSONObject json) {
     appRtcClient.sendMessage(json.toString());
@@ -413,20 +443,65 @@ public class AppRTCDemoActivity extends Activity
     }
   }
 
+  // Mangle SDP to prefer ISAC/16000 over any other audio codec.
+  private String preferISAC(String sdpDescription) {
+    String[] lines = sdpDescription.split("\r\n");
+    int mLineIndex = -1;
+    String isac16kRtpMap = null;
+    Pattern isac16kPattern =
+        Pattern.compile("^a=rtpmap:(\\d+) ISAC/16000[\r]?$");
+    for (int i = 0;
+         (i < lines.length) && (mLineIndex == -1 || isac16kRtpMap == null);
+         ++i) {
+      if (lines[i].startsWith("m=audio ")) {
+        mLineIndex = i;
+        continue;
+      }
+      Matcher isac16kMatcher = isac16kPattern.matcher(lines[i]);
+      if (isac16kMatcher.matches()) {
+        isac16kRtpMap = isac16kMatcher.group(1);
+        continue;
+      }
+    }
+    if (mLineIndex == -1) {
+      Log.d(TAG, "No m=audio line, so can't prefer iSAC");
+      return sdpDescription;
+    }
+    if (isac16kRtpMap == null) {
+      Log.d(TAG, "No ISAC/16000 line, so can't prefer iSAC");
+      return sdpDescription;
+    }
+    String[] origMLineParts = lines[mLineIndex].split(" ");
+    StringBuilder newMLine = new StringBuilder();
+    int origPartIndex = 0;
+    // Format is: m=<media> <port> <proto> <fmt> ...
+    newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+    newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+    newMLine.append(origMLineParts[origPartIndex++]).append(" ");
+    newMLine.append(isac16kRtpMap);
+    for (; origPartIndex < origMLineParts.length; ++origPartIndex) {
+      if (!origMLineParts[origPartIndex].equals(isac16kRtpMap)) {
+        newMLine.append(" ").append(origMLineParts[origPartIndex]);
+      }
+    }
+    lines[mLineIndex] = newMLine.toString();
+    StringBuilder newSdpDescription = new StringBuilder();
+    for (String line : lines) {
+     newSdpDescription.append(line).append("\r\n");
+    }
+    return newSdpDescription.toString();
+  }
+
+
   // Implementation detail: observe ICE & stream changes and react accordingly.
   private class PCObserver implements PeerConnection.Observer {
     @Override public void onIceCandidate(final IceCandidate candidate){
       runOnUiThread(new Runnable() {
           public void run() {
             JSONObject json = new JSONObject();
-            // peerconnection_client is brain dead... 
-            // it uses the presence or lack of the "type" field to differentiate sdp from candidate
-            // type present -> sdp, type absent -> candidate
-//            jsonPut(json, "type", "candidate");
-//          jsonPut(json, "label", candidate.sdpMLineIndex);
-//          jsonPut(json, "id", candidate.sdpMid);
-            jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
-            jsonPut(json, "sdpMid", candidate.sdpMid);
+            jsonPut(json, "type", "candidate");
+            jsonPut(json, "label", candidate.sdpMLineIndex);
+            jsonPut(json, "id", candidate.sdpMid);
             jsonPut(json, "candidate", candidate.sdp);
             sendMessage(json);
           }
@@ -457,14 +532,16 @@ public class AppRTCDemoActivity extends Activity
       runOnUiThread(new Runnable() {
           public void run() {
             abortUnless(//stream.audioTracks.size() == 1 &&
-                stream.videoTracks.size() == 1,
+                stream.videoTracks.size() <= 1,
                 "Weird-looking stream: " + stream);
-            stream.videoTracks.get(0).addRenderer(new VideoRenderer(
-                new VideoCallbacks(vsv, VideoStreamsView.Endpoint.REMOTE)));
-            stopProgressDialog(); // stop the Progress Dialog
-            vsv.setBackgroundColor(Color.TRANSPARENT); // video should be started now, remove the background color
+            if(stream.videoTracks.size() == 1) {
+              stream.videoTracks.get(0).addRenderer(new VideoRenderer(
+                  new VideoCallbacks(vsv, VideoStreamsView.Endpoint.REMOTE)));
+              stopProgressDialog(); // stop the Progress Dialog
+              vsv.setBackgroundColor(Color.TRANSPARENT); // video should be started now, remove the background color
+            }
           }
-        });
+      });
     }
 
     @Override public void onRemoveStream(final MediaStream stream){
@@ -484,25 +561,43 @@ public class AppRTCDemoActivity extends Activity
           }
         });
     }
+    @Override public void onRenegotiationNeeded() {
+      // No need to do anything; AppRTC follows a pre-agreed-upon
+      // signaling/negotiation protocol.
+    }
   }
+
+
 
   // Implementation detail: handle offer creation/signaling and answer setting,
   // as well as adding remote ICE candidates once the answer SDP is set.
   private class SDPObserver implements SdpObserver {
-    @Override public void onCreateSuccess(final SessionDescription sdp) {
+    @Override public void onCreateSuccess(final SessionDescription origSdp) {
       runOnUiThread(new Runnable() {
           public void run() {
-            logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
-            JSONObject json = new JSONObject();
-            jsonPut(json, "type", sdp.type.canonicalForm());
-            jsonPut(json, "sdp", sdp.description);
-            sendMessage(json);
+            //logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
+            SessionDescription sdp = new SessionDescription(
+                origSdp.type, preferISAC(origSdp.description));
+            //JSONObject json = new JSONObject();
+            //jsonPut(json, "type", sdp.type.canonicalForm());
+            //jsonPut(json, "sdp", sdp.description);
+            //sendMessage(json);
             pc.setLocalDescription(sdpObserver, sdp);
           }
         });
     }
+   // Helper for sending local SDP (offer or answer, depending on role) to the
+    // other participant.
+    private void sendLocalDescription(PeerConnection pc) {
+      SessionDescription sdp = pc.getLocalDescription();
+      //logAndToast("Sending " + sdp.type);
+      JSONObject json = new JSONObject();
+      jsonPut(json, "type", sdp.type.canonicalForm());
+      jsonPut(json, "sdp", sdp.description);
+      sendMessage(json);
+    }
 
-    @Override public void onSetSuccess() {
+      @Override public void onSetSuccess() {
       runOnUiThread(new Runnable() {
           public void run() {
             if (appRtcClient.isInitiator()) {
@@ -510,15 +605,19 @@ public class AppRTCDemoActivity extends Activity
                 // We've set our local offer and received & set the remote
                 // answer, so drain candidates.
                 drainRemoteCandidates();
+              } else {
+                // We've just set our local description so time to send it.
+                sendLocalDescription(pc);
               }
             } else {
               if (pc.getLocalDescription() == null) {
                 // We just set the remote offer, time to create our answer.
-                logAndToast(R.string.appRTC_toast_sdpObserver_createAnswer);
+                //logAndToast("Creating answer");
                 pc.createAnswer(SDPObserver.this, sdpMediaConstraints);
               } else {
-                // Sent our answer and set it as local description; drain
+                // Answer now set as local description; send it and drain
                 // candidates.
+                sendLocalDescription(pc);
                 drainRemoteCandidates();
               }
             }
@@ -542,7 +641,7 @@ public class AppRTCDemoActivity extends Activity
         });
     }
 
-    private void drainRemoteCandidates() {
+     private void drainRemoteCandidates() {
       if (queuedRemoteCandidates == null) {
         Log.e(TAG, "Something called drainRemoteCandidates, but the queue was already nulled. !?!?!?"); 
         return;
@@ -553,6 +652,7 @@ public class AppRTCDemoActivity extends Activity
       queuedRemoteCandidates = null;
     }
   }
+ 
 
   // Implementation detail: handler for receiving SVMP protocol messages and
   // dispatching them appropriately.
@@ -573,6 +673,8 @@ public class AppRTCDemoActivity extends Activity
       rotationHandler.initRotationUpdates();
       
       logAndToast(R.string.appRTC_toast_clientHandler_start);
+      //logAndToast(sdpObserver);
+      //logAndToast(sdpMediaConstraints);
       pc.createOffer(sdpObserver, sdpMediaConstraints);
     }
 
@@ -616,8 +718,8 @@ public class AppRTCDemoActivity extends Activity
           }
           if (type.equals("candidate")) {
             IceCandidate candidate = new IceCandidate(
-                (String) json.get("sdpMid"),
-                json.getInt("sdpMLineIndex"),
+                (String) json.get("id"),
+                json.getInt("label"),
                 (String) json.get("candidate"));
             if (queuedRemoteCandidates != null) {
               queuedRemoteCandidates.add(candidate);
@@ -627,7 +729,8 @@ public class AppRTCDemoActivity extends Activity
           } else if (type.equals("answer") || type.equals("offer")) {
             SessionDescription sdp = new SessionDescription(
                 SessionDescription.Type.fromCanonicalForm(type),
-                (String) json.get("sdp"));
+		        preferISAC((String) json.get("sdp")));
+                //(String) json.get("sdp"));
             pc.setRemoteDescription(sdpObserver, sdp);
           } else if (type.equals("bye")) {
             logAndToast(R.string.appRTC_toast_clientHandler_finish);
@@ -685,6 +788,11 @@ public class AppRTCDemoActivity extends Activity
       if (pc != null) {
         pc.dispose();
         pc = null;
+      }
+      
+      if (factory != null) {
+	      factory.dispose();
+	      factory = null;
       }
       if (appRtcClient != null) {
 //        appRtcClient.sendMessage("{\"type\": \"bye\"}");
