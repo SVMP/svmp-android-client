@@ -40,6 +40,7 @@ public class LocationHandler {
 
     private AppRTCClient binder;
     private LocationManager lm;
+    private Looper looper;
 
     // keeps track of what LocationListeners there are for a given LocationProvider
     private HashMap<String,SVMPLocationListener> locationListeners = new HashMap<String, SVMPLocationListener>();
@@ -47,6 +48,7 @@ public class LocationHandler {
     public LocationHandler(SessionService service, AppRTCClient binder) {
         this.binder = binder;
         lm = (LocationManager) service.getSystemService(Context.LOCATION_SERVICE);
+        looper = Looper.myLooper();
     }
 
     public void removeLUpdates(String provider) {
@@ -133,7 +135,6 @@ public class LocationHandler {
         if( locationResponse.getType() == LocationResponse.LocationResponseType.SUBSCRIBE ) {
             LocationSubscribe locationSubscribe = locationResponse.getSubscribe();
             String provider = locationSubscribe.getProvider();
-            Looper looper = Looper.myLooper();
 
             // a subscribe request can either be one-time or long-term
             if( locationSubscribe.getType() == LocationSubscribe.LocationSubscribeType.SINGLE_UPDATE ) {
