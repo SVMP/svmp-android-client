@@ -49,14 +49,14 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.*;
+import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
-import android.view.KeyEvent;
-import android.view.MotionEvent;
-import android.view.View;
+import android.view.*;
 import android.widget.Toast;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
@@ -109,6 +109,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         super.onCreate(savedInstanceState);
 
         hideNavBar();
+
+        // lock the application to the natural "up" orientation of the physical device
+        //noinspection MagicConstant
+        setRequestedOrientation(getDeviceDefaultOrientation());
 
         // connect to the database
         dbHandler = new DatabaseHandler(this);
@@ -195,6 +199,22 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         }
 
         decorView.setSystemUiVisibility(uiOptions);
+    }
+
+    // returns what value we should request for screen orientation, either portrait or landscape
+    private int getDeviceDefaultOrientation() {
+        WindowManager windowManager =  (WindowManager) getSystemService(WINDOW_SERVICE);
+        Configuration config = getResources().getConfiguration();
+        int rotation = windowManager.getDefaultDisplay().getRotation();
+
+        int value = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        if ( ((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) &&
+                config.orientation == Configuration.ORIENTATION_LANDSCAPE)
+                || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) &&
+                config.orientation == Configuration.ORIENTATION_PORTRAIT))
+            value = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
+
+        return value;
     }
 
     public VideoStreamsView getVSV() {
