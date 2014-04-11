@@ -46,6 +46,7 @@ package org.mitre.svmp.apprtc;
 import org.json.JSONObject;
 import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.client.R;
+import org.webrtc.PeerConnection;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
 
@@ -60,42 +61,58 @@ public class SDPObserver implements SdpObserver {
     }
 
     @Override
-    public void onCreateSuccess(final SessionDescription sdp) {
+    public void onCreateSuccess(final SessionDescription origSdp) {
         final SDPObserver parent = this;
         new Thread(new Runnable() {
             public void run() {
                 activity.logAndToast(R.string.appRTC_toast_sdpObserver_sendOffer);
-                JSONObject json = new JSONObject();
-                AppRTCHelper.jsonPut(json, "type", sdp.type.canonicalForm());
-                AppRTCHelper.jsonPut(json, "sdp", sdp.description);
+                SessionDescription sdp = new SessionDescription(
+                        origSdp.type, AppRTCHelper.preferISAC(origSdp.description));
 
-                activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
                 activity.getPCObserver().getPC().setLocalDescription(parent, sdp);
             }
         }).start();
     }
 
-    @Override
-    public void onSetSuccess() {
+    // Helper for sending local SDP (offer or answer, depending on role) to the
+    // other participant.
+    private void sendLocalDescription(PeerConnection pc) {
+        SessionDescription sdp = pc.getLocalDescription();
+        //logAndToast("Sending " + sdp.type);
+        JSONObject json = new JSONObject();
+        AppRTCHelper.jsonPut(json, "type", sdp.type.canonicalForm());
+        AppRTCHelper.jsonPut(json, "sdp", sdp.description);
+        activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
+    }
+
+    @Override public void onSetSuccess() {
         activity.runOnUiThread(new Runnable() {
             public void run() {
+                PCObserver pcObserver = activity.getPCObserver();
                 if (activity.isInitiator()) {
-                    if (activity.getPCObserver().getPC().getRemoteDescription() != null) {
+                    if (pcObserver.getPC().getRemoteDescription() != null) {
                         // We've set our local offer and received & set the remote
                         // answer, so drain candidates.
-                        activity.getPCObserver().drainRemoteCandidates();
-                    }
-                } else {
-                    if (activity.getPCObserver().getPC().getLocalDescription() == null) {
-                        // We just set the remote offer, time to create our answer.
-                        activity.logAndToast(R.string.appRTC_toast_sdpObserver_createAnswer);
-                        activity.getPCObserver().getPC().createAnswer(SDPObserver.this, activity.getSdpMediaConstraints());
+                        pcObserver.drainRemoteCandidates();
                     } else {
-                        // Sent our answer and set it as local description; drain
-                        // candidates.
-                        activity.getPCObserver().drainRemoteCandidates();
+                        // We've just set our local description so time to send it.
+                        sendLocalDescription(pcObserver.getPC());
                     }
                 }
+/* we are always the initiator, no need for this condition
+                else {
+                    if (pcObserver.getPC().getLocalDescription() == null) {
+                        // We just set the remote offer, time to create our answer.
+                        //logAndToast("Creating answer");
+                        pcObserver.getPC().createAnswer(SDPObserver.this, activity.getSdpMediaConstraints());
+                    } else {
+                        // Answer now set as local description; send it and drain
+                        // candidates.
+                        sendLocalDescription(pcObserver.getPC());
+                        pcObserver.drainRemoteCandidates();
+                    }
+                }
+*/
             }
         });
     }

@@ -60,6 +60,7 @@ public class PCObserver implements PeerConnection.Observer {
     AppRTCActivity activity;
     PeerConnection pc;
     LinkedList<IceCandidate> queuedRemoteCandidates;
+    PeerConnectionFactory factory;
     boolean quit;
 
     public PCObserver(AppRTCActivity activity) {
@@ -79,10 +80,23 @@ public class PCObserver implements PeerConnection.Observer {
             pc.addIceCandidate(candidate);
     }
 
+    // Just for fun (and to regression-test bug 2302) make sure that DataChannels
+    // can be created, queried, and disposed.
+    public static void createDataChannelToRegressionTestBug2302(PeerConnection pc) {
+        DataChannel dc = pc.createDataChannel("dcLabel", new DataChannel.Init());
+        AppRTCHelper.abortUnless("dcLabel".equals(dc.label()), "Unexpected label corruption?");
+        dc.close();
+        dc.dispose();
+    }
+
     public void onIceServers(List<PeerConnection.IceServer> iceServers) {
-        PeerConnectionFactory factory = new PeerConnectionFactory();
+        factory = new PeerConnectionFactory();
+        MediaConstraints pcConstraints = activity.getBinder().pcConstraints();
+        pcConstraints.optional.add(new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
         pc = factory.createPeerConnection(
-                iceServers, activity.getBinder().pcConstraints(), this);
+                iceServers, pcConstraints, this);
+
+        createDataChannelToRegressionTestBug2302(pc);
 
         final PeerConnection finalPC = pc;
         final Runnable repeatedStatsLogger = new Runnable() {
@@ -113,8 +127,9 @@ public class PCObserver implements PeerConnection.Observer {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 JSONObject json = new JSONObject();
-                AppRTCHelper.jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
-                AppRTCHelper.jsonPut(json, "sdpMid", candidate.sdpMid);
+                AppRTCHelper.jsonPut(json, "type", "candidate");
+                AppRTCHelper.jsonPut(json, "label", candidate.sdpMLineIndex);
+                AppRTCHelper.jsonPut(json, "id", candidate.sdpMid);
                 AppRTCHelper.jsonPut(json, "candidate", candidate.sdp);
 
                 activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
@@ -155,10 +170,12 @@ public class PCObserver implements PeerConnection.Observer {
         new Thread(new Runnable() {
             public void run() {
                 AppRTCHelper.abortUnless(//stream.audioTracks.size() == 1 &&
-                        stream.videoTracks.size() == 1,
+                        stream.videoTracks.size() <= 1,
                         "Weird-looking stream: " + stream);
-                stream.videoTracks.get(0).addRenderer(new VideoRenderer(
-                        new VideoCallbacks(activity.getVSV(), VideoStreamsView.Endpoint.REMOTE)));
+                if(stream.videoTracks.size() == 1) {
+                    stream.videoTracks.get(0).addRenderer(new VideoRenderer(
+                            new VideoCallbacks(activity.getVSV(), VideoStreamsView.Endpoint.REMOTE)));
+                }
 
                 activity.runOnUiThread(new Runnable() {
                     public void run() {
@@ -189,11 +206,20 @@ public class PCObserver implements PeerConnection.Observer {
         }).start();
     }
 
+    @Override public void onRenegotiationNeeded() {
+        // No need to do anything; AppRTC follows a pre-agreed-upon
+        // signaling/negotiation protocol.
+    }
+
     public void quit() {
         quit = true;
         if (pc != null) {
             pc.dispose();
             pc = null;
+        }
+        if (factory != null) {
+            factory.dispose();
+            factory = null;
         }
     }
 }

@@ -155,7 +155,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
         sdpMediaConstraints = new MediaConstraints();
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveAudio", "false"));
+                "OfferToReceiveAudio", "true"));
         sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
                 "OfferToReceiveVideo", "true"));
 
@@ -225,9 +225,11 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         return pcObserver;
     }
 
+/*
     public MediaConstraints getSdpMediaConstraints() {
         return sdpMediaConstraints;
     }
+*/
 
     public boolean isInitiator() {
         return appRtcClient.isInitiator();
@@ -377,13 +379,15 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
                     //Check out the type of WebRTC message.
                     if (type.equals("candidate")) {
-                        getPCObserver().addIceCandidate(
-                                new IceCandidate((String) json.get("sdpMid"), json.getInt("sdpMLineIndex"), (String) json.get("candidate"))
-                        );
+                        IceCandidate candidate = new IceCandidate(
+                                (String) json.get("id"),
+                                json.getInt("label"),
+                                (String) json.get("candidate"));
+                        getPCObserver().addIceCandidate(candidate);
                     } else if (type.equals("answer") || type.equals("offer")) {
                         SessionDescription sdp = new SessionDescription(
                                 SessionDescription.Type.fromCanonicalForm(type),
-                                (String) json.get("sdp"));
+                                AppRTCHelper.preferISAC((String) json.get("sdp")));
                         getPCObserver().getPC().setRemoteDescription(sdpObserver, sdp);
                     } else if (type.equals("bye")) {
                         logAndToast(R.string.appRTC_toast_clientHandler_finish);
