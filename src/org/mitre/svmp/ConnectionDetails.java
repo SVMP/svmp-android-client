@@ -182,8 +182,12 @@ public class ConnectionDetails extends SvmpActivity {
                 result = dbHandler.insertConnectionInfo(connectionInfo);
 
             // exit and resume previous activity, report results in the intent
-            if( result > -1 && updateID > 0 )
+            if( result > -1 && updateID > 0 ) {
+                // we have updated this ConnectionInfo; if session info is stored for this ConnectionInfo, remove it
+                dbHandler.clearSessionInfo(connectionInfo);
+
                 finishMessage(R.string.connectionList_toast_updated, RESULT_REPOPULATE);
+            }
             else if( result > -1 )
                 finishMessage(R.string.connectionList_toast_added, RESULT_REPOPULATE);
             else
