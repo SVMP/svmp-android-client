@@ -431,24 +431,19 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
             // Unbind from the service
             if (bound) {
-                // TODO: currently, sending a BYE message causes the VM to close the connection... we don't want that
-//                if (appRtcClient.getState() == STATE.RUNNING) {
-//                    Request bye = Request.newBuilder().setType(RequestType.WEBRTC)
-//                            .setWebrtcMsg(WebRTCMessage.newBuilder().setType(WebRTCType.BYE)).build();
-//                    try {
-//                        sendMessage(bye);
-//                    } catch (Exception e) {
-//                        // don't care
-//                    }
-//                }
+                if (SessionService.getState() == STATE.RUNNING) {
+                    JSONObject json = new JSONObject();
+                    AppRTCHelper.jsonPut(json, "type", "bye");
+                    try {
+                        sendMessage(AppRTCHelper.makeWebRTCRequest(json));
+                    } catch (Exception e) {
+                        // don't care
+                    }
+                }
+                pcObserver.quit();
                 unbindService(serviceConnection);
             }
 
-            // TODO: stopping service here, remove this eventually
-            Intent intent = new Intent(this, SessionService.class);
-            stopService(intent);
-
-            pcObserver.quit();
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
 
             if (!isFinishing())
