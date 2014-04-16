@@ -3,7 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:0.6.3'
+        classpath 'com.android.tools.build:gradle:0.9.+'
     }
 }
 apply plugin: 'android'
@@ -18,7 +18,8 @@ dependencies {
 }
 
 tasks.withType(com.android.build.gradle.tasks.PackageApplication) { pkgTask ->
-	pkgTask.jniDir new File(projectDir, 'libs')
+    pkgTask.jniFolders = new HashSet<File>()
+    pkgTask.jniFolders.add(new File(projectDir, 'libs'))
 }
 
 // disable Manifest merger to allow compatibility with IDE/ant builds
