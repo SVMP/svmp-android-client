@@ -150,9 +150,13 @@ public class AppRTCHelper {
             for (int i = 0; i < servers.length(); ++i) {
                 JSONObject server = servers.getJSONObject(i);
                 String url = server.getString("url");
+                String username =
+                        server.has("username") ? server.getString("username") : "";
                 String credential =
                         server.has("credential") ? server.getString("credential") : "";
-                ret.add(new IceServer(url, "", credential));
+                credential = 
+                        server.has("password") ? server.getString("password") : credential;
+                ret.add(new IceServer(url, username, credential));
             }
         } catch (JSONException e) {
             Log.e(TAG, "Failed to parse ICE Servers from PC Config JSON: " + e.getMessage());
