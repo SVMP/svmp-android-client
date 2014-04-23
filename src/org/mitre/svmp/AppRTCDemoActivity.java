@@ -498,10 +498,14 @@ public class AppRTCDemoActivity extends Activity
     @Override public void onIceCandidate(final IceCandidate candidate){
       runOnUiThread(new Runnable() {
           public void run() {
+            // send both forms of label and id for compatibility with old
+            // VM versions
             JSONObject json = new JSONObject();
             jsonPut(json, "type", "candidate");
             jsonPut(json, "label", candidate.sdpMLineIndex);
+            jsonPut(json, "sdpMLineIndex", candidate.sdpMLineIndex);
             jsonPut(json, "id", candidate.sdpMid);
+            jsonPut(json, "sdpMid", candidate.sdpMid);
             jsonPut(json, "candidate", candidate.sdp);
             sendMessage(json);
           }
@@ -709,17 +713,27 @@ public class AppRTCDemoActivity extends Activity
           JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
           Log.d(TAG, "Received WebRTC message from peer:\n" + json.toString(4));
           String type;
-          // peerconnection_client doesn't put a "type" on candidates
-          try {
+          // Old clients, particuarly those based on peerconnection_client
+          // do not put a "type" on candidates.
+          if (json.has("type")) {
             type = (String) json.get("type");
-          } catch (JSONException e) {
-            json.put("type", "candidate");
-            type = (String) json.get("type");
+          } else {
+            type = "candidate";
           }
           if (type.equals("candidate")) {
-            IceCandidate candidate = new IceCandidate(
-                (String) json.get("id"),
-                json.getInt("label"),
+            String id = "";
+            int label = -1;
+            if (json.has("id")) {
+              id = (String) json.get("id");
+            } else {
+              id = (String) json.get("sdpMid");
+            }
+            if (json.has("label")) {
+              label = json.getInt("label");
+            } else {
+              label = json.getInt("sdpMLineIndex");
+            }
+            IceCandidate candidate = new IceCandidate(id, label,
                 (String) json.get("candidate"));
             if (queuedRemoteCandidates != null) {
               queuedRemoteCandidates.add(candidate);
