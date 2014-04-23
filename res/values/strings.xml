@@ -97,6 +97,7 @@
     <!-- AppRTC toast resources -->
     <string name="appRTC_toast_connection_start">Connecting to room…</string>
     <string name="appRTC_toast_connection_notFound">Connection info not found!</string>
+    <string name="appRTC_toast_connection_finish">Error, connection has been closed</string>
     <string name="appRTC_toast_socketConnector_failUntrustedClient">Error connecting (untrusted client certificate)</string>
     <string name="appRTC_toast_socketConnector_failUntrustedServer">Error connecting (untrusted server certificate)</string>
     <string name="appRTC_toast_socketConnector_failClientCertRequired">Error connecting (server requires client certificate)</string>

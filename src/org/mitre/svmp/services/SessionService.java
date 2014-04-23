@@ -177,6 +177,8 @@ public class SessionService extends Service implements StateObserver, MessageHan
     }
 
     public void onStateChange(STATE oldState, STATE newState, int resID) {
+        if (newState == STATE.ERROR)
+            stopSelf();
     }
 
     // Google AppEngine message handler method

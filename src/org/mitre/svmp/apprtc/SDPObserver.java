@@ -89,7 +89,7 @@ public class SDPObserver implements SdpObserver {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 PCObserver pcObserver = activity.getPCObserver();
-                if (activity.isInitiator()) {
+                //if (activity.isInitiator()) {
                     if (pcObserver.getPC().getRemoteDescription() != null) {
                         // We've set our local offer and received & set the remote
                         // answer, so drain candidates.
@@ -98,7 +98,7 @@ public class SDPObserver implements SdpObserver {
                         // We've just set our local description so time to send it.
                         sendLocalDescription(pcObserver.getPC());
                     }
-                }
+                //}
 /* we are always the initiator, no need for this condition
                 else {
                     if (pcObserver.getPC().getLocalDescription() == null) {

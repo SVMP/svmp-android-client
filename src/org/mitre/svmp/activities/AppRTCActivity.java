@@ -229,11 +229,11 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     public MediaConstraints getSdpMediaConstraints() {
         return sdpMediaConstraints;
     }
-*/
 
     public boolean isInitiator() {
         return appRtcClient.isInitiator();
     }
+*/
 
     public AppRTCClient getBinder() {
         return appRtcClient;

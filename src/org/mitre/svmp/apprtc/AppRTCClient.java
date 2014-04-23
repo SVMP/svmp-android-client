@@ -544,8 +544,15 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                 }
                 Log.i(TAG, "Server connection receive thread exiting");
             } catch (Exception e) {
-                proxying = false;
-                Log.i(TAG, "Server connection disconnected.");
+                if (proxying) {
+                    // we haven't called disconnect(), this was an error; log this as an Error message and change state
+                    machine.setState(STATE.ERROR, R.string.appRTC_toast_connection_finish);
+                    Log.e(TAG, "Server connection disconnected: " + e.getMessage());
+                }
+                else {
+                    // we called disconnect(), this was intentional; log this as an Info message
+                    Log.i(TAG, "Server connection disconnected.");
+                }
             }
             return null;
         }
