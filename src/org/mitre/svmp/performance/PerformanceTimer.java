@@ -15,9 +15,11 @@
  */
 package org.mitre.svmp.performance;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.DatabaseHandler;
-import org.mitre.svmp.Utility;
+import android.content.Context;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.apprtc.AppRTCClient;
+import org.mitre.svmp.common.DatabaseHandler;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.client.R;
 
 import java.util.Date;
@@ -30,24 +32,53 @@ import java.util.Timer;
  * Runs CPU measurement task on a separate thread
  */
 public class PerformanceTimer extends Timer {
+    // common variables
+    private Context context;
+    private AppRTCClient binder;
+    private int connectionID;
     private boolean active;
+
+    // objects that record performance measurements
+    private SpanPerformanceData spanPerformanceData;
+    private PointPerformanceData pointPerformanceData;
+
+    // threads/tasks that take performance measurements
     private MeasureCpuThread measureCpuThread;
     private MeasureTask measureTask;
     private PingTask pingTask;
 
-    public PerformanceTimer(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData,
-                            PointPerformanceData pointPerformanceData, int connectionID) {
+    public PerformanceTimer(Context context, AppRTCClient binder, int connectionID) {
+        this.context = context;
+        this.binder = binder;
+        this.connectionID = connectionID;
+
         // find out if we should take measurements (set in Preferences)
-        active = Utility.getPrefBool(activity,
+        this.active = Utility.getPrefBool(context,
                 R.string.preferenceKey_performance_takeMeasurements,
                 R.string.preferenceValue_performance_takeMeasurements);
 
+        // create objects to record performance measurements
+        this.spanPerformanceData = new SpanPerformanceData();
+        this.pointPerformanceData = new PointPerformanceData();
+    }
+
+    // getters
+    public SpanPerformanceData getSpanPerformanceData() {
+        return spanPerformanceData;
+    }
+
+    public PointPerformanceData getPointPerformanceData() {
+        return pointPerformanceData;
+    }
+
+    // called when connection handshaking is complete and state is RUNNING
+    public void start() {
         if (active) {
             // find out how often to take measurements (set in Preferences)
-            int pingInterval = Utility.getPrefInt(activity,
+            int pingInterval = Utility.getPrefInt(context,
                     R.string.preferenceKey_performance_pingInterval,
                     R.string.preferenceValue_performance_pingInterval);
-            int measureInterval = Utility.getPrefInt(activity,
+            int measureInterval = Utility.getPrefInt(context,
                     R.string.preferenceKey_performance_measureInterval,
                     R.string.preferenceValue_performance_measureInterval);
 
@@ -55,21 +86,21 @@ public class PerformanceTimer extends Timer {
             long startDate = System.currentTimeMillis();
 
             // add the current time, connection ID, and measure interval to the database (MeasurementInfo table)
-            DatabaseHandler databaseHandler = new DatabaseHandler(activity);
+            DatabaseHandler databaseHandler = new DatabaseHandler(context);
             databaseHandler.insertMeasurementInfo(
                     new MeasurementInfo(new Date(startDate), connectionID, measureInterval, pingInterval));
             databaseHandler.close();
 
             // create a MeasureCpuThread and run it on an interval (start immediately)
-            measureCpuThread = new MeasureCpuThread(pointPerformanceData, activity.getPackageName());
+            measureCpuThread = new MeasureCpuThread(pointPerformanceData, context.getPackageName());
             measureCpuThread.start();
 
             // create a PingTask and run it on an interval (start immediately)
-            pingTask = new PingTask(activity);
+            pingTask = new PingTask(binder);
             scheduleAtFixedRate(this.pingTask, 0, pingInterval);
 
             // create a MeasureTask and run it on an interval
-            measureTask = new MeasureTask(activity, spanPerformanceData, pointPerformanceData, startDate);
+            measureTask = new MeasureTask(context, spanPerformanceData, pointPerformanceData, startDate);
             scheduleAtFixedRate(this.measureTask, measureInterval, measureInterval);
         }
         else

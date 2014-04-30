@@ -18,11 +18,13 @@ package org.mitre.svmp.client;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Constants;
-import org.mitre.svmp.Utility;
+import android.content.Context;
+import org.mitre.svmp.apprtc.AppRTCClient;
+import org.mitre.svmp.common.Constants;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.performance.SpanPerformanceData;
 import org.mitre.svmp.protocol.SVMPProtocol;
+import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.SensorType;
 import org.mitre.svmp.protocol.SVMPProtocol.Request.RequestType;
 
@@ -35,8 +37,9 @@ import android.util.Log;
 public class SensorHandler implements SensorEventListener, Constants {
     private static final String TAG = SensorHandler.class.getName();
 
-    private AppRTCDemoActivity activity;
-    private SpanPerformanceData spanPerformanceData;
+    private Context context;
+    private AppRTCClient binder;
+    private SpanPerformanceData spd;
     private SensorManager sm;
     
     private List<Sensor> registeredSensors = new ArrayList<Sensor>(PREFERENCES_SENSORS_KEYS.length);
@@ -47,13 +50,14 @@ public class SensorHandler implements SensorEventListener, Constants {
     // minimum allowed time between sensor updates in nanoseconds
     private long minimumSensorDelay;
     
-    public SensorHandler(AppRTCDemoActivity activity, SpanPerformanceData spanPerformanceData) {
-        this.activity = activity;
-        this.spanPerformanceData = spanPerformanceData;
-        this.sm = activity.getSensorManager();
+    public SensorHandler(Context context, AppRTCClient binder) {
+        this.context = context;
+        this.binder = binder;
+        this.spd = binder.getPerformance().getSpanPerformanceData();
+        this.sm = (SensorManager) context.getSystemService(Context.SENSOR_SERVICE);
         
         // get preferences to determine which sensors we should listen to
-        this.minimumSensorDelay = Utility.getPrefInt(activity,
+        this.minimumSensorDelay = Utility.getPrefInt(context,
                 R.string.preferenceKey_sensors_minimumDelay, R.string.preferenceValue_sensors_minimumDelay);
         this.minimumSensorDelay *=  1000; // convert microseconds to nanoseconds
     }
@@ -65,21 +69,17 @@ public class SensorHandler implements SensorEventListener, Constants {
         // loop through preferences...
         for( int i = 0; i < PREFERENCES_SENSORS_KEYS.length; i++ ) {
             // if this sensor is enabled in the preferences, register a listener for it
-            if( Utility.getPrefBool(activity, PREFERENCES_SENSORS_KEYS[i], PREFERENCES_SENSORS_DEFAULTVALUES[i]) )
+            if( Utility.getPrefBool(context, PREFERENCES_SENSORS_KEYS[i], PREFERENCES_SENSORS_DEFAULTVALUES[i]) )
                 initSensor(i+1); // sensors start at 1, not 0
         }
     }
     
     public void cleanupSensors() {
-        // Only cleanup if client is running
-       if(!activity.isConnected())
-            return;
-        
-       Log.d(TAG,"cleanupsensors()");
+        Log.d(TAG,"cleanupsensors()");
 
-       for(Sensor currentSensor : registeredSensors) {
-           sm.unregisterListener(this,currentSensor);
-       }
+        for(Sensor currentSensor : registeredSensors) {
+            sm.unregisterListener(this,currentSensor);
+        }
    }
     
     private boolean initSensor(int type) {
@@ -110,32 +110,34 @@ public class SensorHandler implements SensorEventListener, Constants {
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        if (! activity.isConnected()) return;
-        
         int type = event.sensor.getType();
 
-        if (event.timestamp < lastSensorUpdate[type] + getScaledMinDelay(type-1))
-            return;
-        lastSensorUpdate[type] = event.timestamp;
+        // make sure the time is past the minimum sensor delay, prevents spammy sensor messages
+        if (event.timestamp >= lastSensorUpdate[type] + getScaledMinDelay(type-1)) {
+            lastSensorUpdate[type] = event.timestamp;
 
-        // increment the sensor update count for performance measurement
-        spanPerformanceData.incrementSensorUpdates();
+            // increment the sensor update count for performance measurement
+            spd.incrementSensorUpdates();
 
-        // assemble the message
-        SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
-        SVMPProtocol.SensorEvent.Builder e = SVMPProtocol.SensorEvent.newBuilder();
-        msg.setType(RequestType.SENSOREVENT);
-        e.setType(SensorType.valueOf(type));
-        e.setAccuracy(event.accuracy);
-        e.setTimestamp(event.timestamp);
-        
-        List<Float> vals = new ArrayList<Float>(event.values.length);
-        for (float v : event.values) vals.add(v);
-        e.addAllValues(vals);
-        
-        msg.setSensor(e);
-        
-        activity.sendMessage(msg.build());
+            // send the sensor request message
+            binder.sendMessage(makeSensorRequest(event));
+        }
     }
 
+    private Request makeSensorRequest(SensorEvent event) {
+        // assemble the message
+        SVMPProtocol.SensorEvent.Builder e = SVMPProtocol.SensorEvent.newBuilder();
+        e.setType(SensorType.valueOf(event.sensor.getType()));
+        e.setAccuracy(event.accuracy);
+        e.setTimestamp(event.timestamp);
+
+        List<Float> vals = new ArrayList<Float>(event.values.length);
+        for (float v : event.values) vals.add(v);
+            e.addAllValues(vals);
+
+        return Request.newBuilder()
+                .setType(RequestType.SENSOREVENT)
+                .setSensor(e)
+                .build();
+    }
 }

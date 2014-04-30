@@ -27,7 +27,7 @@ import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import org.mitre.svmp.DatabaseHandler;
+import org.mitre.svmp.common.DatabaseHandler;
 
 import java.util.TimerTask;
 
@@ -81,7 +81,7 @@ public class MeasureTask extends TimerTask {
             pointPerformanceData.setWifiStrength(wifiStrength); // set wifi strength
             // battery level is set by the batteryInfoReceiver
             // cell signal values are set by the phoneStateListener
-            // ping value is set by the AppRTCDemoActivity
+            // ping value is set by the AppRTCActivity
 
             if (running)
                 databaseHandler.insertPerformanceData(startDate, spanMeasurements, pointPerformanceData);

@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.activities;
 
 import android.app.AlertDialog;
 import android.content.Context;
@@ -27,6 +27,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.performance.MeasurementInfo;
 
 import java.io.File;

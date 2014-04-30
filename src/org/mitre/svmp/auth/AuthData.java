@@ -15,7 +15,7 @@ limitations under the License.
 */
 package org.mitre.svmp.auth;
 
-import org.mitre.svmp.ConnectionInfo;
+import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 

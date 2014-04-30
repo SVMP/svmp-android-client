@@ -13,7 +13,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
  */
-package org.mitre.svmp;
+package org.mitre.svmp.common;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -21,6 +21,8 @@ import android.location.Location;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationUpdate;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -122,20 +124,20 @@ public class Utility {
         return sharedPreferences.getBoolean(key, defaultValue);
     }
 
-	public static Request toRequest_LocationProviderInfo(LocationProvider provider) {
-		// create a LocationProviderInfo Builder
-		LocationProviderInfo.Builder lpiBuilder = LocationProviderInfo.newBuilder()
+    public static Request toRequest_LocationProviderInfo(LocationProvider provider) {
+        // create a LocationProviderInfo Builder
+        LocationProviderInfo.Builder lpiBuilder = LocationProviderInfo.newBuilder()
                 // set required variables
-				.setProvider(provider.getName())
-				.setRequiresNetwork(provider.requiresNetwork())
-				.setRequiresSatellite(provider.requiresSatellite())
-				.setRequiresCell(provider.requiresCell())
-				.setHasMonetaryCost(provider.hasMonetaryCost())
-				.setSupportsAltitude(provider.supportsAltitude())
-				.setSupportsSpeed(provider.supportsSpeed())
-				.setSupportsBearing(provider.supportsBearing())
-				.setPowerRequirement(provider.getPowerRequirement())
-				.setAccuracy(provider.getAccuracy());
+                .setProvider(provider.getName())
+                .setRequiresNetwork(provider.requiresNetwork())
+                .setRequiresSatellite(provider.requiresSatellite())
+                .setRequiresCell(provider.requiresCell())
+                .setHasMonetaryCost(provider.hasMonetaryCost())
+                .setSupportsAltitude(provider.supportsAltitude())
+                .setSupportsSpeed(provider.supportsSpeed())
+                .setSupportsBearing(provider.supportsBearing())
+                .setPowerRequirement(provider.getPowerRequirement())
+                .setAccuracy(provider.getAccuracy());
 
         // pack LocationProviderInfo into LocationRequest wrapper
         LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
@@ -144,14 +146,14 @@ public class Utility {
 
         // build the Request
         return toRequest_LocationRequest(lrBuilder);
-	}
+    }
 
-	public static Request toRequest_LocationProviderStatus(String s, int i, Bundle bundle) {
-		// create a LocationProviderStatus Builder
-		LocationProviderStatus.Builder lpsBuilder = LocationProviderStatus.newBuilder()
+    public static Request toRequest_LocationProviderStatus(String s, int i, Bundle bundle) {
+        // create a LocationProviderStatus Builder
+        LocationProviderStatus.Builder lpsBuilder = LocationProviderStatus.newBuilder()
                 // set required variables
-				.setProvider(s)
-				.setStatus(i);
+                .setProvider(s)
+                .setStatus(i);
 
         // pack LocationProviderStatus into LocationRequest wrapper
         LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
@@ -160,14 +162,14 @@ public class Utility {
 
         // build the Request
         return toRequest_LocationRequest(lrBuilder);
-	}
+    }
 
-	public static Request toRequest_LocationProviderEnabled(String s, boolean isEnabled) {
-		// create a LocationProviderEnabled Builder
-		LocationProviderEnabled.Builder lpeBuilder = LocationProviderEnabled.newBuilder()
+    public static Request toRequest_LocationProviderEnabled(String s, boolean isEnabled) {
+        // create a LocationProviderEnabled Builder
+        LocationProviderEnabled.Builder lpeBuilder = LocationProviderEnabled.newBuilder()
                 // set required variables
-				.setProvider(s)
-				.setEnabled(isEnabled);
+                .setProvider(s)
+                .setEnabled(isEnabled);
 
         // pack LocationProviderEnabled into LocationRequest wrapper
         LocationRequest.Builder lrBuilder = LocationRequest.newBuilder()
@@ -176,7 +178,7 @@ public class Utility {
 
         // build the Request
         return toRequest_LocationRequest(lrBuilder);
-	}
+    }
 
     public static Request toRequest_LocationUpdate(Location location) {
         // create a LocationUpdate Builder
@@ -206,15 +208,15 @@ public class Utility {
         return toRequest_LocationRequest(lrBuilder);
     }
 
-	public static Request toRequest_LocationRequest(LocationRequest.Builder lrBuilder) {
-		// pack LocationRequest into Request wrapper
-		Request.Builder rBuilder = Request.newBuilder()
-				.setType(Request.RequestType.LOCATION)
-				.setLocationRequest(lrBuilder);
+    public static Request toRequest_LocationRequest(LocationRequest.Builder lrBuilder) {
+        // pack LocationRequest into Request wrapper
+        Request.Builder rBuilder = Request.newBuilder()
+                .setType(Request.RequestType.LOCATION)
+                .setLocationRequest(lrBuilder);
 
-		// build the Request
-		return rBuilder.build();
-	}
+        // build the Request
+        return rBuilder.build();
+    }
 
     public static Request toRequest_RotationInfo(int rotation) {
         // create a RotationInfo Builder

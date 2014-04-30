@@ -18,8 +18,8 @@ package org.mitre.svmp.client;
 import android.hardware.SensorManager;
 import android.util.Log;
 import android.view.OrientationEventListener;
-import org.mitre.svmp.AppRTCDemoActivity;
-import org.mitre.svmp.Utility;
+import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
 /**
@@ -40,10 +40,10 @@ public class RotationHandler extends OrientationEventListener {
      */
     private static final int LOOKUP[] = {0, 0, 0, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0, 0, 0};
 
-    private AppRTCDemoActivity activity;
+    private AppRTCActivity activity;
     private int rotation = -1; // valid values are: 0, 1, 2, 3
 
-    public RotationHandler(AppRTCDemoActivity activity) {
+    public RotationHandler(AppRTCActivity activity) {
         super(activity.getApplicationContext(), SensorManager.SENSOR_DELAY_UI);
         this.activity = activity;
     }

@@ -15,7 +15,7 @@
  */
 package org.mitre.svmp.auth;
 
-import org.mitre.svmp.Constants;
+import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.auth.module.*;
 import org.mitre.svmp.auth.type.*;
 

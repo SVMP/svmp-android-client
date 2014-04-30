@@ -59,6 +59,7 @@
     <string name="connectionList_title">SVMP Connections</string>
     <string name="connectionList_button_new_text">New</string>
     <string name="connectionList_button_exit_text">Exit</string>
+    <string name="connectionList_context_stop_text">Stop service</string>
 
     <!-- ConnectionDetails layout resources -->
     <string name="connectionDetails_title">SVMP Connection Details</string>
@@ -96,6 +97,7 @@
     <!-- AppRTC toast resources -->
     <string name="appRTC_toast_connection_start">Connecting to room…</string>
     <string name="appRTC_toast_connection_notFound">Connection info not found!</string>
+    <string name="appRTC_toast_connection_finish">Error, connection has been closed</string>
     <string name="appRTC_toast_socketConnector_failUntrustedClient">Error connecting (untrusted client certificate)</string>
     <string name="appRTC_toast_socketConnector_failUntrustedServer">Error connecting (untrusted server certificate)</string>
     <string name="appRTC_toast_socketConnector_failClientCertRequired">Error connecting (server requires client certificate)</string>
@@ -105,10 +107,11 @@
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
     <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
+    <string name="appRTC_toast_svmpAuthenticator_success">Authenticated successfully</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
-    <string name="appRTC_toast_svmpReadyWait_success">VM is ready</string>
-    <string name="appRTC_toast_videoParameterGetter_start">Querying for webrtc channel info</string>
-    <string name="appRTC_toast_videoParameterGetter_finish">Got channel info</string>
+    <string name="appRTC_toast_svmpReadyWait_success">VM is ready, querying for WebRTC channel info</string>
+    <string name="appRTC_toast_videoParameterGetter_fail">Failed to get channel info</string>
+    <string name="appRTC_toast_videoParameterGetter_success">Got channel info</string>
     <string name="appRTC_toast_getIceServers_start">Waiting for ICE candidates…</string>
     <string name="appRTC_toast_clientHandler_start">Creating offer…</string>
     <string name="appRTC_toast_clientHandler_finish">Remote end hung up; dropping PeerConnection</string>
