@@ -43,6 +43,7 @@
  */
 package org.mitre.svmp.apprtc;
 
+import android.util.Log;
 import org.json.JSONObject;
 import org.mitre.svmp.activities.AppRTCActivity;
 import org.mitre.svmp.client.R;
@@ -121,7 +122,8 @@ public class SDPObserver implements SdpObserver {
     public void onCreateFailure(final String error) {
         new Thread(new Runnable() {
             public void run() {
-                throw new RuntimeException("createSDP error: " + error);
+                Log.e(TAG, "createSDP failed: " + error);
+                activity.changeToErrorState();
             }
         }).start();
     }
@@ -130,7 +132,8 @@ public class SDPObserver implements SdpObserver {
     public void onSetFailure(final String error) {
         new Thread(new Runnable() {
             public void run() {
-                throw new RuntimeException("setSDP error: " + error);
+                Log.e(TAG, "setSDP failed: " + error);
+                activity.changeToErrorState();
             }
         }).start();
     }

@@ -235,8 +235,17 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     }
 */
 
-    public AppRTCClient getBinder() {
-        return appRtcClient;
+    // called from PCObserver
+    public MediaConstraints getPCConstraints() {
+        MediaConstraints value = null;
+        if (appRtcClient != null)
+            value = appRtcClient.pcConstraints();
+        return value;
+    }
+
+    public void changeToErrorState() {
+        if (appRtcClient != null)
+            appRtcClient.changeToErrorState();
     }
 
     private void connectToRoom() {
@@ -324,8 +333,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         });
     }
 
+    // called from PCObserver, SDPObserver, RotationHandler, and TouchHandler
     public void sendMessage(Request msg) {
-        appRtcClient.sendMessage(msg);
+        if (appRtcClient != null)
+            appRtcClient.sendMessage(msg);
     }
 
     // MessageHandler interface method
@@ -343,7 +354,9 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         rotationHandler.initRotationUpdates();
 
         logAndToast(R.string.appRTC_toast_clientHandler_start);
-        pcObserver.getPC().createOffer(sdpObserver, sdpMediaConstraints);
+        PeerConnection pc = pcObserver.getPC();
+        if (pc != null)
+            pc.createOffer(sdpObserver, sdpMediaConstraints);
     }
 
     // MessageHandler interface method
@@ -435,7 +448,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                     JSONObject json = new JSONObject();
                     AppRTCHelper.jsonPut(json, "type", "bye");
                     try {
-                        sendMessage(AppRTCHelper.makeWebRTCRequest(json));
+                        appRtcClient.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
                     } catch (Exception e) {
                         // don't care
                     }
@@ -498,7 +511,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 }
 
                 // finish this activity and return to the connection list
-                finish();
+                disconnectAndExit();
                 break;
             default:
                 break;

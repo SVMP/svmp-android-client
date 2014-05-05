@@ -167,6 +167,11 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         return signalingParams;
     }
 
+    // called from SDPObserver
+    public void changeToErrorState() {
+        machine.setState(STATE.ERROR, R.string.appRTC_toast_connection_finish);
+    }
+
     /**
      * Disconnect from the SVMP proxy channel.
      *
@@ -184,29 +189,36 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         // clean up client components
         sensorHandler.cleanupSensors(); // stop forwarding sensor data
 
-        // clean up networking objects
-        if (sender != null)
-            sender.cancel(true);
-        if (listener != null)
-            listener.cancel(true);
-        try {
-            if (socketIn != null)
-                socketIn.close();
-        } catch(IOException e) {
-            Log.e(TAG, "Exception closing InputStream: " + e.getMessage());
-        }
-        try {
-            if (socketOut != null)
-                socketOut.close();
-        } catch(IOException e) {
-            Log.e(TAG, "Exception closing OutputStream: " + e.getMessage());
-        }
-        try {
-            if (svmpSocket != null && !svmpSocket.isClosed())
-                svmpSocket.close();
-        } catch(IOException e) {
-            Log.e(TAG, "Exception closing Socket: " + e.getMessage());
-        }
+        // use a new thread to shut down sockets, to avoid running into a NetworkOnMainThreadException...
+        Thread socketShutdown = new Thread() {
+            @Override
+            public void run() {
+                // clean up networking objects
+                if (sender != null)
+                    sender.cancel(true);
+                if (listener != null)
+                    listener.cancel(true);
+                try {
+                    if (socketIn != null)
+                        socketIn.close();
+                } catch(IOException e) {
+                    Log.e(TAG, "Exception closing InputStream: " + e.getMessage());
+                }
+                try {
+                    if (socketOut != null)
+                        socketOut.close();
+                } catch(IOException e) {
+                    Log.e(TAG, "Exception closing OutputStream: " + e.getMessage());
+                }
+                try {
+                    if (svmpSocket != null && !svmpSocket.isClosed())
+                        svmpSocket.close();
+                } catch(IOException e) {
+                    Log.e(TAG, "Exception closing Socket: " + e.getMessage());
+                }
+            }
+        };
+        socketShutdown.start();
     }
 
     private void startProxying() {
@@ -513,6 +525,8 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     //Log.d(TAG,"Writing message to VM...");
                     sendQueue.take().writeDelimitedTo(socketOut);
                 } catch (Exception e) {
+                    // this was an error; log this as an Error message and change state
+                    machine.setState(STATE.ERROR, R.string.appRTC_toast_connection_finish);
                     Log.e(TAG, "Exception in sendMessage " + e.getMessage());
                 }
             }

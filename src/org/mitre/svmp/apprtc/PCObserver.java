@@ -91,7 +91,7 @@ public class PCObserver implements PeerConnection.Observer {
 
     public void onIceServers(List<PeerConnection.IceServer> iceServers) {
         factory = new PeerConnectionFactory();
-        MediaConstraints pcConstraints = activity.getBinder().pcConstraints();
+        MediaConstraints pcConstraints = activity.getPCConstraints();
         pcConstraints.optional.add(new MediaConstraints.KeyValuePair("RtpDataChannels", "true"));
         pc = factory.createPeerConnection(
                 iceServers, pcConstraints, this);
@@ -124,17 +124,19 @@ public class PCObserver implements PeerConnection.Observer {
 
     @Override
     public void onIceCandidate(final IceCandidate candidate) {
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                JSONObject json = new JSONObject();
-                AppRTCHelper.jsonPut(json, "type", "candidate");
-                AppRTCHelper.jsonPut(json, "label", candidate.sdpMLineIndex);
-                AppRTCHelper.jsonPut(json, "id", candidate.sdpMid);
-                AppRTCHelper.jsonPut(json, "candidate", candidate.sdp);
+        if (!quit) {
+            activity.runOnUiThread(new Runnable() {
+                public void run() {
+                    JSONObject json = new JSONObject();
+                    AppRTCHelper.jsonPut(json, "type", "candidate");
+                    AppRTCHelper.jsonPut(json, "label", candidate.sdpMLineIndex);
+                    AppRTCHelper.jsonPut(json, "id", candidate.sdpMid);
+                    AppRTCHelper.jsonPut(json, "candidate", candidate.sdp);
 
-                activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
-            }
-        });
+                    activity.sendMessage(AppRTCHelper.makeWebRTCRequest(json));
+                }
+            });
+        }
     }
 
     public void drainRemoteCandidates() {
