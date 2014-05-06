@@ -442,6 +442,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             }
             quit[0] = true;
 
+            rotationHandler.cleanupRotationUpdates();
+
             // Unbind from the service
             if (bound) {
                 if (SessionService.getState() == STATE.RUNNING) {
