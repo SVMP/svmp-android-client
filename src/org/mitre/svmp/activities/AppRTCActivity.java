@@ -381,6 +381,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             case WEBRTC:
                 try {
                     JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
+                    Log.d(TAG, "Received WebRTC message from peer:\n" + json.toString(4));
                     String type;
                     // peerconnection_client doesn't put a "type" on candidates
                     try {

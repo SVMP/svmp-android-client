@@ -24,6 +24,11 @@ public class AppRTCHelper {
     public static Request makeWebRTCRequest(JSONObject json) {
         WebRTCMessage.Builder rtcmsg = WebRTCMessage.newBuilder();
         rtcmsg.setJson(json.toString());
+        try {
+            Log.d(TAG, "Sending WebRTC message: " + json.toString(4));
+        } catch (JSONException e) {
+            // whatever
+        }
 
         return Request.newBuilder()
                 .setType(Request.RequestType.WEBRTC)
@@ -147,6 +152,7 @@ public class AppRTCHelper {
         try {
             JSONObject json = new JSONObject(pcConfig);
             JSONArray servers = json.getJSONArray("iceServers");
+            Log.d(TAG, "ICE server JSON: " + json.toString(4));
             for (int i = 0; i < servers.length(); ++i) {
                 JSONObject server = servers.getJSONObject(i);
                 String url = server.getString("url");
