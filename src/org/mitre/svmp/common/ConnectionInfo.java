@@ -15,6 +15,9 @@
  */
 package org.mitre.svmp.common;
 
+import org.mitre.svmp.auth.AuthRegistry;
+import org.mitre.svmp.auth.module.CertificateModule;
+
 /**
  * @author Joe Portner
  */
@@ -80,7 +83,12 @@ public class ConnectionInfo implements Constants{
     }
 
     public String lineTwoText() {
-        return String.format("%s@%s:%d", username, host, port);
+        boolean certAuthType = (authType & CertificateModule.AUTH_MODULE_ID) == CertificateModule.AUTH_MODULE_ID;
+        String text = username;
+        if (certAuthType && certificateAlias.length() > 0)
+            text = certificateAlias;
+        String authDesc = AuthRegistry.getAuthType(authType).getDescription();
+        return String.format("%s, %s@%s:%d", authDesc, text, host, port);
     }
 
 }

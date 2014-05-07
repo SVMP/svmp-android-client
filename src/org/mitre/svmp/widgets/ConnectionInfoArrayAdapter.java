@@ -17,6 +17,7 @@ package org.mitre.svmp.widgets;
 
 import android.content.Context;
 import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.services.SessionService;
 
 /**
@@ -40,5 +41,10 @@ public class ConnectionInfoArrayAdapter extends TwoLineArrayAdapter<ConnectionIn
     @Override
     public boolean isActive(ConnectionInfo connectionInfo) {
         return SessionService.getConnectionID() == connectionInfo.getConnectionID();
+    }
+
+    @Override
+    public boolean hasEncryption(ConnectionInfo connectionInfo) {
+        return connectionInfo.getEncryptionType() != Constants.ENCRYPTION_NONE;
     }
 }

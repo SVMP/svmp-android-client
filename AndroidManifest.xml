@@ -20,6 +20,11 @@
     <!-- used for performance measurements -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
+    <!-- used to allow an outside source to cause an ConnectionList to refresh its layout -->
+    <permission android:name="org.mitre.svmp.PERMISSION_REFRESH"
+                android:protectionLevel="signature" />
+    <uses-permission android:name="org.mitre.svmp.PERMISSION_REFRESH" />
+
     <application android:label="@string/app_name"
                  android:allowBackup="false">
 

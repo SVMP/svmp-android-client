@@ -17,37 +17,39 @@
   -->
 
 <!-- based on http://www.curious-creature.org/2009/02/22/android-layout-tricks-1/ -->
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
                 android:layout_width="fill_parent"
-                android:layout_height="?android:attr/listPreferredItemHeight"
+                android:layout_height="wrap_content"
 
                 android:paddingLeft="6dip" android:clickable="true" android:focusable="false"
-                android:longClickable="true" android:onClick="onClick_Item">
+                android:longClickable="true" android:onClick="onClick_Item" android:orientation="horizontal">
 
-    <TextView
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
+    <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="fill_parent"
+            android:id="@+id/connectionListItem_lockImage"
+            android:layout_alignParentStart="false"
+            android:src="@drawable/padlock_green"
+            android:adjustViewBounds="true" android:scaleType="centerInside" android:cropToPadding="false"
+            android:baselineAlignBottom="false" android:maxWidth="30dp"
+            android:paddingRight="5dp"/>
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content" android:layout_weight="1.0">
+        <TextView
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/connectionListItem_text1"
+                android:textSize="@dimen/textSize_medium"
+                android:singleLine="true"/>
+        <TextView
+                android:id="@+id/connectionListItem_text2"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="marquee"
+                android:paddingBottom="6dip"/>
+    </LinearLayout>
 
-            android:layout_alignParentLeft="false"
-            android:layout_alignParentTop="true"
-            android:layout_above="@+id/connectionListItem_text2"
-            android:layout_alignWithParentIfMissing="true"
-
-            android:gravity="center_vertical"
-            android:text="" android:id="@+id/connectionListItem_text1" android:textSize="@dimen/textSize_medium"
-            android:singleLine="true"/>
-    <TextView
-            android:id="@+id/connectionListItem_text2"
-
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentLeft="false"
-
-            android:singleLine="true"
-            android:ellipsize="marquee"
-            android:text=""
-            android:paddingBottom="6dip"/>
-
-</RelativeLayout>
+</LinearLayout>

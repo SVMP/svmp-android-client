@@ -15,7 +15,10 @@
  */
 package org.mitre.svmp.activities;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.ContextMenu;
 import android.view.Menu;
@@ -39,12 +42,32 @@ public class ConnectionList extends SvmpActivity {
 
     private List<ConnectionInfo> connectionInfoList;
     private ListView listView;
+    private BroadcastReceiver receiver;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState, R.layout.connection_list);
 
         // enable long-click on the ListView
         registerForContextMenu(listView);
+
+        // register a BroadcastReceiver that will allow for triggered layout refreshes
+        // when a running SessionService stops, it sends this broadcast to notify the ConnectionList to update its
+        // entries (i.e. revert "running" entry green text back to gray text)
+        IntentFilter filter = new IntentFilter(ACTION_REFRESH);
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                populateLayout();
+            }
+        };
+        registerReceiver(receiver, filter, PERMISSION_REFRESH, null);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        // unregister BroadcastReceiver
+        unregisterReceiver(receiver);
     }
 
     // called onResume so preference changes take effect in the layout
@@ -119,7 +142,6 @@ public class ConnectionList extends SvmpActivity {
                 break;
             case 100: // Stop
                 stopService(new Intent(ConnectionList.this, SessionService.class)); // stop the service that's running
-                recreate(); // recreate this activity to refresh the UI
                 break;
         }
         return true;

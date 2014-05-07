@@ -525,9 +525,12 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     //Log.d(TAG,"Writing message to VM...");
                     sendQueue.take().writeDelimitedTo(socketOut);
                 } catch (Exception e) {
-                    // this was an error; log this as an Error message and change state
-                    machine.setState(STATE.ERROR, R.string.appRTC_toast_connection_finish);
-                    Log.e(TAG, "Exception in sendMessage " + e.getMessage());
+                    if (proxying) {
+                        // this was an error; log this as an Error message and change state
+                        machine.setState(STATE.ERROR, R.string.appRTC_toast_connection_finish);
+                        Log.e(TAG, "Exception in sendMessage " + e.getMessage());
+                    }
+                    // otherwise, we called disconnect(), this was intentional
                 }
             }
             return null;

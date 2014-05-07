@@ -22,6 +22,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import org.mitre.svmp.client.R;
 
@@ -80,6 +81,12 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
             lineTwoView.setTextColor(Color.LTGRAY);
         }
 
+        ImageView lockImageView = (ImageView)listItemView.findViewById(
+                R.id.connectionListItem_lockImage);
+
+        if (!hasEncryption(t))
+            lockImageView.setVisibility(View.GONE);
+
         return listItemView;
     }
 
@@ -88,4 +95,6 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
     public abstract String lineTwoText(T t);
 
     public abstract boolean isActive(T t);
+
+    public abstract boolean hasEncryption(T t);
 }

@@ -22,16 +22,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.*;
 import android.util.Log;
+import org.mitre.svmp.activities.ConnectionList;
+import org.mitre.svmp.activities.SvmpActivity;
 import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.apprtc.MessageHandler;
 import org.mitre.svmp.client.LocationHandler;
 import org.mitre.svmp.client.NetIntentsHandler;
 import org.mitre.svmp.client.R;
-import org.mitre.svmp.common.ConnectionInfo;
-import org.mitre.svmp.common.DatabaseHandler;
-import org.mitre.svmp.common.StateMachine;
+import org.mitre.svmp.common.*;
 import org.mitre.svmp.common.StateMachine.STATE;
-import org.mitre.svmp.common.StateObserver;
 import org.mitre.svmp.performance.PerformanceAdapter;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
@@ -42,7 +41,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
  * 2. Start the service (so it doesn't stop on unbind)
  * 3. Bind to the service
  */
-public class SessionService extends Service implements StateObserver, MessageHandler {
+public class SessionService extends Service implements StateObserver, MessageHandler, Constants {
     private static final String TAG = SessionService.class.getName();
     private static final int NOTIFICATION_ID = 0;
 
@@ -142,6 +141,10 @@ public class SessionService extends Service implements StateObserver, MessageHan
 
         // reset singleton
         service = null;
+
+        // send intent to ConnectionList to notify it to check for active services again
+        Intent intent = new Intent(ACTION_REFRESH);
+        sendBroadcast(intent, PERMISSION_REFRESH);
 
         // hide notification
         hideNotification();

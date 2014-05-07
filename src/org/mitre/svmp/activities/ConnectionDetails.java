@@ -163,7 +163,7 @@ public class ConnectionDetails extends SvmpActivity {
             toastShort(R.string.connectionDetails_toast_blankDescription);
         else if( dbHandler.getConnectionInfo(updateID, description) != null )
             toastShort(R.string.connectionDetails_toast_ambiguousDescription);
-        else if( username.length() == 0 )
+        else if( username.length() == 0 && !certAuthType ) // username is needed if not using certificate authentication
             toastShort(R.string.connectionDetails_toast_blankUsername);
         else if( host.length() == 0 )
             toastShort(R.string.connectionDetails_toast_blankHost);
@@ -242,12 +242,16 @@ public class ConnectionDetails extends SvmpActivity {
             boolean enabled = checkAuthTypeCert(position);
             // set the Certificate button to either enabled or disabled, based on the AuthType
             certificateView.setEnabled(enabled);
+            // if certificate authentication is enabled, disable the Username text box
+            usernameView.setEnabled(!enabled);
         }
 
         @Override
         public void onNothingSelected(AdapterView<?> parentView) {
             // set the Certificate button to disabled
             certificateView.setEnabled(false);
+            // set the Username text box to enabled
+            usernameView.setEnabled(true);
         }
     };
 
