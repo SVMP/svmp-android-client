@@ -5,6 +5,14 @@
     <property name="libs.dir" value="libs" />   
     <property name="svmp-protocol-def" value="svmp-protocol-def" />
 
+    <property name="build.libs.dir" value="build-libs" />
+    <property name="client.truststore.file" value="res/raw/client_truststore.bks" />
+
+    <!-- Must match the value of TRUSTSTORE_PASSWORD in src/org/mitre/svmp/Constants.java -->
+    <property name="client.truststore.password" value="changeme_clienttstorepass" />
+
+    <target name="-pre-build" depends="import_client_truststore_certs" />
+    
     <target name="-pre-compile">
         <echo>ORIGINAL jars.path : ${toString:project.all.jars.path}</echo>
         <path id="project.all.jars.path.temp">
@@ -15,6 +23,64 @@
             <path path="${toString:project.all.jars.path.temp}" />
         </path>
         <echo>HACKED jars.path : ${toString:project.all.jars.path}</echo>
+    </target>
 
+    <target name="get_bouncycastle">
+       <mkdir dir="${build.libs.dir}" />
+       <get src="http://bouncycastle.org/download/bcprov-jdk15on-150.jar"
+            dest="${build.libs.dir}/bcprov.jar"
+            verbose="true"
+            usetimestamp="true" />
+    </target>
+
+    <target name="create_client_truststore" depends="get_bouncycastle">
+        <echo>Creating empty keystore ${client.truststore.file}</echo>
+        <mkdir dir="res/raw/" />
+        <exec executable="keytool" failonerror="true">
+            <arg line="-genkey -alias foo -dname 'CN=nobody' -keypass 123456"/>
+            <arg line="-keystore ${client.truststore.file}" />
+            <arg line="-storetype BKS" />
+            <arg line="-providerclass org.bouncycastle.jce.provider.BouncyCastleProvider" />
+            <arg line="-providerpath ${build.libs.dir}/bcprov.jar" />
+            <arg line="-storepass ${client.truststore.password}" />
+        </exec>
+        <exec executable="keytool" failonerror="true">
+            <arg line="-delete -alias foo" />
+            <arg line="-keystore ${client.truststore.file}" />
+            <arg line="-storetype BKS" />
+            <arg line="-providerclass org.bouncycastle.jce.provider.BouncyCastleProvider" />
+            <arg line="-providerpath ${build.libs.dir}/bcprov.jar" />
+            <arg line="-storepass ${client.truststore.password}" />
+        </exec>
+        <exec executable="keytool" failonerror="true">
+            <arg line="-list" />
+            <arg line="-keystore ${client.truststore.file}" />
+            <arg line="-storetype BKS" />
+            <arg line="-providerclass org.bouncycastle.jce.provider.BouncyCastleProvider" />
+            <arg line="-providerpath ${build.libs.dir}/bcprov.jar" />
+            <arg line="-storepass ${client.truststore.password}" />
+        </exec>
+    </target>
+
+    <target name="import_client_truststore_certs" depends="create_client_truststore">
+        <echo>Importing server_certs/*.pem to client_truststore.bks</echo>
+        <apply executable="keytool" verbose="true">
+            <arg line="-import -v -noprompt -trustcacerts" />
+            <arg line="-keystore ${client.truststore.file}" />
+            <arg line="-storetype BKS" />
+            <arg line="-providerclass org.bouncycastle.jce.provider.BouncyCastleProvider" />
+            <arg line="-providerpath ${build.libs.dir}/bcprov.jar" />
+            <arg line="-storepass ${client.truststore.password}" />
+            <arg value="-alias" />
+            <targetfile/>
+            <arg value="-file" />
+            <srcfile/>
+            <fileset dir="server_certs" includes="*.pem" casesensitive="false"/>
+            <mapper type="glob" from="*.pem" to="*" />
+        </apply>
+    </target>
+
+    <target name="-pre-clean">
+        <delete file="${client.truststore.file}" verbose="true"/>
     </target>
 </project>

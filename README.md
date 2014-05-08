@@ -29,15 +29,19 @@ There are three ways to configure server trust in the client.
 
 1. **Pinned Trust Store**
 
- If `res/raw/client_truststore.bks` is not empty, the client will use it as the pinned trust store. This means that *only* certificates that validate through that trust store will be accepted.
+ If `res/raw/client_truststore.bks` is not empty, the client will use it as the pinned trust store.
+ This means that *only* certificates that validate through that trust store will be accepted.
 
- By default, the file is empty. If you want to use this option you must create your own trust store and compile it with the client. 
+ By default, the file is empty. If you want to use this option you must place the certs to trust in
+ the server_certs/ directory before compiling the client. The build process will import all files
+ with the .pem extension from the `server_certs/` directory.
 
- To create a BKS trust store, you need to have Java installed, download the [Bouncy Castle JAR](http://www.bouncycastle.org/download/bcprov-jdk15on-150.jar), then use the following command:
-
-        keytool -import -v -trustcacerts -alias "$CA_ALIAS" -file "$CA_CERT" -keystore "client_truststore.bks" -storetype BKS -providerclass org.bouncycastle.jce.provider.BouncyCastleProvider -providerpath "$BC_JAR"
-
- where `CA_ALIAS` is the name of your CA, `CA_CERT` is the path to the CA certificate, and `BC_JAR` is the path to the Bouncy Castle JAR file. The command will prompt you to enter a password for the trust store. Then, open `src/org/mitre/svmp/Constants.java` and change the *TRUSTSTORE_PASSWORD* value to match. After completing all of these steps, rebuild the client.
+ If you encounter errors related to the keystore password, ensure the value for *TRUSTSTORE_PASSWORD*
+ in the file `src/org/mitre/svmp/common/Constants.java` matches the *client.truststore.password*
+ property in `custom_rules.xml`.
+ 
+ The build process will attempt to download the Bouncy Castle crypto provider jar needed for
+ creating the keystore. If this fails, check that your http proxy settings for ant are correct.
 
 2. **Certificate Dialog**
 
@@ -89,7 +93,7 @@ In the *"Sensors"* preferences, you can adjust what sensors are polled to send d
 
 ## License
 
-Copyright (c) 2012-2013, The MITRE Corporation, All Rights Reserved.
+Copyright (c) 2012-2014, The MITRE Corporation, All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

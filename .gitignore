@@ -16,6 +16,9 @@ gen/
 MemorizingTrustManager/gen/
 src/org/mitre/svmp/protocol/
 src/com
+build-libs/
+res/raw/client_truststore.bks
+server_certs/
 
 # Local configuration file (sdk path, etc)
 local.properties

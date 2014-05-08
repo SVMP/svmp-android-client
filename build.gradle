@@ -8,6 +8,8 @@ buildscript {
 }
 apply plugin: 'android'
 
+ant.importBuild 'custom_rules.xml'
+
 dependencies {
     /*compile files('libs/svmp-protocol.jar','libs/armeabi-v7a/libwebrtc-video-demo-jni.so')*/
     //compile files('libs/libjingle_peerconnection.jar', '../svmp-protocol-def/protobuf-2.5.0/protobuf-java-2.5.0.jar')
@@ -51,4 +53,9 @@ android {
 
         instrumentTest.setRoot('tests')
     }
+}
+
+project.afterEvaluate {
+    preBuild.dependsOn import_client_truststore_certs
+    clean.dependsOn '-pre-clean'
 }
