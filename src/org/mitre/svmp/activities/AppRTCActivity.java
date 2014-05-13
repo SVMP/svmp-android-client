@@ -55,6 +55,7 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.service.textservice.SpellCheckerService;
 import android.util.Log;
 import android.view.*;
 import android.widget.Toast;
@@ -63,10 +64,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.apprtc.*;
 import org.mitre.svmp.client.*;
-import org.mitre.svmp.common.ConnectionInfo;
-import org.mitre.svmp.common.Constants;
-import org.mitre.svmp.common.DatabaseHandler;
-import org.mitre.svmp.common.StateObserver;
+import org.mitre.svmp.common.*;
 import org.mitre.svmp.performance.PerformanceAdapter;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
@@ -282,6 +280,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     public void startProgressDialog() {
         vsv.setBackgroundColor(Color.DKGRAY); // if it isn't already set, make the background color dark gray
         pd = new ProgressDialog(AppRTCActivity.this);
+        pd.setCanceledOnTouchOutside(false);
         pd.setTitle(R.string.appRTC_progressDialog_title);
         pd.setMessage(getResources().getText(R.string.appRTC_progressDialog_message));
         pd.setIndeterminate(true);
@@ -461,6 +460,11 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             }
 
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
+
+            // if the useBackground preference is unchecked, stop the session service before finishing
+            boolean useBackground = Utility.getPrefBool(this, R.string.preferenceKey_connection_useBackground, R.string.preferenceValue_connection_useBackground);
+            if (!useBackground)
+                stopService(new Intent(this, SessionService.class));
 
             if (!isFinishing())
                 finish();

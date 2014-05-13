@@ -33,6 +33,7 @@
     <string name="preferenceKey_performance_takeMeasurements">performance_takeMeasurements</string>
     <string name="preferenceKey_performance_measureInterval">performance_measureInterval</string>
     <string name="preferenceKey_performance_pingInterval">performance_pingInterval</string>
+    <string name="preferenceKey_connection_useBackground">connection_useBackground</string>
     <string name="preferenceKey_connection_useMTM">connection_useMTM</string>
 
     <!-- Preference value defaults -->
@@ -53,6 +54,7 @@
     <string name="preferenceValue_performance_takeMeasurements">false</string>
     <string name="preferenceValue_performance_measureInterval">1000</string>
     <string name="preferenceValue_performance_pingInterval">5000</string>
+    <string name="preferenceValue_connection_useBackground">true</string>
     <string name="preferenceValue_connection_useMTM">false</string>
     
     <!-- Preference page elements -->
@@ -112,6 +114,11 @@
 
     <string name="preferenceScreen_connection_title">Connection</string>
     <string name="preferenceScreen_connection_summary">Control connection options</string>
+
+    <string name="preferenceCategory_general_title">General</string>
+
+    <string name="checkBoxPreference_connection_useBackground_title">Use background connection</string>
+    <string name="checkBoxPreference_connection_useBackground_summary">Allows the connection service to stay open in the background</string>
 
     <string name="preferenceCategory_security_title">Security</string>
 

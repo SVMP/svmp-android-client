@@ -52,6 +52,7 @@ public class SvmpActivity extends Activity implements Constants {
     // database handler
     protected DatabaseHandler dbHandler;
     protected boolean repopulateOnResume = true; // default behavior: repopulate layout during onResume()
+    protected boolean busy = false;
 
     public void onCreate(Bundle savedInstanceState, int layoutId) {
         super.onCreate(savedInstanceState);
@@ -156,6 +157,7 @@ public class SvmpActivity extends Activity implements Constants {
     @Override
     public void onResume() {
         super.onResume();
+        busy = false;
         if (repopulateOnResume) {
             // repopulate the layout in case DB information has changed
             populateLayout();
@@ -173,9 +175,19 @@ public class SvmpActivity extends Activity implements Constants {
 
     // Dialog for entering a password when a connection is opened
     protected void authPrompt(final ConnectionInfo connectionInfo) {
+        // prevent messes from double-tapping
+        if (busy)
+            return;
+        busy = true;
+
+        // if the service is already running for this connection, no need to prompt or authenticate
+        boolean serviceIsRunning = SessionService.getState() != STATE.NEW
+                && SessionService.getConnectionID() == connectionInfo.getConnectionID();
+
         // if we have a session token, try to authenticate with it
         String sessionToken = dbHandler.getSessionToken(connectionInfo);
-        if (sessionToken.length() > 0) {
+
+        if (serviceIsRunning || sessionToken.length() > 0) {
             startVideo(connectionInfo);
         }
         // we don't have a session token, so prompt for authentication input
@@ -207,6 +219,7 @@ public class SvmpActivity extends Activity implements Constants {
             if (inputRequired) {
                 // create a dialog
                 final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
+                        .setCancelable(false)
                         .setTitle( R.string.authPrompt_title)
                                 //                .setMessage(connectionInfo.domainUsername())
                         .setView(inputContainer)
@@ -219,7 +232,7 @@ public class SvmpActivity extends Activity implements Constants {
                         .setNegativeButton(R.string.authPrompt_button_negative_text,
                                 new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int whichButton) {
-                                        // Do nothing.
+                                        busy = false;
                                     }
                                 }).create();
                 // show the dialog

@@ -146,6 +146,16 @@
                 android:summary="@string/preferenceScreen_connection_summary"
                 >
             <PreferenceCategory
+                    android:title="@string/preferenceCategory_general_title"
+                    >
+            <CheckBoxPreference
+                    android:key="@string/preferenceKey_connection_useBackground"
+                    android:title="@string/checkBoxPreference_connection_useBackground_title"
+                    android:summary="@string/checkBoxPreference_connection_useBackground_summary"
+                    android:defaultValue="@string/preferenceValue_connection_useBackground"
+                    />
+            </PreferenceCategory>
+            <PreferenceCategory
                     android:title="@string/preferenceCategory_security_title"
                     >
                 <CheckBoxPreference
