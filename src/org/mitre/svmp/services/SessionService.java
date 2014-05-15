@@ -15,6 +15,7 @@
  */
 package org.mitre.svmp.services;
 
+import android.annotation.TargetApi;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
@@ -159,6 +160,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
         binder.disconnect();
     }
 
+    @TargetApi(16)
     private void showNotification() {
         Notification.Builder notice = new Notification.Builder(this);
         notice.setContentTitle("SVMP Session Service")
@@ -166,7 +168,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
                 .setSmallIcon(R.drawable.ic_launcher)
                 .setOngoing(true);
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN)
             ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
                     .notify(NOTIFICATION_ID, notice.build());
         else
