@@ -104,6 +104,7 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
     // common variables
     private ConnectionInfo connectionInfo;
     private DatabaseHandler dbHandler;
+    private boolean init = false; // switched to 'true' when activity first binds
     private boolean proxying = false;
     private boolean bound = false;
 
@@ -132,7 +133,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         this.sensorHandler = new SensorHandler(service, this);
 
         machine.setState(STATE.STARTED, 0);
-        (new SocketConnector()).execute();
     }
 
     // called from activity
@@ -141,8 +141,13 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         machine.addObserver(activity);
         this.bound = true;
 
+        // we don't initialize the SocketConnector until the activity first binds; mitigates concurrency issues
+        if (!init) {
+            init = true;
+            (new SocketConnector()).execute();
+        }
         // if the state is already running, we are reconnecting
-        if (machine.getState() == STATE.RUNNING) {
+        else if (machine.getState() == STATE.RUNNING) {
             activity.onOpen();
         }
     }
