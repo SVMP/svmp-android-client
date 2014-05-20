@@ -16,15 +16,15 @@
 package org.mitre.svmp.services;
 
 import android.annotation.TargetApi;
-import android.app.Notification;
-import android.app.NotificationManager;
-import android.app.Service;
+import android.app.*;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.os.*;
+import android.service.textservice.SpellCheckerService;
 import android.util.Log;
+import android.widget.Toast;
 import org.mitre.svmp.activities.ConnectionList;
-import org.mitre.svmp.activities.SvmpActivity;
 import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.apprtc.MessageHandler;
 import org.mitre.svmp.client.LocationHandler;
@@ -33,6 +33,7 @@ import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.*;
 import org.mitre.svmp.common.StateMachine.STATE;
 import org.mitre.svmp.performance.PerformanceAdapter;
+import org.mitre.svmp.protocol.SVMPProtocol.AuthResponse.AuthResponseType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
 /**
@@ -67,8 +68,11 @@ public class SessionService extends Service implements StateObserver, MessageHan
     private AppRTCClient binder; // Binder given to clients
     private StateMachine machine;
     private PerformanceAdapter performanceAdapter;
+    private NotificationManager notificationManager;
+    private Handler handler;
     private DatabaseHandler databaseHandler;
     private ConnectionInfo connectionInfo;
+    private boolean keepNotification;
 
     // client components
     private LocationHandler locationHandler;
@@ -80,13 +84,18 @@ public class SessionService extends Service implements StateObserver, MessageHan
         service = this;
         machine = new StateMachine();
         performanceAdapter = new PerformanceAdapter();
+        notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        handler = new Handler();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.v(TAG, "onStartCommand");
 
-        if (getState() == STATE.NEW) {
+        if (ACTION_STOP_SERVICE.equals(intent.getAction())) {
+            stopSelf();
+        }
+        else if (getState() == STATE.NEW) {
             // change state and get connectionID from intent
             machine.setState(STATE.STARTED, 0);
             int connectionID = intent.getIntExtra("connectionID", 0);
@@ -134,7 +143,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
         locationHandler = new LocationHandler(this, binder);
 
         // show notification
-        showNotification();
+        showNotification(true);
     }
 
     private void shutdown() {
@@ -151,34 +160,75 @@ public class SessionService extends Service implements StateObserver, MessageHan
         hideNotification();
 
         // clean up location updates
-        locationHandler.cleanupLocationUpdates();
+        if (locationHandler != null)
+            locationHandler.cleanupLocationUpdates();
 
         // disconnect from the database
-        databaseHandler.close();
+        if (databaseHandler != null)
+            databaseHandler.close();
 
         // try to disconnect the client object
-        binder.disconnect();
+        if (binder != null)
+            binder.disconnect();
     }
 
     @TargetApi(16)
-    private void showNotification() {
+    private void showNotification(boolean connected) {
         Notification.Builder notice = new Notification.Builder(this);
-        notice.setContentTitle("SVMP Session Service")
-                .setContentText(String.format("Connected to '%s'", connectionInfo.getDescription()))
-                .setSmallIcon(R.drawable.ic_launcher)
+        Resources resources = getResources();
+        CharSequence contentTitle = resources.getText(R.string.sessionService_notification_contentTitle);
+
+        String contentText;
+        if (connected) {
+            contentText = (String)resources.getText(R.string.sessionService_notification_contentText_connected);
+            notice.setSmallIcon(R.drawable.svmp_circle_green);
+        }
+        else {
+            // we need authentication, indicate that in the notification
+            contentText = (String)resources.getText(R.string.sessionService_notification_contentText_disconnected);
+            notice.setSmallIcon(R.drawable.svmp_circle_yellow);
+        }
+        notice.setContentTitle(contentTitle)
+                .setContentText(String.format(contentText, connectionInfo.getDescription()))
                 .setOngoing(true);
 
+        // Creates an explicit intent for the ConnectionList
+        Intent resultIntent = new Intent(this, ConnectionList.class);
+        resultIntent.putExtra("connectionID", connectionInfo.getConnectionID());
+
+        // The stack builder object will contain an artificial back stack for the
+        // started Activity.
+        // This ensures that navigating backward from the Activity leads out of
+        // your application to the Home screen.
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        // Adds the back stack for the Intent (but not the Intent itself)
+        stackBuilder.addParentStack(ConnectionList.class);
+        // Adds the Intent that starts the Activity to the top of the stack
+        stackBuilder.addNextIntent(resultIntent);
+        PendingIntent resultPendingIntent =
+                stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        notice.setContentIntent(resultPendingIntent);
+
+        // add "Open" action
+        CharSequence openText = resources.getText(R.string.sessionService_notification_action_open);
+        notice.addAction(android.R.drawable.ic_media_play, openText, resultPendingIntent);
+
+        // add "Exit" action
+        CharSequence exitText = resources.getText(R.string.sessionService_notification_action_exit);
+        Intent stopServiceIntent = new Intent(ACTION_STOP_SERVICE, null, this, SessionService.class);
+        PendingIntent stopServicePendingIntent = PendingIntent.getService(this, 0, stopServiceIntent, 0);
+        notice.addAction(android.R.drawable.ic_menu_close_clear_cancel, exitText, stopServicePendingIntent);
+
         if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN)
-            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
-                    .notify(NOTIFICATION_ID, notice.build());
+            notificationManager.notify(NOTIFICATION_ID, notice.build());
         else
-            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
-                    .notify(NOTIFICATION_ID, notice.getNotification());
+            notificationManager.notify(NOTIFICATION_ID, notice.getNotification());
     }
 
     private void hideNotification() {
-        ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
-                .cancel(NOTIFICATION_ID);
+        // hide the notification if we aren't supposed to keep it past the service life
+        if (!keepNotification)
+            notificationManager.cancel(NOTIFICATION_ID);
     }
 
     public void onStateChange(STATE oldState, STATE newState, int resID) {
@@ -204,6 +254,28 @@ public class SessionService extends Service implements StateObserver, MessageHan
         boolean consumed = true;
         switch (data.getType()) {
             case AUTH:
+                AuthResponseType type = data.getAuthResponse().getType();
+                if (type == AuthResponseType.SESSION_MAX_TIMEOUT || type == AuthResponseType.SESSION_IDLE_TIMEOUT) {
+
+                    // if we are using the background service preference, change the notification icon to indicate that the connection has been halted
+                    boolean useBackground = Utility.getPrefBool(this, R.string.preferenceKey_connection_useBackground, R.string.preferenceValue_connection_useBackground);
+                    if (useBackground) {
+                        keepNotification = true;
+                        showNotification(false);
+                    }
+
+                    // the activity isn't running...
+                    if (!binder.isBound()) {
+                        // clear timed out session information from memory
+                        databaseHandler.clearSessionInfo(connectionInfo);
+
+                        // create a toast
+                        if (type == AuthResponseType.SESSION_MAX_TIMEOUT)
+                            doToast(R.string.svmpActivity_toast_sessionMaxTimeout);
+                        else //if (type == AuthResponseType.SESSION_IDLE_TIMEOUT)
+                            doToast(R.string.svmpActivity_toast_sessionIdleTimeout);
+                    }
+                }
             case SCREENINFO:
             case WEBRTC:
                 consumed = false; // pass this message on to the activity message handler
@@ -226,5 +298,14 @@ public class SessionService extends Service implements StateObserver, MessageHan
                 Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
         }
         return consumed;
+    }
+
+    private void doToast(final int resID) {
+        // handler is needed to create a toast from a background thread
+        handler.post(new Runnable() {
+            public void run() {
+                Toast.makeText(SessionService.this, resID, Toast.LENGTH_LONG).show();
+            }
+        });
     }
 }

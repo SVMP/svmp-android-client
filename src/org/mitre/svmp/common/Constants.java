@@ -28,6 +28,7 @@ public interface Constants {
 
     public static final int DEFAULT_PORT = 8002;
     public static final String ACTION_REFRESH = "org.mitre.svmp.ACTION_REFRESH"; // causes SvmpActivity to refresh its layout
+    public static final String ACTION_STOP_SERVICE = "org.mitre.svmp.ACTION_STOP_SERVICE"; // causes SvmpActivity to refresh its layout
     public static final String PERMISSION_REFRESH = "org.mitre.svmp.PERMISSION_REFRESH"; // required to send ACTION_REFRESH intent
     public static final boolean API_KITKAT = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT);
     public static final boolean API_ICS = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);

@@ -91,8 +91,8 @@
     <string name="connectionDetails_toast_certAuthNeedsAlias">You must select a certificate to use certificate authentication</string>
 
     <!-- SvmpActivity toast resources -->
-    <string name="svmpActivity_toast_sessionMaxTimeout">Session reached max life timeout, please re-authenticate</string>
-    <string name="svmpActivity_toast_sessionIdleTimeout">Session reached idle timeout, please re-authenticate</string>
+    <string name="svmpActivity_toast_sessionMaxTimeout">SVMP session reached max life timeout, please re-authenticate</string>
+    <string name="svmpActivity_toast_sessionIdleTimeout">SVMP session reached idle timeout, please re-authenticate</string>
 
     <!-- AppRTC toast resources -->
     <string name="appRTC_toast_connection_start">Connecting to room…</string>
@@ -117,6 +117,13 @@
     <string name="appRTC_toast_clientHandler_finish">Remote end hung up; dropping PeerConnection</string>
     <string name="appRTC_toast_sdpObserver_sendOffer">Sending offer</string>
     <string name="appRTC_toast_sdpObserver_createAnswer">Creating answer</string>
+
+    <!-- SessionService notification resources -->
+    <string name="sessionService_notification_contentTitle">SVMP Session Service</string>
+    <string name="sessionService_notification_contentText_connected">Connected to \'%s\'</string>
+    <string name="sessionService_notification_contentText_disconnected">Re-authenticate \'%s\'</string>
+    <string name="sessionService_notification_action_open">Open</string>
+    <string name="sessionService_notification_action_exit">Exit</string>
 
     <!-- SvmpActivity dialog resources -->
     <string name="authPrompt_title">Authentication required</string>

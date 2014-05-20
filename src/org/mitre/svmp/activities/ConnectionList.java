@@ -61,6 +61,13 @@ public class ConnectionList extends SvmpActivity {
             }
         };
         registerReceiver(receiver, filter, PERMISSION_REFRESH, null);
+
+        // if we received an intent indicating which connection to open, act upon it
+        Intent intent = getIntent();
+        if (intent.hasExtra("connectionID")) {
+            int id = intent.getIntExtra("connectionID", 0);
+            authPrompt(dbHandler.getConnectionInfo(id));
+        }
     }
 
     @Override

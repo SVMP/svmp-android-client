@@ -159,6 +159,10 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         this.activity = null;
     }
 
+    public boolean isBound() {
+        return this.activity != null;
+    }
+
     public SessionService getService() {
         // Return this instance of SessionService so clients can call public methods
         return this.service;

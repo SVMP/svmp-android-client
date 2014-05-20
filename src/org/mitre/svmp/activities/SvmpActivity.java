@@ -52,7 +52,7 @@ public class SvmpActivity extends Activity implements Constants {
     // database handler
     protected DatabaseHandler dbHandler;
     protected boolean repopulateOnResume = true; // default behavior: repopulate layout during onResume()
-    protected boolean busy = false;
+    protected boolean busy = false; // is set to 'true' immediately after starting a connection, set to 'false' when resuming
 
     public void onCreate(Bundle savedInstanceState, int layoutId) {
         super.onCreate(savedInstanceState);
@@ -105,6 +105,8 @@ public class SvmpActivity extends Activity implements Constants {
     // activity returns
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        busy = false; // onActivityResult is called before onResume
+
         // if this result has an intent, and the intent has a message, display a Toast
         int resId;
         if( data != null && (resId = data.getIntExtra("message", 0)) > 0 )
@@ -138,7 +140,7 @@ public class SvmpActivity extends Activity implements Constants {
                             // we used session token authentication and it failed
                             // discard it and retry normal authentication
                             dbHandler.clearSessionInfo(connectionInfo);
-                            authPrompt(connectionInfo);
+                            authPrompt(connectionInfo, true);
                         }
                         else {
                             // we used normal authentication and it failed
@@ -146,7 +148,7 @@ public class SvmpActivity extends Activity implements Constants {
                             // check to see if this AuthType needs user input (ex: CertificateType doesn't)
                             // if it does, re-prompt the user
                             if (authType.needsUserInput())
-                                authPrompt(connectionInfo);
+                                authPrompt(connectionInfo, true);
                         }
                     }
                 }
@@ -173,8 +175,14 @@ public class SvmpActivity extends Activity implements Constants {
         dbHandler.close();
     }
 
+    // overload
+    protected void authPrompt(ConnectionInfo connectionInfo) {
+        authPrompt(connectionInfo, false);
+    }
     // Dialog for entering a password when a connection is opened
-    protected void authPrompt(final ConnectionInfo connectionInfo) {
+    protected void authPrompt(final ConnectionInfo connectionInfo, boolean forceAuth) {
+        // 'forceAuth' is used if we need to re-authenticate but the session service might not be fully shut down yet
+
         // prevent messes from double-tapping
         if (busy)
             return;
@@ -187,7 +195,7 @@ public class SvmpActivity extends Activity implements Constants {
         // if we have a session token, try to authenticate with it
         String sessionToken = dbHandler.getSessionToken(connectionInfo);
 
-        if (serviceIsRunning || sessionToken.length() > 0) {
+        if (!forceAuth && (serviceIsRunning || sessionToken.length() > 0)) {
             startVideo(connectionInfo);
         }
         // we don't have a session token, so prompt for authentication input

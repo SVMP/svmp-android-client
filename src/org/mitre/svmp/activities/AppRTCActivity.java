@@ -55,7 +55,6 @@ import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.service.textservice.SpellCheckerService;
 import android.util.Log;
 import android.view.*;
 import android.widget.Toast;
@@ -269,11 +268,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
-            bound = false;
-            appRtcClient.disconnectFromRoom();
-            appRtcClient = null;
-            service = null;
-            performanceAdapter.clearPerformanceData();
         }
     };
 
@@ -428,8 +422,9 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         Intent intent = new Intent();
         intent.putExtra("connectionID", connectionInfo.getConnectionID());
         if (messageResID > 0)
-            intent.putExtra("message", messageResID); // toast to show to user when the activity finishes
+            logAndToast(messageResID);
         setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
+
         disconnectAndExit();
     }
 
@@ -457,6 +452,11 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 }
                 pcObserver.quit();
                 unbindService(serviceConnection);
+                bound = false;
+                appRtcClient.disconnectFromRoom();
+                appRtcClient = null;
+                service = null;
+                performanceAdapter.clearPerformanceData();
             }
 
             stopProgressDialog(); // prevent resource leak if we disconnect while the progress dialog is still up
@@ -476,9 +476,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     }
 
     public void onStateChange(STATE oldState, STATE newState, int resID) {
-        // if the state change included a message, log it and display a toast popup message
-        if (resID > 0)
-            logAndToast(resID);
+        boolean exit = false;
 
         switch(newState) {
             case CONNECTED:
@@ -490,22 +488,15 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             case RUNNING:
                 break;
             case ERROR:
-                // by default, when the connection list resumes, don't do anything
-                Intent intent = new Intent();
-                setResult(SvmpActivity.RESULT_CANCELED, intent);
-
-                // if we are in an error state, check the previous state and act appropriately
+                // we are in an error state, check the previous state and act appropriately
                 switch(oldState) {
                     case STARTED: // failed to connect the socket and transition to CONNECTED
                         // the socket connection failed, display the failure message and return to the connection list
                         break;
                     case CONNECTED: // failed to authenticate and transition to AUTH
                         if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
-                            // clear timed out session information from memory
-                            dbHandler.clearSessionInfo(connectionInfo);
-                            // our authentication was rejected, bring up the auth prompt when the connection list resumes
-                            intent.putExtra("connectionID", connectionInfo.getConnectionID());
-                            setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
+                            // our authentication was rejected, exit and bring up the auth prompt when the connection list resumes
+                            needAuth(resID);
                         }
                         // otherwise, we had an SSL error, display the failure message and return to the connection list
                         break;
@@ -517,12 +508,19 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                         break;
                 }
 
-                // finish this activity and return to the connection list
-                disconnectAndExit();
+                exit = true;
                 break;
             default:
                 break;
         }
+
+        // if the state change included a message, log it and display a toast popup message
+        if (resID > 0 && !quit[0])
+            logAndToast(resID);
+
+        if (exit)
+            // finish this activity and return to the connection list
+            disconnectAndExit();
     }
 
     /////////////////////////////////////////////////////////////////////
