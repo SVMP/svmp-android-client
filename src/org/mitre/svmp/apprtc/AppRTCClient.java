@@ -51,6 +51,7 @@ import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import de.duenndns.ssl.MemorizingTrustManager;
+
 import org.mitre.svmp.client.SensorHandler;
 import org.mitre.svmp.performance.PerformanceTimer;
 import org.mitre.svmp.services.SessionService;
@@ -69,6 +70,7 @@ import org.webrtc.MediaConstraints;
 
 import javax.net.SocketFactory;
 import javax.net.ssl.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,6 +78,7 @@ import java.net.Socket;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Date;
+import java.util.TimeZone;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -487,6 +490,12 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                 // send video info request
                 Request.Builder req = Request.newBuilder();
                 req.setType(RequestType.VIDEO_PARAMS);
+                req.build().writeDelimitedTo(socketOut);
+                
+                // send timezone update too
+                req.clear();
+                req.setType(RequestType.TIMEZONE);
+                req.setTimezoneId(TimeZone.getDefault().getID());
                 req.build().writeDelimitedTo(socketOut);
 
                 // get video info response
