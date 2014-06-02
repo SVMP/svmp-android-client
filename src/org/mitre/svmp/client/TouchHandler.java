@@ -26,46 +26,38 @@ import android.util.Log;
 import android.view.MotionEvent;
 
 /**
- * Input capture view. Sets itself in the foreground and captures touch input events
- * to be sent to a remote SVMP instance.
+ * @author Dave Keppler, Joe Portner
+ * Captures touch input events to be sent to a remote SVMP instance.
  */
 public class TouchHandler implements Constants {
 
     private static final String TAG = TouchHandler.class.getName();
-    
+
     private AppRTCActivity activity;
     private PerformanceAdapter spi;
     private Point displaySize;
-    
+
     private float xScaleFactor, yScaleFactor = 0;
     private boolean gotScreenInfo = false;
 
     public TouchHandler(AppRTCActivity activity, Point displaySize, PerformanceAdapter spi) {
-//        super(context);
-        
         this.activity = activity;
         this.displaySize = displaySize;
         this.spi = spi;
-
-        // make sure we're on top and have input focus
-//        bringToFront();
-//        requestFocus();
-//        requestFocusFromTouch();
-//        setClickable(true);
     }
-    
+
     public void sendScreenInfoMessage() {
         SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
         msg.setType(RequestType.SCREENINFO);
-        
+
         activity.sendMessage(msg.build());
         Log.d(TAG, "Sent screen info request");
     }
-    
+
     public boolean handleScreenInfoResponse(SVMPProtocol.Response msg) {
         if (!msg.hasScreenInfo())
             return false;
-        
+
         final int x = msg.getScreenInfo().getX();
         final int y = msg.getScreenInfo().getY();
 
@@ -75,48 +67,60 @@ public class TouchHandler implements Constants {
         Log.i(TAG, "Scale factor: " + xScaleFactor + " ; " + yScaleFactor);
 
         gotScreenInfo = true;
-        
+
         return true;
     }
 
-//    @Override
     public boolean onTouchEvent(final MotionEvent event) {
         if (!activity.isConnected() || !gotScreenInfo) return false;
 
         // increment the touch update count for performance measurement
         spi.incrementTouchUpdates();
 
-        // SEND REMOTE EVENT
+        // Create Protobuf message builders
         SVMPProtocol.Request.Builder msg = SVMPProtocol.Request.newBuilder();
         SVMPProtocol.TouchEvent.Builder eventmsg = SVMPProtocol.TouchEvent.newBuilder();
         SVMPProtocol.TouchEvent.PointerCoords.Builder p = SVMPProtocol.TouchEvent.PointerCoords.newBuilder();
-                
-        switch (event.getActionMasked()){
-            case MotionEvent.ACTION_POINTER_DOWN:
-                eventmsg.setAction(MotionEvent.ACTION_POINTER_DOWN | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT));
-                break;
-            case MotionEvent.ACTION_POINTER_UP:
-                eventmsg.setAction(MotionEvent.ACTION_POINTER_UP | (1 << MotionEvent.ACTION_POINTER_INDEX_SHIFT));
-                break;
-            default:
-                eventmsg.setAction(event.getActionMasked());
-                break;
-        }
-        
+        SVMPProtocol.TouchEvent.HistoricalEvent.Builder h = SVMPProtocol.TouchEvent.HistoricalEvent.newBuilder();
+
+        // Set general touch event information
+        eventmsg.setAction(event.getAction());
+        eventmsg.setDownTime(event.getDownTime());
+        eventmsg.setEventTime(event.getEventTime());
+        eventmsg.setEdgeFlags(event.getEdgeFlags());
+
+        // Loop and set pointer/coordinate information
         final int pointerCount = event.getPointerCount();
         for (int i = 0; i < pointerCount; i++) {
             final float adjX = event.getX(i) * this.xScaleFactor;
             final float adjY = event.getY(i) * this.yScaleFactor;
             p.clear();
-            p.setId(i);
+            p.setId(event.getPointerId(i));
             p.setX(adjX);
             p.setY(adjY);
             eventmsg.addItems(p.build());
         }
 
+        // Loop and set historical pointer/coordinate information
+        final int historicalCount = event.getHistorySize();
+        for (int i = 0; i < historicalCount; i++) {
+            h.clear();
+            for (int j = 0; j < pointerCount; j++) {
+                p.clear();
+                p.setId(event.getPointerId(j));
+                p.setX(event.getHistoricalX(j,i) * this.xScaleFactor);
+                p.setY(event.getHistoricalY(j,i) * this.yScaleFactor);
+                h.addCoords(p.build());
+            }
+            h.setEventTime(event.getHistoricalEventTime(i));
+            eventmsg.addHistorical(h.build());
+        }
+
+        // Add Request wrapper around touch event
         msg.setType(RequestType.TOUCHEVENT);
         msg.addTouch(eventmsg); // TODO: batch touch events
 
+        // Send touch event to VM
         activity.sendMessage(msg.build());
 
         return true;
