@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+
+                android:clickable="true" android:focusable="false"
+                android:longClickable="true" android:onClick="onClick_App">
+
+    <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/appListItem_imageView" android:src="@drawable/ic_launcher" android:layout_centerHorizontal="true"
+            android:background="#80000000"
+            android:layout_alignParentRight="false"/>
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="appName"
+            android:id="@+id/appListItem_textView" android:layout_below="@+id/appListItem_imageView"
+            android:layout_centerHorizontal="true" android:autoText="false" android:maxWidth="@dimen/appList_gridView_columnSize"
+            android:maxLines="2" android:singleLine="false" android:ellipsize="end" android:textSize="@dimen/textSize_small"
+            android:gravity="center_horizontal" android:minLines="2" android:layout_alignParentRight="true"
+            android:textColor="@android:color/white"/>
+</RelativeLayout>

@@ -239,10 +239,6 @@ public class SessionService extends Service implements StateObserver, MessageHan
     // Google AppEngine message handler method
     @Override
     public void onOpen() {
-        if (!binder.isInitiator()) {
-            return;
-        }
-
         locationHandler.initLocationUpdates();
     }
 
@@ -293,6 +289,9 @@ public class SessionService extends Service implements StateObserver, MessageHan
                 long endDate = System.currentTimeMillis(); // immediately get end date
                 if (data.hasPingResponse())
                     performanceAdapter.setPing(data.getPingResponse().getStartDate(), endDate);
+                break;
+            case APPS:
+                consumed = false; // pass this message on to the activity message handler
                 break;
             default:
                 Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());

@@ -21,4 +21,5 @@
     <dimen name="textSize_small">12dp</dimen>
     <dimen name="padding_normal">5dp</dimen>
     <dimen name="padding_large">10dp</dimen>
+    <dimen name="appList_gridView_columnSize">65dp</dimen>
 </resources>

@@ -16,12 +16,12 @@
 package org.mitre.svmp.widgets;
 
 import android.content.Context;
-import android.graphics.Color;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import org.mitre.svmp.client.R;
@@ -29,14 +29,14 @@ import org.mitre.svmp.client.R;
 /**
  * @author Joe Portner
  */
-public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
+public abstract class GridArrayAdapter<T> extends ArrayAdapter<T> {
     private int mListItemLayoutResId;
 
-    public TwoLineArrayAdapter(Context context, T[] ts) {
-        this(context, R.layout.connection_list_item, ts);
+    public GridArrayAdapter(Context context, T[] ts) {
+        this(context, R.layout.app_list_item, ts);
     }
 
-    public TwoLineArrayAdapter(
+    public GridArrayAdapter(
             Context context,
             int listItemLayoutResourceId,
             T[] ts) {
@@ -63,43 +63,31 @@ public abstract class TwoLineArrayAdapter<T> extends ArrayAdapter<T> {
         }
 
         // get the child views in the layout
-        TextView lineOneView = (TextView)listItemView.findViewById(
-                R.id.connectionListItem_text1);
-        TextView lineTwoView = (TextView)listItemView.findViewById(
-                R.id.connectionListItem_text2);
-        Button buttonView = (Button)listItemView.findViewById(
-                R.id.connectionListItem_button);
+        ImageView imageView = (ImageView)listItemView.findViewById(
+                R.id.appListItem_imageView);
+        TextView textView = (TextView)listItemView.findViewById(
+                R.id.appListItem_textView);
 
         T t = (T)getItem(position);
-        lineOneView.setText(lineOneText(t));
-        lineTwoView.setText(lineTwoText(t));
-        buttonView.setText(buttonText(t));
 
-        // if the session service is running for this connection, make the text green; otherwise, make it light gray
-        if (isActive(t)) {
-            lineOneView.setTextColor(Color.GREEN);
-            lineTwoView.setTextColor(Color.GREEN);
-        } else {
-            lineOneView.setTextColor(Color.LTGRAY);
-            lineTwoView.setTextColor(Color.LTGRAY);
-        }
+        // try to decode the AppInfo's "icon" byte array into an image
+        Bitmap bitmap = image(t);
 
-        ImageView lockImageView = (ImageView)listItemView.findViewById(
-                R.id.connectionListItem_lockImage);
+//        if (bitmap == null)
+//            bitmap = BitmapFactory.decodeResource(getContext().getResources(), R.drawable.icon_default);
 
-        if (!hasEncryption(t))
-            lockImageView.setVisibility(View.GONE);
+        // if decoding the bitmap was not successful, use the default icon
+        if (bitmap != null)
+            imageView.setImageBitmap(bitmap);
+        else
+            imageView.setImageResource(R.drawable.ic_launcher);
+
+        textView.setText(text(t));
 
         return listItemView;
     }
 
-    public abstract String lineOneText(T t);
+    public abstract String text(T t);
 
-    public abstract String lineTwoText(T t);
-
-    public abstract boolean isActive(T t);
-
-    public abstract boolean hasEncryption(T t);
-
-    public abstract String buttonText(T t);
+    public abstract Bitmap image(T t);
 }

@@ -43,7 +43,7 @@ import java.util.Map;
  * @author Joe Portner
  */
 public class SvmpActivity extends Activity implements Constants {
-    private static final int REQUESTCODE_VIDEO = 100;
+    public static final int REQUEST_STARTVIDEO = 100;
     public final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
     public final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
     public final static int RESULT_FINISH = 102; // finish the parent activity
@@ -196,7 +196,7 @@ public class SvmpActivity extends Activity implements Constants {
         String sessionToken = dbHandler.getSessionToken(connectionInfo);
 
         if (!forceAuth && (serviceIsRunning || sessionToken.length() > 0)) {
-            startVideo(connectionInfo);
+            startAppRTC(connectionInfo);
         }
         // we don't have a session token, so prompt for authentication input
         else {
@@ -234,7 +234,7 @@ public class SvmpActivity extends Activity implements Constants {
                         .setPositiveButton(R.string.authPrompt_button_positive_text,
                                 new DialogInterface.OnClickListener() {
                                     public void onClick(DialogInterface dialog, int whichButton) {
-                                        startVideoWithAuth(connectionInfo, moduleViewMap);
+                                        startAppRTCWithAuth(connectionInfo, moduleViewMap);
                                     }
                                 })
                         .setNegativeButton(R.string.authPrompt_button_negative_text,
@@ -250,12 +250,12 @@ public class SvmpActivity extends Activity implements Constants {
             }
             else {
                 // no input is required for the selected AuthType, so just start the next activity
-                startVideoWithAuth(connectionInfo, moduleViewMap);
+                startAppRTCWithAuth(connectionInfo, moduleViewMap);
             }
         }
     }
 
-    private void startVideoWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
+    private void startAppRTCWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
         // create an Intent to send for authorization
         Request authRequest = buildAuthRequest(
                 connectionInfo.getAuthType(),
@@ -264,7 +264,7 @@ public class SvmpActivity extends Activity implements Constants {
         // authorize user credentials
         AuthData.setAuthRequest(connectionInfo, authRequest);
         // legacy code (will change when Service is implemented)
-        startVideo(connectionInfo);
+        startAppRTC(connectionInfo);
     }
 
     private Request buildAuthRequest(int authTypeID, String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
@@ -287,8 +287,7 @@ public class SvmpActivity extends Activity implements Constants {
         return rBuilder.build();
     }
 
-    // starts a ClientSideActivityDirect activity for connecting to a server
-    private void startVideo(ConnectionInfo connectionInfo) {
+    private void startAppRTC(ConnectionInfo connectionInfo) {
         // if the session service is running for a different connection, stop it
         boolean stopService = SessionService.getConnectionID() != connectionInfo.getConnectionID()
                 && SessionService.getState() != STATE.NEW;
@@ -299,14 +298,12 @@ public class SvmpActivity extends Activity implements Constants {
         if (stopService || SessionService.getState() == STATE.NEW)
             startService(new Intent(this, SessionService.class).putExtra("connectionID", connectionInfo.getConnectionID()));
 
-        // create explicit intent
-        Intent intent = new Intent(SvmpActivity.this, AppRTCActivity.class);
+        // after we make sure the service is started, we can start the AppRTC actions for this activity
+        afterStartAppRTC(connectionInfo);
+    }
 
-        // add data to intent
-        intent.putExtra("connectionID", connectionInfo.getConnectionID());
-
-        // start the activity without expecting a result
-        startActivityForResult(intent, REQUESTCODE_VIDEO);
+    // override this method in child classes
+    protected void afterStartAppRTC(ConnectionInfo connectionInfo) {
     }
 
     protected void toastShort(int resId) {

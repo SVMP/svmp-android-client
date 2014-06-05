@@ -47,4 +47,9 @@ public class ConnectionInfoArrayAdapter extends TwoLineArrayAdapter<ConnectionIn
     public boolean hasEncryption(ConnectionInfo connectionInfo) {
         return connectionInfo.getEncryptionType() != Constants.ENCRYPTION_NONE;
     }
+
+    @Override
+    public String buttonText(ConnectionInfo connectionInfo) {
+        return connectionInfo.buttonText();
+    }
 }

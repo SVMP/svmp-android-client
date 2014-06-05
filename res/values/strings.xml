@@ -70,9 +70,16 @@
     <string name="connectionDetails_textView_encryption_text">Encryption</string>
     <string name="connectionDetails_textView_domain_text">Domain</string>
     <string name="connectionDetails_textView_authType_text">Auth Type</string>
+    <string name="connectionDetails_textView_certificate_text">Certificate</string>
     <string name="connectionDetails_button_save_text">Save</string>
     <string name="connectionDetails_button_cancel_text">Cancel</string>
     <string name="connectionDetails_button_certificate_none_text">none</string>
+
+    <!-- AppList layout resources -->
+    <string name="appList_title">SVMP Apps</string>
+    <string name="appList_button_refreshList_text">Refresh List</string>
+    <string name="appList_actionBar_allApps">All Apps</string>
+    <string name="appList_actionBar_favorites">Favorites</string>
 
     <!-- ConnectionList toast resources -->
     <string name="connectionList_toast_added">New connection created</string>
@@ -118,6 +125,15 @@
     <string name="appRTC_toast_sdpObserver_sendOffer">Sending offer</string>
     <string name="appRTC_toast_sdpObserver_createAnswer">Creating answer</string>
 
+    <!-- AppList toast resources -->
+    <string name="appList_toast_addedFavorite">Added app to favorites</string>
+    <string name="appList_toast_removedFavorite">Removed app from favorites</string>
+    <string name="appList_toast_createdShortcut">Sending create command&#8230;</string>
+    <string name="appList_toast_removedShortcuts">Sending remove command&#8230;</string>
+    <string name="appList_toast_notFound">Couldn\'t find requested app</string>
+    <string name="appList_toast_refreshSuccess">Successfully refreshed apps</string>
+    <string name="appList_toast_refreshFail">App refresh failed, please try again</string>
+
     <!-- SessionService notification resources -->
     <string name="sessionService_notification_contentTitle">SVMP Session Service</string>
     <string name="sessionService_notification_contentText_connected">Connected to \'%s\'</string>
@@ -136,6 +152,11 @@
 
     <!-- Menu resources -->
     <string name="menu_title_preferences">Preferences</string>
-    <string name="connectionDetails_textView_certificate_text">Certificate</string>
+    <string name="menu_title_refreshAppListQuick">Refresh apps (quick)</string>
+    <string name="menu_title_refreshAppListFull">Refresh apps (full)</string>
+    <string name="contextMenu_appList_addFavorite">Add to favorites</string>
+    <string name="contextMenu_appList_removeFavorite">Remove from favorites</string>
+    <string name="contextMenu_appList_createShortcut">Create shortcut</string>
+    <string name="contextMenu_appList_removeShortcut">Remove shortcuts</string>
 
 </resources>

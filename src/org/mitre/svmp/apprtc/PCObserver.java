@@ -47,7 +47,7 @@ import android.graphics.Color;
 import android.util.Log;
 import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONObject;
-import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.activities.AppRTCVideoActivity;
 import org.mitre.svmp.client.R;
 import org.webrtc.*;
 
@@ -57,13 +57,13 @@ import java.util.List;
 //Implementation detail: observe ICE & stream changes and react accordingly.
 public class PCObserver implements PeerConnection.Observer {
     static final String TAG = PCObserver.class.getName();
-    AppRTCActivity activity;
+    AppRTCVideoActivity activity;
     PeerConnection pc;
     LinkedList<IceCandidate> queuedRemoteCandidates;
     PeerConnectionFactory factory;
     boolean quit;
 
-    public PCObserver(AppRTCActivity activity) {
+    public PCObserver(AppRTCVideoActivity activity) {
         this.activity = activity;
         queuedRemoteCandidates = new LinkedList<IceCandidate>();
         quit = false;

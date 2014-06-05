@@ -20,6 +20,7 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteQueryBuilder;
 import android.util.Log;
 import org.mitre.svmp.performance.MeasurementInfo;
 import org.mitre.svmp.performance.PointPerformanceData;
@@ -37,15 +38,17 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 9;
+    public static final int DB_VERSION = 10;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
     public static final int TABLE_PERFORMANCE_DATA = 2; // raw performance data
+    public static final int TABLE_APPS = 3; // app data for each connection
     public static final String[] Tables = new String[]{
         "Connections",
         "MeasurementInfo",
-        "PerformanceData"
+        "PerformanceData",
+        "Apps"
     };
 
     // this is used to generate queries to create new tables with appropriate constraints
@@ -85,6 +88,13 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"CellNetwork", "INTEGER"},   // what network the device is on (see TelephonyManager.NETWORK_* constants)
             {"CellValues", "TEXT"},       // a variety of cell values (depends on network type; LTE, GSM, CDMA/EVDO...)
             {"Ping", "INTEGER"}           // last ping response in ms
+        }, {
+            {"ConnectionID", "INTEGER", "PRIMARY KEY"},
+            {"PackageName", "TEXT", "PRIMARY KEY"}, // this might exist on multiple connections
+            {"AppName", "TEXT"},
+            {"Favorite", "BOOLEAN"},
+            {"Icon", "BLOB"},
+            {"IconHash", "BLOB"}
         }
     };
 
@@ -144,6 +154,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 addTableColumn(TABLE_CONNECTIONS, 10, "0", db); // SessionExpires column added
                 addTableColumn(TABLE_CONNECTIONS, 11, "0", db); // SessionGracePeriod column added
                 addTableColumn(TABLE_CONNECTIONS, 12, "0", db); // LastDisconnected column added
+            case 9:
+                // added Apps table, no need to change existing data
+                createTable(TABLE_APPS, db);
             default:
                 break;
         }
@@ -310,18 +323,21 @@ public class DatabaseHandler extends SQLiteOpenHelper {
 
     // selection and selectionArgs are optional
     private Cursor _getConnectionInfoCursor(String selection, String... selectionArgs) {
+        SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
+        queryBuilder.setTables(String.format("%s NATURAL LEFT JOIN %s", Tables[TABLE_CONNECTIONS], Tables[TABLE_APPS]));
+
         // prepared statement for speed and security
-        Cursor cursor = getDb().query(
-                Tables[TABLE_CONNECTIONS], // table
-                null, // columns (null == "*")
+        return queryBuilder.query(
+                getDb(),
+                new String[]{"ConnectionID", "Description", "Username", "Host", "Port", "EncryptionType",
+                        "AuthType", "CertificateAlias",
+                        "COUNT(PackageName)"}, // columns (null == "*")
                 selection, // selection ('where' clause)
                 selectionArgs, // selection args
-                null, // group by
+                "ConnectionID", // group by
                 null, // having
-                null // order by
+                "Description" // order by
         );
-
-        return cursor;
     }
 
     // returns an empty string if the connection doesn't have a valid session token
@@ -432,6 +448,80 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return performanceDataList;
     }
 
+    public List<AppInfo> getAppInfoList_All(int connectionID) {
+        return getAppInfoList("ConnectionID=?", String.valueOf(connectionID));
+    }
+
+    public List<AppInfo> getAppInfoList_Favorites(int connectionID) {
+        return getAppInfoList("ConnectionID=? AND Favorite=1", String.valueOf(connectionID));
+    }
+
+    // returns a list of apps for a given ConnectionID, ordered by AppName
+    private List<AppInfo> getAppInfoList(String selection, String... selectionArgs) {
+        // prepared statement for speed and security
+        Cursor cursor = getDb().query(
+                Tables[TABLE_APPS], // table
+                null, // columns (null == "*")
+                selection, // selection ('where' clause)
+                selectionArgs, // selection args
+                null, // group by
+                null, // having
+                "AppName" // order by
+        );
+
+        // try to get results and add AppInfo objects to the list
+        List<AppInfo> appInfoList = new ArrayList<AppInfo>();
+        while (cursor.moveToNext()) {
+            // construct a new AppInfo from the cursor
+            AppInfo appInfo = makeAppInfo(cursor);
+
+            // add the AppInfo to the list
+            if (appInfo != null)
+                appInfoList.add(appInfo);
+        }
+
+        // cleanup
+        try {
+            cursor.close();
+        } catch (Exception e) {
+            // don't care
+        }
+
+        return appInfoList;
+    }
+
+    // returns an AppInfo that matches the given ConnectionID and PackageName (null if none found)
+    public AppInfo getAppInfo(int connectionID, String packageName) {
+        return _getAppInfo("ConnectionID=? AND PackageName=?", String.valueOf(connectionID), packageName);
+    }
+
+    private AppInfo _getAppInfo(String selection, String... selectionArgs) {
+        // prepared statement for speed and security
+        Cursor cursor = getDb().query(
+                Tables[TABLE_APPS], // table
+                null, // columns (null == "*")
+                selection, // selection ('where' clause)
+                selectionArgs, // selection args
+                null, // group by
+                null, // having
+                null // order by
+        );
+
+        // try to get results and make an AppInfo object to return
+        AppInfo appInfo = null;
+        if (cursor.moveToFirst())
+            appInfo = makeAppInfo(cursor);
+
+        // cleanup
+        try {
+            cursor.close();
+        } catch (Exception e) {
+            // don't care
+        }
+
+        return appInfo;
+    }
+
     private ConnectionInfo makeConnectionInfo(Cursor cursor) {
         try {
             // get values from query
@@ -441,12 +531,12 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             String host = cursor.getString(3);
             int port = cursor.getInt(4);
             int encryptionType = cursor.getInt(5);
-            String domain = cursor.getString(6);
-            int authType = cursor.getInt(7);
-            String certificateAlias = cursor.getString(9);
+            int authType = cursor.getInt(6);
+            String certificateAlias = cursor.getString(7);
+            int appCount = cursor.getInt(8);
 
             return new ConnectionInfo(connectionID, description, username, host, port, encryptionType,
-                    authType, certificateAlias);
+                    authType, certificateAlias, appCount);
         } catch( Exception e ) {
             e.printStackTrace();
             return null;
@@ -519,6 +609,30 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return input;
     }
 
+    private AppInfo makeAppInfo(Cursor cursor) {
+        try {
+            // get values from query
+            int connectionID = cursor.getInt(0);
+            String packageName = cursor.getString(1);
+            String appName = cursor.getString(2);
+            int favoriteInt = cursor.getInt(3); // sqlite can't store booleans, only numbers
+            boolean favorite = favoriteInt == 1;
+
+            // if the AppInfo has an icon, get it
+            byte[] icon = null;
+            if (!cursor.isNull(4))
+                icon = cursor.getBlob(4);
+            byte[] iconHash = null;
+            if (!cursor.isNull(5))
+                iconHash = cursor.getBlob(5);
+
+            return new AppInfo(connectionID, packageName, appName, favorite, icon, iconHash);
+        } catch( Exception e ) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     public long insertConnectionInfo(ConnectionInfo connectionInfo) {
         // attempt insert
         return insertRecord(TABLE_CONNECTIONS, makeContentValues(connectionInfo));
@@ -551,6 +665,11 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         contentValues.put("Ping", pointMeasurements.getPing());
 
         return insertRecord(TABLE_PERFORMANCE_DATA, contentValues);
+    }
+
+    public long insertAppInfo(AppInfo appInfo) {
+        // attempt insert
+        return insertRecord(TABLE_APPS, makeContentValues(appInfo));
     }
 
     private long insertRecord(int tableID, ContentValues contentValues) {
@@ -612,6 +731,33 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
     }
 
+    public long updateAppInfo(AppInfo appInfo) {
+        ContentValues contentValues = makeContentValues(appInfo);
+
+        // attempt insert
+        return updateRecord(
+                TABLE_APPS,
+                contentValues,
+                "ConnectionID=? AND PackageName=?",
+                String.valueOf(appInfo.getConnectionID()),
+                appInfo.getPackageName()
+        );
+    }
+
+    public long updateAppInfo_Favorite(AppInfo appInfo, boolean favorite) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("Favorite", favorite);
+
+        // attempt insert
+        return updateRecord(
+                TABLE_APPS,
+                contentValues,
+                "ConnectionID=? AND PackageName=?",
+                String.valueOf(appInfo.getConnectionID()),
+                appInfo.getPackageName()
+        );
+    }
+
     private long updateRecord(int tableID, ContentValues contentValues, String whereClause, String... whereArgs) {
         long result = -1;
 
@@ -648,9 +794,58 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return contentValues;
     }
 
+    private ContentValues makeContentValues(AppInfo appInfo) {
+        ContentValues contentValues = new ContentValues();
+
+        if (appInfo != null) {
+            contentValues.put("ConnectionID", appInfo.getConnectionID());
+            contentValues.put("PackageName", appInfo.getPackageName());
+            contentValues.put("AppName", appInfo.getAppName());
+            contentValues.put("Favorite", appInfo.isFavorite());
+            byte[] icon = appInfo.getIcon();
+            if (icon != null)
+                contentValues.put("Icon", icon);
+            byte[] iconHash = appInfo.getIconHash();
+            if (iconHash != null)
+                contentValues.put("IconHash", iconHash);
+        }
+
+        return contentValues;
+    }
+
     public long deleteConnectionInfo(int connectionID) {
         // attempt delete
         return deleteRecord(TABLE_CONNECTIONS, "ConnectionID=?", String.valueOf(connectionID));
+    }
+
+    public long deleteAppInfo(AppInfo appInfo) {
+        // delete any shortcuts that may exist for this AppInfo
+        Utility.removeShortcut(context, appInfo);
+
+        // attempt delete
+        return deleteRecord(
+                TABLE_APPS,
+                "ConnectionID=? AND PackageName=?",
+                String.valueOf(appInfo.getConnectionID()),
+                appInfo.getPackageName()
+        );
+    }
+
+    // this is used when a user initiates a Full Refresh of the app list (wipes all apps and gets the whole list again)
+    public long deleteAllAppInfos(int connectionID) {
+        // first we have to delete all of the shortcuts for these apps
+        deleteAllAppInfoShortcuts(connectionID);
+
+        // attempt to delete all AppInfos for this connection
+        return deleteRecord(TABLE_APPS, "ConnectionID=?", String.valueOf(connectionID));
+    }
+
+    private void deleteAllAppInfoShortcuts(int connectionID) {
+        // TODO: this is somewhat messy, the system creates a toast for each shortcut removed... is there a better way?
+        // loop through the AppInfos for this connection and delete any shortcuts that may exist for them
+        List<AppInfo> appInfoList = getAppInfoList_All(connectionID);
+        for (AppInfo appInfo : appInfoList)
+            Utility.removeShortcut(context, appInfo);
     }
 
     private long deleteRecord(int tableID, String whereClause, String... whereArgs) {

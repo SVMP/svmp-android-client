@@ -38,7 +38,8 @@ import java.util.List;
  */
 public class ConnectionList extends SvmpActivity {
     private static String TAG = ConnectionList.class.getName();
-    private static final int REQUESTCODE_CONNECTIONDETAILS = 101;
+    private static final int REQUEST_CONNECTIONDETAILS = 101;
+    private static final int REQUEST_CONNECTIONAPPLIST = 102;
 
     private List<ConnectionInfo> connectionInfoList;
     private ListView listView;
@@ -46,6 +47,8 @@ public class ConnectionList extends SvmpActivity {
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState, R.layout.connection_list);
+        // title has to be set here instead of in Manifest, for compatibility with shortcuts
+        setTitle(R.string.connectionList_title);
 
         // enable long-click on the ListView
         registerForContextMenu(listView);
@@ -99,6 +102,17 @@ public class ConnectionList extends SvmpActivity {
         try {
             int position = listView.getPositionForView(view);
             authPrompt((ConnectionInfo) listView.getItemAtPosition(position));
+        } catch( Exception e ) {
+            // don't care
+        }
+    }
+
+    public void onClick_Apps(View view) {
+        try {
+            View item = (View)view.getParent();
+            int position = listView.getPositionForView(item);
+            ConnectionInfo connectionInfo = (ConnectionInfo)listView.getItemAtPosition(position);
+            startConnectionAppList(connectionInfo);
         } catch( Exception e ) {
             // don't care
         }
@@ -164,6 +178,28 @@ public class ConnectionList extends SvmpActivity {
             intent.putExtra("id", id);
 
         // start the activity and expect a result intent when it is finished
-        startActivityForResult(intent, REQUESTCODE_CONNECTIONDETAILS);
+        startActivityForResult(intent, REQUEST_CONNECTIONDETAILS);
+    }
+
+    private void startConnectionAppList(ConnectionInfo connectionInfo) {
+        // create explicit intent
+        Intent intent = new Intent(ConnectionList.this, AppList.class);
+        intent.putExtra("connectionID", connectionInfo.getConnectionID());
+        intent.putExtra("description", connectionInfo.getDescription());
+
+        // start the activity and expect a result intent when it is finished
+        startActivityForResult(intent, REQUEST_CONNECTIONAPPLIST);
+    }
+
+    @Override
+    protected void afterStartAppRTC(ConnectionInfo connectionInfo) {
+        // after we have handled the auth prompt and made sure the service is started...
+
+        // create explicit intent
+        Intent intent = new Intent(ConnectionList.this, AppRTCVideoActivity.class);
+        intent.putExtra("connectionID", connectionInfo.getConnectionID());
+
+        // start the AppRTCActivity
+        startActivityForResult(intent, REQUEST_STARTVIDEO);
     }
 }

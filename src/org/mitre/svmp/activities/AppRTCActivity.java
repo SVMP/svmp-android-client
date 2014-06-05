@@ -45,21 +45,17 @@
 
 package org.mitre.svmp.activities;
 
-import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.*;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
-import android.graphics.Color;
-import android.graphics.Point;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.*;
 import android.widget.Toast;
-import org.appspot.apprtc.VideoStreamsView;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.apprtc.*;
 import org.mitre.svmp.client.*;
@@ -78,27 +74,21 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
     private static final String TAG = AppRTCActivity.class.getName();
 
-    private MediaConstraints sdpMediaConstraints;
-
-    private AppRTCClient appRtcClient;
-    private SessionService service;
-    private PerformanceAdapter performanceAdapter;
+    protected AppRTCClient appRtcClient;
+    protected SessionService service;
+    protected PerformanceAdapter performanceAdapter;
     private boolean bound = false;
 
-    private SDPObserver sdpObserver;
-    private VideoStreamsView vsv;
-    private PCObserver pcObserver;
     private Toast logToast;
 
     // Synchronize on quit[0] to avoid teardown-related crashes.
     private final Boolean[] quit = new Boolean[]{false};
 
-    private DatabaseHandler dbHandler;
-    private ConnectionInfo connectionInfo;
+    protected DatabaseHandler dbHandler;
+    protected ConnectionInfo connectionInfo;
+    protected String pkgName; // what app we want to launch when we finish connecting
 
-    private TouchHandler touchHandler;
-    private RotationHandler rotationHandler;
-    private boolean proxying = false; // if this is true, we have finished the handshakes and the connection is running
+    protected boolean proxying = false; // if this is true, we have finished the handshakes and the connection is running
     private ProgressDialog pd;
 
     @Override
@@ -128,37 +118,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                     }
                 });
 
-        // Uncomment to get ALL WebRTC tracing and SENSITIVE libjingle logging.
-//        Logging.enableTracing(
-//            "/sdcard/trace.txt",
-//            EnumSet.of(Logging.TraceLevel.TRACE_ALL),
-//            Logging.Severity.LS_SENSITIVE);
-
-        Point displaySize = new Point();
-        getWindowManager().getDefaultDisplay().getSize(displaySize);
-        vsv = new VideoStreamsView(this, displaySize, performanceAdapter);
-        vsv.setBackgroundColor(Color.DKGRAY); // start this VideoStreamsView with a color of dark gray
-        setContentView(vsv);
-
-        touchHandler = new TouchHandler(this, displaySize, performanceAdapter);
-        rotationHandler = new RotationHandler(this);
-
-        AppRTCHelper.abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
-                "Failed to initializeAndroidGlobals");
-
-        //Create observers.
-        sdpObserver = new SDPObserver(this);
-        pcObserver = new PCObserver(this);
-
-        sdpMediaConstraints = new MediaConstraints();
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveAudio", "true"));
-        sdpMediaConstraints.mandatory.add(new MediaConstraints.KeyValuePair(
-                "OfferToReceiveVideo", "true"));
-
         // Get info passed to Intent
         final Intent intent = getIntent();
         connectionInfo = dbHandler.getConnectionInfo(intent.getIntExtra("connectionID", 0));
+        pkgName = intent.getStringExtra("pkgName");
 
         if (connectionInfo != null)
             connectToRoom();
@@ -169,33 +132,38 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        if (true) {
-            hideNavBar();
-        }
+        hideNavBar();
     }
 
-    @SuppressLint("InlinedApi")
     private void hideNavBar() {
         // hide the nav and notification bars
         View decorView = this.getWindow().getDecorView();
         int uiOptions = 0;
-        if (API_KITKAT) {
-            // use the new immersive full-screen mode
-            // https://developer.android.com/training/system-ui/immersive.html
-            uiOptions = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-        }
-        else if (API_ICS) {
-            // ICS nav bar dimming
-            // Notification bar is done in the manifest properties for this activity:
-            //    android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
-            uiOptions = View.SYSTEM_UI_FLAG_LOW_PROFILE;
-        }
+        if (API_KITKAT)
+            uiOptions = hideNavBarKitKat();
+        else if (API_ICS)
+            uiOptions = hideNavBarICS();
 
         decorView.setSystemUiVisibility(uiOptions);
+    }
+
+    @TargetApi(19)
+    private int hideNavBarKitKat() {
+        // use the new immersive full-screen mode
+        // https://developer.android.com/training/system-ui/immersive.html
+        return View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+    }
+
+    @TargetApi(14)
+    private int hideNavBarICS() {
+        // ICS nav bar dimming
+        // Notification bar is done in the manifest properties for this activity:
+        //    android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
+        return View.SYSTEM_UI_FLAG_LOW_PROFILE;
     }
 
     // returns what value we should request for screen orientation, either portrait or landscape
@@ -214,24 +182,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         return value;
     }
 
-    public VideoStreamsView getVSV() {
-        return vsv;
-    }
-
-    public PCObserver getPCObserver() {
-        return pcObserver;
-    }
-
-/*
-    public MediaConstraints getSdpMediaConstraints() {
-        return sdpMediaConstraints;
-    }
-
-    public boolean isInitiator() {
-        return appRtcClient.isInitiator();
-    }
-*/
-
     // called from PCObserver
     public MediaConstraints getPCConstraints() {
         MediaConstraints value = null;
@@ -245,7 +195,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             appRtcClient.changeToErrorState();
     }
 
-    private void connectToRoom() {
+    protected void connectToRoom() {
         logAndToast(R.string.appRTC_toast_connection_start);
         startProgressDialog();
 
@@ -271,8 +221,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         }
     };
 
-    public void startProgressDialog() {
-        vsv.setBackgroundColor(Color.DKGRAY); // if it isn't already set, make the background color dark gray
+    protected void startProgressDialog() {
         pd = new ProgressDialog(AppRTCActivity.this);
         pd.setCanceledOnTouchOutside(false);
         pd.setTitle(R.string.appRTC_progressDialog_title);
@@ -297,19 +246,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onPause() {
         super.onPause();
-        vsv.onPause();
         disconnectAndExit();
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        vsv.onResume();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
     }
 
     // Log |msg| and Toast about it.
@@ -335,21 +272,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     // MessageHandler interface method
     // Called when the client connection is established
     public void onOpen() {
-        if (!appRtcClient.isInitiator()) {
-            return;
-        }
         proxying = true;
-
-        // set up ICE servers
-        pcObserver.onIceServers(appRtcClient.getSignalingParams().iceServers);
-
-        touchHandler.sendScreenInfoMessage();
-        rotationHandler.initRotationUpdates();
-
         logAndToast(R.string.appRTC_toast_clientHandler_start);
-        PeerConnection pc = pcObserver.getPC();
-        if (pc != null)
-            pc.createOffer(sdpObserver, sdpMediaConstraints);
     }
 
     // MessageHandler interface method
@@ -366,44 +290,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                             needAuth(R.string.svmpActivity_toast_sessionIdleTimeout);
                             break;
                     }
-                }
-                break;
-            case SCREENINFO:
-                handleScreenInfo(data);
-                break;
-            case WEBRTC:
-                try {
-                    JSONObject json = new JSONObject(data.getWebrtcMsg().getJson());
-                    Log.d(TAG, "Received WebRTC message from peer:\n" + json.toString(4));
-                    String type;
-                    // peerconnection_client doesn't put a "type" on candidates
-                    try {
-                        type = (String) json.get("type");
-                    } catch (JSONException e) {
-                        json.put("type", "candidate");
-                        type = (String) json.get("type");
-                    }
-
-                    //Check out the type of WebRTC message.
-                    if (type.equals("candidate")) {
-                        IceCandidate candidate = new IceCandidate(
-                                (String) json.get("id"),
-                                json.getInt("label"),
-                                (String) json.get("candidate"));
-                        getPCObserver().addIceCandidate(candidate);
-                    } else if (type.equals("answer") || type.equals("offer")) {
-                        SessionDescription sdp = new SessionDescription(
-                                SessionDescription.Type.fromCanonicalForm(type),
-                                AppRTCHelper.preferISAC((String) json.get("sdp")));
-                        getPCObserver().getPC().setRemoteDescription(sdpObserver, sdp);
-                    } else if (type.equals("bye")) {
-                        logAndToast(R.string.appRTC_toast_clientHandler_finish);
-                        disconnectAndExit();
-                    } else {
-                        throw new RuntimeException("Unexpected message: " + data);
-                    }
-                } catch (JSONException e) {
-                    throw new RuntimeException(e);
                 }
                 break;
             default:
@@ -429,7 +315,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     }
 
     // Disconnect from remote resources, dispose of local resources, and exit.
-    private void disconnectAndExit() {
+    protected void disconnectAndExit() {
         proxying = false;
         synchronized (quit[0]) {
             if (quit[0]) {
@@ -437,7 +323,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             }
             quit[0] = true;
 
-            rotationHandler.cleanupRotationUpdates();
+            // allow child classes to clean up their components
+            onDisconnectAndExit();
 
             // Unbind from the service
             if (bound) {
@@ -450,7 +337,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                         // don't care
                     }
                 }
-                pcObserver.quit();
                 unbindService(serviceConnection);
                 bound = false;
                 appRtcClient.disconnectFromRoom();
@@ -469,6 +355,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
             if (!isFinishing())
                 finish();
         }
+    }
+
+    // override in child classes
+    protected void onDisconnectAndExit() {
     }
 
     public boolean isConnected() {
@@ -521,32 +411,5 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         if (exit)
             // finish this activity and return to the connection list
             disconnectAndExit();
-    }
-
-    /////////////////////////////////////////////////////////////////////
-    // Bridge input callbacks to the Touch Input Handler
-    /////////////////////////////////////////////////////////////////////
-    private void handleScreenInfo(Response msg) {
-        touchHandler.handleScreenInfoResponse(msg);
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        return proxying && touchHandler.onTouchEvent(event);
-    }
-
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        return super.onKeyDown(keyCode, event);
-    }
-
-    @Override
-    public boolean onKeyUp(int keyCode, KeyEvent event) {
-        return super.onKeyUp(keyCode, event);
-    }
-
-    @Override
-    public boolean onTrackballEvent(MotionEvent event) {
-        return super.onTrackballEvent(event);
     }
 }

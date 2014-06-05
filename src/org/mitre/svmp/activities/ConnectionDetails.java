@@ -174,7 +174,7 @@ public class ConnectionDetails extends SvmpActivity {
         else {
             // create a new ConnectionInfo object
             ConnectionInfo connectionInfo = new ConnectionInfo(updateID, description, username, host, port,
-                    encryptionType, authType, certificateAlias);
+                    encryptionType, authType, certificateAlias, 0);
 
             // insert or update the ConnectionInfo in the database
             long result;

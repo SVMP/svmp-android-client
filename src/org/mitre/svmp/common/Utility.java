@@ -16,13 +16,21 @@
 package org.mitre.svmp.common;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationProvider;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.mitre.svmp.activities.AppList;
+import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationUpdate;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationProviderInfo;
@@ -35,6 +43,57 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
  * @author David Schoenheit, Joe Portner
  */
 public class Utility {
+    public static void createShortcut(Context context, AppInfo appInfo) {
+        // this intent defines the shortcut appearance (name, icon)
+        Intent shortcutIntent = getShortcutIntent(context, appInfo);
+
+        // try to decode the AppInfo's "icon" byte array into an image
+        Bitmap rawBitmap = appInfo.getBitmap();
+
+        // if decoding was not successful, let's use the default icon instead
+        if (rawBitmap == null)
+            rawBitmap = android.graphics.BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_launcher);
+
+        // decoding was successful, let's put an image overlay on the bitmap
+        Bitmap bitmap = Bitmap.createBitmap(rawBitmap.getWidth(), rawBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+        Paint paint = new Paint();
+        Canvas canvas = new Canvas(bitmap);
+        canvas.drawBitmap(rawBitmap, 0, 0, paint);
+        Drawable badge = context.getResources().getDrawable(R.drawable.default_overlay);
+        badge.setBounds(new Rect(0,0,badge.getIntrinsicWidth(),badge.getIntrinsicHeight()));
+        badge.draw(canvas);
+
+        shortcutIntent.putExtra(Intent.EXTRA_SHORTCUT_ICON, bitmap);
+
+        // send the broadcast to create the shortcut
+        shortcutIntent.setAction("com.android.launcher.action.INSTALL_SHORTCUT");
+        context.sendBroadcast(shortcutIntent);
+    }
+
+    public static void removeShortcut(Context context, AppInfo appInfo) {
+        // this intent defines the shortcut appearance (name, icon)
+        Intent shortcutIntent = getShortcutIntent(context, appInfo);
+
+        // send the broadcast to remove the shortcut
+        shortcutIntent.setAction("com.android.launcher.action.UNINSTALL_SHORTCUT");
+        context.sendBroadcast(shortcutIntent);
+    }
+    private static Intent getShortcutIntent(Context context, AppInfo appInfo) {
+        // this intent defines the shortcut behavior (launch activity, action, extras)
+        Intent launchIntent = new Intent(context, AppList.class);
+        launchIntent.setAction(Constants.ACTION_LAUNCH_APP);
+        launchIntent.putExtra("connectionID", appInfo.getConnectionID());
+        launchIntent.putExtra("packageName", appInfo.getPackageName());
+
+        // this intent defines the shortcut appearance (name, icon)
+        Intent shortcutIntent = new Intent();
+        shortcutIntent.putExtra(Intent.EXTRA_SHORTCUT_INTENT, launchIntent);
+        shortcutIntent.putExtra(Intent.EXTRA_SHORTCUT_NAME, appInfo.getAppName());
+        shortcutIntent.putExtra("duplicate", false);  // Just create once
+
+        return shortcutIntent;
+    }
+
     // transforms a CellNetwork integer to an appropriate string (see TelephonyManager)
     public static String cellNetwork(int cellNetwork) {
         String network;

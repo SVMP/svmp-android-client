@@ -45,7 +45,7 @@ package org.mitre.svmp.apprtc;
 
 import android.util.Log;
 import org.json.JSONObject;
-import org.mitre.svmp.activities.AppRTCActivity;
+import org.mitre.svmp.activities.AppRTCVideoActivity;
 import org.mitre.svmp.client.R;
 import org.webrtc.PeerConnection;
 import org.webrtc.SdpObserver;
@@ -55,9 +55,9 @@ import org.webrtc.SessionDescription;
 // as well as adding remote ICE candidates once the answer SDP is set.
 public class SDPObserver implements SdpObserver {
     protected static final String TAG = SDPObserver.class.getName();
-    AppRTCActivity activity;
+    AppRTCVideoActivity activity;
 
-    public SDPObserver(AppRTCActivity activity) {
+    public SDPObserver(AppRTCVideoActivity activity) {
         this.activity = activity;
     }
 

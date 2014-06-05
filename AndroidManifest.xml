@@ -6,10 +6,6 @@
 
     <uses-sdk android:minSdkVersion="13" android:targetSdkVersion="19"/>
 
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-feature android:name="android.hardware.camera" />
-    <uses-feature android:name="android.hardware.camera.autofocus" />
-
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
@@ -20,7 +16,11 @@
     <!-- used for performance measurements -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
-    <!-- used to allow an outside source to cause an ConnectionList to refresh its layout -->
+    <!-- used by AppList to create and remove shortcuts -->
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-permission android:name="com.android.launcher.permission.UNINSTALL_SHORTCUT" />
+
+    <!-- used to allow an outside source to cause a ConnectionList to refresh its layout -->
     <permission android:name="org.mitre.svmp.PERMISSION_REFRESH"
                 android:protectionLevel="signature" />
     <uses-permission android:name="org.mitre.svmp.PERMISSION_REFRESH" />
@@ -46,7 +46,8 @@
                 android:windowSoftInputMode="adjustResize"/>
 
         <activity android:name="org.mitre.svmp.activities.ConnectionList"
-                  android:label="@string/connectionList_title">
+                  android:label="@string/app_name">
+            <!-- actual title is set programmatically for compatibility with shortcuts -->
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -56,9 +57,11 @@
         <activity android:name="org.mitre.svmp.activities.SvmpPreferences"
                 android:label="@string/preferenceScreen_title"/>
 
-        <activity android:name="org.mitre.svmp.activities.SvmpActivity"/>
-
-        <activity android:name="org.mitre.svmp.activities.AppRTCActivity"
+        <activity android:name="org.mitre.svmp.activities.AppRTCVideoActivity"
+                  android:label="@string/app_name"
+                  android:configChanges="orientation|screenSize"
+                  android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
+        <activity android:name="org.mitre.svmp.activities.AppRTCInfoActivity"
                   android:label="@string/app_name"
                   android:configChanges="orientation|screenSize"
                   android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
@@ -68,5 +71,10 @@
         
         <!-- Memorizing Trust Manager library integration -->
         <activity android:name="de.duenndns.ssl.MemorizingActivity" />
+
+        <!-- allows shortcuts to be launched from the desktop -->
+        <activity android:name="org.mitre.svmp.activities.AppList"
+                  android:label="@string/appList_title"
+                  android:exported="true"/>
     </application>
 </manifest>

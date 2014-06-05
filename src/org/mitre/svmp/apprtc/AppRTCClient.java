@@ -253,10 +253,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
             sendQueue.add(msg);
     }
 
-    public boolean isInitiator() {
-        return signalingParams.initiator;
-    }
-
     public MediaConstraints pcConstraints() {
         return signalingParams.pcConstraints;
     }
