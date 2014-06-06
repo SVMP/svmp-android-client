@@ -66,7 +66,8 @@
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/connectionDetails_textView_encryption_text"
                       android:textSize="@dimen/textSize_large"
                       android:layout_gravity="center_vertical|right" android:paddingLeft="@dimen/padding_normal"
-                      android:paddingRight="@dimen/padding_normal"/>
+                      android:paddingRight="@dimen/padding_normal"
+                      android:id="@+id/connectionDetails_textView_encryption"/>
             <Spinner
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"

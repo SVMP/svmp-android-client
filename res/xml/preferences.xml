@@ -164,6 +164,12 @@
                         android:summary="@string/checkBoxPreference_connection_useMTM_summary"
                         android:defaultValue="@string/preferenceValue_connection_useMTM"
                         />
+                <CheckBoxPreference
+                        android:key="@string/preferenceKey_connection_showEncryption"
+                        android:title="@string/checkBoxPreference_connection_showEncryption_title"
+                        android:summary="@string/checkBoxPreference_connection_showEncryption_summary"
+                        android:defaultValue="@string/preferenceValue_connection_showEncryption"
+                        />
             </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceCategory>

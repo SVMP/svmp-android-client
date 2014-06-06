@@ -35,6 +35,7 @@
     <string name="preferenceKey_performance_pingInterval">performance_pingInterval</string>
     <string name="preferenceKey_connection_useBackground">connection_useBackground</string>
     <string name="preferenceKey_connection_useMTM">connection_useMTM</string>
+    <string name="preferenceKey_connection_showEncryption">connection_showEncryption</string>
 
     <!-- Preference value defaults -->
     <string name="preferenceValue_sensors_minimumDelay">1000</string>
@@ -56,6 +57,7 @@
     <string name="preferenceValue_performance_pingInterval">5000</string>
     <string name="preferenceValue_connection_useBackground">true</string>
     <string name="preferenceValue_connection_useMTM">false</string>
+    <string name="preferenceValue_connection_showEncryption">false</string>
     
     <!-- Preference page elements -->
     <string name="preferenceScreen_title">SVMP Preferences</string>
@@ -124,5 +126,7 @@
 
     <string name="checkBoxPreference_connection_useMTM_title">Show certificate dialog</string>
     <string name="checkBoxPreference_connection_useMTM_summary">Allows accepting untrusted certificates</string>
+    <string name="checkBoxPreference_connection_showEncryption_title">Show encryption options</string>
+    <string name="checkBoxPreference_connection_showEncryption_summary">Allows setting encryption type for connections</string>
 
 </resources>

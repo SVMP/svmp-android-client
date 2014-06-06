@@ -34,6 +34,7 @@ import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.widgets.AuthModuleArrayAdapter;
 
 /**
@@ -113,8 +114,10 @@ public class ConnectionDetails extends SvmpActivity {
             }
         }
         // this is a new connection, fill in the default port
-        else
+        else {
             portView.setText(String.valueOf(Constants.DEFAULT_PORT));
+            encryptionView.setSelection(ENCRYPTION_SSLTLS); // by default, encryption is turned on
+        }
 
         if (!Constants.API_ICS) {
             // the SDK is lower than ICS, remove the Certificate selection table rows
@@ -135,6 +138,14 @@ public class ConnectionDetails extends SvmpActivity {
     // called onResume so preference changes take effect in the layout
     @Override
     protected void refreshPreferences() {
+        if (Utility.getPrefBool(this, R.string.preferenceKey_connection_showEncryption, R.string.preferenceValue_connection_showEncryption)) {
+            findViewById(R.id.connectionDetails_textView_encryption).setVisibility(View.VISIBLE);
+            encryptionView.setVisibility(View.VISIBLE);
+        }
+        else {
+            findViewById(R.id.connectionDetails_textView_encryption).setVisibility(View.GONE);
+            encryptionView.setVisibility(View.GONE);
+        }
     }
 
     // save button is clicked
