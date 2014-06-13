@@ -59,7 +59,7 @@ public class AuthRegistry implements Constants {
         list.add(new SecurityTokenType());
         list.add(new PasswordAndSecurityTokenType());
 
-        if (API_ICS) {
+        if (API_14) {
             // only for ICS and newer versions that support the KeyChain API
             list.add(new CertificateType());
         }
@@ -74,7 +74,7 @@ public class AuthRegistry implements Constants {
         list.add(new PasswordModule());
         list.add(new SecurityTokenModule());
 
-        if (API_ICS) {
+        if (API_14) {
             // only for ICS and newer versions that support the KeyChain API
             list.add(new CertificateModule());
         }

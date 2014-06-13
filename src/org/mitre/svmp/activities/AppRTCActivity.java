@@ -139,9 +139,9 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         // hide the nav and notification bars
         View decorView = this.getWindow().getDecorView();
         int uiOptions = 0;
-        if (API_KITKAT)
+        if (API_19)
             uiOptions = hideNavBarKitKat();
-        else if (API_ICS)
+        else if (API_14)
             uiOptions = hideNavBarICS();
 
         decorView.setSystemUiVisibility(uiOptions);

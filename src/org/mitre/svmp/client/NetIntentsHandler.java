@@ -73,7 +73,6 @@ public class NetIntentsHandler
 	        Notification noti = new Notification.Builder(context)
 	            .setContentTitle(notification.getContentTitle())
 	            .setContentText(notification.getContentText())
-	            .setSmallIcon(R.drawable.logo)
 	            .setLargeIcon(bmp.copy(Bitmap.Config.ARGB_8888, true))
 	            .setContentIntent(pIntent).getNotification();
 	        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);

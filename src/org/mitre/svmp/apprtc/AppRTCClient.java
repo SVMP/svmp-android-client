@@ -333,7 +333,7 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     R.string.preferenceKey_connection_useMTM,
                     R.string.preferenceValue_connection_useMTM);
             // determine whether we should use client certificate authentication
-            boolean useCertificateAuth = API_ICS &&
+            boolean useCertificateAuth = API_14 &&
                     (connectionInfo.getAuthType() & CertificateModule.AUTH_MODULE_ID) == CertificateModule.AUTH_MODULE_ID;
 
             SocketFactory sf;

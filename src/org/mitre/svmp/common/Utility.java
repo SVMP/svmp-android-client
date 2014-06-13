@@ -15,20 +15,22 @@
  */
 package org.mitre.svmp.common;
 
+import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
-import android.graphics.Paint;
-import android.graphics.Rect;
+import android.content.res.Configuration;
+import android.graphics.*;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationProvider;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import org.json.JSONException;
-import org.json.JSONObject;
+import android.util.DisplayMetrics;
+import android.view.Window;
+import android.view.WindowManager;
 import org.mitre.svmp.activities.AppList;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationRequest;
@@ -43,23 +45,81 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
  * @author David Schoenheit, Joe Portner
  */
 public class Utility {
+    // finds the proper screen density to use for icons
+    public static int getScreenDensity(Context context) {
+        // get display metrics from system
+        DisplayMetrics metrics = new DisplayMetrics();
+        WindowManager windowManager = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
+        windowManager.getDefaultDisplay().getMetrics(metrics);
+
+        // see Android reference: http://developer.android.com/reference/android/util/DisplayMetrics.html
+        int value = metrics.densityDpi;
+        final int DENSITY_400 = 400; // api 19: DisplayMetrics.DENSITY_400
+        final int DENSITY_XXHIGH = 480; // api 16: DisplayMetrics.DENSITY_XXHIGH
+        final int DENSITY_XXXHIGH = 640; // api 18: DisplayMetrics.DENSITY_XXXHIGH
+
+        // apps should not target intermediate densities, instead relying on scaling up/down from standard densities
+        switch(value) {
+            case DisplayMetrics.DENSITY_TV:
+                value = DisplayMetrics.DENSITY_HIGH;
+                break;
+            case DENSITY_400:
+            case DENSITY_XXHIGH:
+            case DENSITY_XXXHIGH:
+                value = DisplayMetrics.DENSITY_XHIGH;
+                break;
+            // all other densities are standard densities, let the value remain
+        }
+
+        // tablets use larger icons, one density-size higher than normal
+        int screenLayout = (context.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK);
+        boolean isTablet = screenLayout >= Configuration.SCREENLAYOUT_SIZE_LARGE;
+        if (isTablet) {
+            if (value < DisplayMetrics.DENSITY_MEDIUM)
+                value = DisplayMetrics.DENSITY_MEDIUM;
+            else if (value < DisplayMetrics.DENSITY_HIGH)
+                value = DisplayMetrics.DENSITY_HIGH;
+            else if (value < DisplayMetrics.DENSITY_XHIGH)
+                value = DisplayMetrics.DENSITY_XHIGH;
+            else if (value < DENSITY_XXHIGH)
+                value = DENSITY_XXHIGH;
+            else if (value < DENSITY_XXXHIGH)
+                value = DENSITY_XXXHIGH;
+        }
+
+        return value;
+    }
+
     public static void createShortcut(Context context, AppInfo appInfo) {
+        // figure out what screen density we are targeting
+        int screenDensity = getScreenDensity(context);
+
         // this intent defines the shortcut appearance (name, icon)
         Intent shortcutIntent = getShortcutIntent(context, appInfo);
 
         // try to decode the AppInfo's "icon" byte array into an image
         Bitmap rawBitmap = appInfo.getBitmap();
 
-        // if decoding was not successful, let's use the default icon instead
-        if (rawBitmap == null)
-            rawBitmap = android.graphics.BitmapFactory.decodeResource(context.getResources(), R.drawable.ic_launcher);
+        if (rawBitmap == null) {
+            // if decoding was not successful, let's use the default icon instead
+            BitmapDrawable bitmapDrawable;
+            if (Constants.API_15)
+                bitmapDrawable = (BitmapDrawable)getDrawable15(context, R.drawable.ic_launcher, screenDensity);
+            else
+                bitmapDrawable = (BitmapDrawable)getDrawable(context, R.drawable.ic_launcher);
+            rawBitmap = bitmapDrawable.getBitmap(); //drawableToBitmap(bitmapDrawable);
+        }
 
         // decoding was successful, let's put an image overlay on the bitmap
         Bitmap bitmap = Bitmap.createBitmap(rawBitmap.getWidth(), rawBitmap.getHeight(), Bitmap.Config.ARGB_8888);
         Paint paint = new Paint();
         Canvas canvas = new Canvas(bitmap);
         canvas.drawBitmap(rawBitmap, 0, 0, paint);
-        Drawable badge = context.getResources().getDrawable(R.drawable.default_overlay);
+        Drawable badge;
+        if (Constants.API_15)
+            badge = getDrawable15(context, R.drawable.svmp_icon_overlay, screenDensity);
+        else
+            badge = getDrawable(context, R.drawable.svmp_icon_overlay);
         badge.setBounds(new Rect(0,0,badge.getIntrinsicWidth(),badge.getIntrinsicHeight()));
         badge.draw(canvas);
 
@@ -68,6 +128,15 @@ public class Utility {
         // send the broadcast to create the shortcut
         shortcutIntent.setAction("com.android.launcher.action.INSTALL_SHORTCUT");
         context.sendBroadcast(shortcutIntent);
+    }
+    @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1)
+    private static Drawable getDrawable15(Context context, int resId, int screenDensity) {
+        return context.getResources().getDrawableForDensity(resId, screenDensity);
+    }
+    // if the API is less than 15, just get the drawable without targeting a screen density
+    private static Drawable getDrawable(Context context, int resId) {
+        // note: tried using BitmapFactory options to decode drawable to a target screen density, didn't work
+        return context.getResources().getDrawable(resId);
     }
 
     public static void removeShortcut(Context context, AppInfo appInfo) {

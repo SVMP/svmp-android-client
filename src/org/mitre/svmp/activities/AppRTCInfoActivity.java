@@ -51,6 +51,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import com.google.protobuf.ByteString;
 import org.mitre.svmp.common.AppInfo;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
@@ -104,9 +105,7 @@ public class AppRTCInfoActivity extends AppRTCActivity {
         SVMPProtocol.AppsRequest.Builder arBuilder = SVMPProtocol.AppsRequest.newBuilder();
         arBuilder.setType(SVMPProtocol.AppsRequest.AppsRequestType.REFRESH);
         // set screen density for AppsRequest
-        DisplayMetrics metrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(metrics);
-        arBuilder.setScreenDensity(metrics.densityDpi);
+        arBuilder.setScreenDensity(Utility.getScreenDensity(this));
 
         if (!fullRefresh) {
             // if we're not doing a full refresh, loop through current app info list and construct an AppsRequest

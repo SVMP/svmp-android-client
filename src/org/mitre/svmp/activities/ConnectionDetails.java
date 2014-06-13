@@ -119,7 +119,7 @@ public class ConnectionDetails extends SvmpActivity {
             encryptionView.setSelection(ENCRYPTION_SSLTLS); // by default, encryption is turned on
         }
 
-        if (!Constants.API_ICS) {
+        if (!Constants.API_14) {
             // the SDK is lower than ICS, remove the Certificate selection table rows
             findViewById(R.id.connectionDetails_tableRow_certificate_1).setVisibility(View.GONE);
             findViewById(R.id.connectionDetails_tableRow_certificate_2).setVisibility(View.GONE);
@@ -216,7 +216,7 @@ public class ConnectionDetails extends SvmpActivity {
     // certificate button is clicked
     @TargetApi(Build.VERSION_CODES.ICE_CREAM_SANDWICH)
     public void onClick_Certificate(View v) {
-        if (Constants.API_ICS) {
+        if (Constants.API_14) {
             // get the prior certificate alias (if it exists)
             String certificateAlias = getCertificateAlias();
             if (certificateAlias.length() == 0)

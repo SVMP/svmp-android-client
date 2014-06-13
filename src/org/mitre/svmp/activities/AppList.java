@@ -22,19 +22,11 @@ import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.*;
 import android.widget.GridView;
-import android.widget.Toast;
-import com.google.protobuf.InvalidProtocolBufferException;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.AppInfo;
 import org.mitre.svmp.common.ConnectionInfo;
-import org.mitre.svmp.protocol.SVMPProtocol;
-import org.mitre.svmp.protocol.SVMPProtocol.Response;
-
-import java.util.HashMap;
-import java.util.List;
 
 /**
  * This activity displays a list of remote apps that are available for a given Connection
@@ -69,7 +61,7 @@ public class AppList extends SvmpActivity {
         ActionBar actionBar = getActionBar();
         if (actionBar != null) {
             // some functions are ICS-only
-            if (API_ICS)
+            if (API_14)
                 onCreateICS(actionBar);
             actionBar.setDisplayHomeAsUpEnabled(true);
 

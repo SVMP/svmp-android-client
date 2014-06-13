@@ -31,8 +31,9 @@ public interface Constants {
     public static final String ACTION_STOP_SERVICE = "org.mitre.svmp.ACTION_STOP_SERVICE"; // causes
     public static final String ACTION_LAUNCH_APP = "org.mitre.svmp.LAUNCH_APP";
     public static final String PERMISSION_REFRESH = "org.mitre.svmp.PERMISSION_REFRESH"; // required to send ACTION_REFRESH intent
-    public static final boolean API_KITKAT = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT);
-    public static final boolean API_ICS = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);
+    public static final boolean API_19 = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT);
+    public static final boolean API_15 = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1);
+    public static final boolean API_14 = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH);
 
     // used to determine what the EncryptionType for each connection is
     public static final int ENCRYPTION_NONE = 0;

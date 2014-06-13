@@ -21,7 +21,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.*;
-import android.service.textservice.SpellCheckerService;
 import android.util.Log;
 import android.widget.Toast;
 import org.mitre.svmp.activities.ConnectionList;
@@ -181,12 +180,12 @@ public class SessionService extends Service implements StateObserver, MessageHan
         String contentText;
         if (connected) {
             contentText = (String)resources.getText(R.string.sessionService_notification_contentText_connected);
-            notice.setSmallIcon(R.drawable.svmp_circle_green);
+            notice.setSmallIcon(R.drawable.svmp_status_green);
         }
         else {
             // we need authentication, indicate that in the notification
             contentText = (String)resources.getText(R.string.sessionService_notification_contentText_disconnected);
-            notice.setSmallIcon(R.drawable.svmp_circle_yellow);
+            notice.setSmallIcon(R.drawable.svmp_status_yellow);
         }
         notice.setContentTitle(contentTitle)
                 .setContentText(String.format(contentText, connectionInfo.getDescription()))
