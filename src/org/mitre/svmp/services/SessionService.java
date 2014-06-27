@@ -62,6 +62,9 @@ public class SessionService extends Service implements StateObserver, MessageHan
             value = service.connectionInfo.getConnectionID();
         return value;
     }
+    public static boolean isRunningForConn(int connectionID) {
+        return getConnectionID() == connectionID && getState() != StateMachine.STATE.NEW;
+    }
 
     // local variables
     private AppRTCClient binder; // Binder given to clients

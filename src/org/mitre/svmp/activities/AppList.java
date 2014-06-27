@@ -29,8 +29,8 @@ import org.mitre.svmp.common.AppInfo;
 import org.mitre.svmp.common.ConnectionInfo;
 
 /**
- * This activity displays a list of remote apps that are available for a given Connection
  * @author Joe Portner
+ * This activity displays a list of remote apps that are available for a given Connection
  */
 public class AppList extends SvmpActivity {
     private static String TAG = AppList.class.getName();
@@ -157,7 +157,7 @@ public class AppList extends SvmpActivity {
         Intent intent = new Intent();
         if (this.sendRequestCode == REQUEST_REFRESHAPPS_QUICK || this.sendRequestCode == REQUEST_REFRESHAPPS_FULL) {
             // we're refreshing our cached list of apps that reside on the VM
-            intent.setClass(AppList.this, AppRTCInfoActivity.class);
+            intent.setClass(AppList.this, AppRTCRefreshAppsActivity.class);
             if (this.sendRequestCode == REQUEST_REFRESHAPPS_FULL)
                 intent.putExtra("fullRefresh", true);
         }
@@ -176,9 +176,15 @@ public class AppList extends SvmpActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         busy = false;
-        if (resultCode == RESULT_CANCELED && (requestCode == REQUEST_REFRESHAPPS_QUICK || requestCode == REQUEST_REFRESHAPPS_FULL)) {
-            // the activity ended before processing the Apps response
-            toastShort(R.string.appList_toast_refreshFail);
+        if (requestCode == REQUEST_REFRESHAPPS_QUICK || requestCode == REQUEST_REFRESHAPPS_FULL) {
+            if (resultCode == RESULT_CANCELED) {
+                // the activity ended before processing the Apps response
+                toastShort(R.string.appList_toast_refreshFail);
+            }
+            else if (resultCode == RESULT_OK) {
+                toastShort(R.string.appList_toast_refreshSuccess);
+                super.onActivityResult(requestCode, RESULT_REPOPULATE, data);
+            }
         }
         else if (resultCode == RESULT_CANCELED && requestCode == REQUEST_STARTAPP_FINISH) {
             // the user intentionally canceled the activity, and we are supposed to finish this activity after resuming

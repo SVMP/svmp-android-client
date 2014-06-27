@@ -83,6 +83,8 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
+ * @author Joe Portner
+ *
  * Negotiates signaling for chatting with apprtc.appspot.com "rooms".
  * Uses the client<->server specifics of the apprtc AppEngine webapp.
  *
@@ -266,13 +268,14 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         protected Integer doInBackground(Void... params) {
             int returnVal = R.string.appRTC_toast_socketConnector_fail; // resID for return message
             try {
-                // get the auth request, which is either constructed from a session token or made up of auth input (password, etc)
-                String sessionToken = dbHandler.getSessionToken(connectionInfo);
-                if (sessionToken.length() > 0)
-                    authRequest = AuthData.makeRequest(connectionInfo, sessionToken);
-                else
-                    // get the auth data req it's removed from memory
-                    authRequest = AuthData.getRequest(connectionInfo);
+                // attempt to get any existing auth data request that's in memory (e.g. made of user input such as password)
+                authRequest = AuthData.getRequest(connectionInfo);
+                if (authRequest == null) {
+                    // there was no auth request in memory; see if we can construct one from a session token
+                    String sessionToken = dbHandler.getSessionToken(connectionInfo);
+                    if (sessionToken.length() > 0)
+                        authRequest = AuthData.makeRequest(connectionInfo, sessionToken);
+                }
 
                 socketConnect();
                 if (svmpSocket instanceof SSLSocket) {
@@ -417,7 +420,11 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
 
                             returnVal = 0; // success
                         }
-                        // got an AuthResponse with a type of AUTH_FAIL
+                        else if (authResponse.getType() == AuthResponse.AuthResponseType.NEED_PASSWORD_CHANGE)
+                            returnVal = R.string.svmpActivity_toast_needPasswordChange;
+                        else if (authResponse.getType() == AuthResponse.AuthResponseType.PASSWORD_CHANGE_FAIL)
+                            returnVal = R.string.appRTC_toast_svmpAuthenticator_passwordChangeFail;
+                        // otherwise, got an AuthResponse with a type of AUTH_FAIL
                     } else if (resp == null)
                         returnVal = R.string.appRTC_toast_svmpAuthenticator_interrupted;
 

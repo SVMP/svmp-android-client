@@ -16,10 +16,10 @@
 package org.mitre.svmp.common;
 
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.*;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -28,9 +28,6 @@ import android.location.LocationProvider;
 import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.DisplayMetrics;
-import android.view.Window;
-import android.view.WindowManager;
 import org.mitre.svmp.activities.AppList;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.protocol.SVMPProtocol.LocationRequest;
@@ -47,47 +44,8 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
 public class Utility {
     // finds the proper screen density to use for icons
     public static int getScreenDensity(Context context) {
-        // get display metrics from system
-        DisplayMetrics metrics = new DisplayMetrics();
-        WindowManager windowManager = (WindowManager)context.getSystemService(Context.WINDOW_SERVICE);
-        windowManager.getDefaultDisplay().getMetrics(metrics);
-
-        // see Android reference: http://developer.android.com/reference/android/util/DisplayMetrics.html
-        int value = metrics.densityDpi;
-        final int DENSITY_400 = 400; // api 19: DisplayMetrics.DENSITY_400
-        final int DENSITY_XXHIGH = 480; // api 16: DisplayMetrics.DENSITY_XXHIGH
-        final int DENSITY_XXXHIGH = 640; // api 18: DisplayMetrics.DENSITY_XXXHIGH
-
-        // apps should not target intermediate densities, instead relying on scaling up/down from standard densities
-        switch(value) {
-            case DisplayMetrics.DENSITY_TV:
-                value = DisplayMetrics.DENSITY_HIGH;
-                break;
-            case DENSITY_400:
-            case DENSITY_XXHIGH:
-            case DENSITY_XXXHIGH:
-                value = DisplayMetrics.DENSITY_XHIGH;
-                break;
-            // all other densities are standard densities, let the value remain
-        }
-
-        // tablets use larger icons, one density-size higher than normal
-        int screenLayout = (context.getResources().getConfiguration().screenLayout & Configuration.SCREENLAYOUT_SIZE_MASK);
-        boolean isTablet = screenLayout >= Configuration.SCREENLAYOUT_SIZE_LARGE;
-        if (isTablet) {
-            if (value < DisplayMetrics.DENSITY_MEDIUM)
-                value = DisplayMetrics.DENSITY_MEDIUM;
-            else if (value < DisplayMetrics.DENSITY_HIGH)
-                value = DisplayMetrics.DENSITY_HIGH;
-            else if (value < DisplayMetrics.DENSITY_XHIGH)
-                value = DisplayMetrics.DENSITY_XHIGH;
-            else if (value < DENSITY_XXHIGH)
-                value = DENSITY_XXHIGH;
-            else if (value < DENSITY_XXXHIGH)
-                value = DENSITY_XXXHIGH;
-        }
-
-        return value;
+        ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+        return activityManager.getLauncherLargeIconDensity();
     }
 
     public static void createShortcut(Context context, AppInfo appInfo) {
@@ -151,6 +109,7 @@ public class Utility {
         // this intent defines the shortcut behavior (launch activity, action, extras)
         Intent launchIntent = new Intent(context, AppList.class);
         launchIntent.setAction(Constants.ACTION_LAUNCH_APP);
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK); // when this is started, clear other SVMP activities
         launchIntent.putExtra("connectionID", appInfo.getConnectionID());
         launchIntent.putExtra("packageName", appInfo.getPackageName());
 

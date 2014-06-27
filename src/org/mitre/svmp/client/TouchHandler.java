@@ -81,7 +81,7 @@ public class TouchHandler implements Constants {
 
 //    @Override
     public boolean onTouchEvent(final MotionEvent event) {
-        if (! gotScreenInfo) return false;
+        if (!activity.isConnected() || !gotScreenInfo) return false;
 
         // increment the touch update count for performance measurement
         spi.incrementTouchUpdates();

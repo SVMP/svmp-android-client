@@ -68,7 +68,8 @@ import org.webrtc.*;
 import org.mitre.svmp.common.StateMachine.STATE;
 
 /**
- * Main Activity of the SVMP Android client application.
+ * @author Joe Portner
+ * Base activity for establishing an AppRTC connection
  */
 public class AppRTCActivity extends Activity implements StateObserver, MessageHandler, Constants {
 
@@ -86,7 +87,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
 
     protected DatabaseHandler dbHandler;
     protected ConnectionInfo connectionInfo;
-    protected String pkgName; // what app we want to launch when we finish connecting
 
     protected boolean proxying = false; // if this is true, we have finished the handshakes and the connection is running
     private ProgressDialog pd;
@@ -121,7 +121,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         // Get info passed to Intent
         final Intent intent = getIntent();
         connectionInfo = dbHandler.getConnectionInfo(intent.getIntExtra("connectionID", 0));
-        pkgName = intent.getStringExtra("pkgName");
 
         if (connectionInfo != null)
             connectToRoom();
@@ -284,10 +283,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 if (data.hasAuthResponse()) {
                     switch (data.getAuthResponse().getType()) {
                         case SESSION_MAX_TIMEOUT:
-                            needAuth(R.string.svmpActivity_toast_sessionMaxTimeout);
+                            needAuth(R.string.svmpActivity_toast_sessionMaxTimeout, false);
                             break;
                         case SESSION_IDLE_TIMEOUT:
-                            needAuth(R.string.svmpActivity_toast_sessionIdleTimeout);
+                            needAuth(R.string.svmpActivity_toast_sessionIdleTimeout, false);
                             break;
                     }
                 }
@@ -301,7 +300,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     // when authentication fails, or a session maxTimeout or idleTimeout message is received, stop the
     // AppRTCActivity, close the connection, and cause the ConnectionList activity to reconnect to this
     // connectionID
-    public void needAuth(int messageResID) {
+    public void needAuth(int messageResID, boolean passwordChange) {
         // clear timed out session information from memory
         dbHandler.clearSessionInfo(connectionInfo);
         // send a result message to the calling activity so it will show the authentication dialog again
@@ -309,7 +308,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         intent.putExtra("connectionID", connectionInfo.getConnectionID());
         if (messageResID > 0)
             logAndToast(messageResID);
-        setResult(SvmpActivity.RESULT_NEEDAUTH, intent);
+        setResult(passwordChange ? SvmpActivity.RESULT_NEEDPASSWORDCHANGE : SvmpActivity.RESULT_NEEDAUTH, intent);
 
         disconnectAndExit();
     }
@@ -386,7 +385,10 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                     case CONNECTED: // failed to authenticate and transition to AUTH
                         if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
                             // our authentication was rejected, exit and bring up the auth prompt when the connection list resumes
-                            needAuth(resID);
+                            needAuth(resID, false);
+                        } else if (resID == R.string.svmpActivity_toast_needPasswordChange
+                                || resID == R.string.appRTC_toast_svmpAuthenticator_passwordChangeFail) {
+                            needAuth(resID, true);
                         }
                         // otherwise, we had an SSL error, display the failure message and return to the connection list
                         break;

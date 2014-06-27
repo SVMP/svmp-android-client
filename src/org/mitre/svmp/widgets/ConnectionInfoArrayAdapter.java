@@ -40,7 +40,7 @@ public class ConnectionInfoArrayAdapter extends TwoLineArrayAdapter<ConnectionIn
 
     @Override
     public boolean isActive(ConnectionInfo connectionInfo) {
-        return SessionService.getConnectionID() == connectionInfo.getConnectionID();
+        return SessionService.isRunningForConn(connectionInfo.getConnectionID());
     }
 
     @Override

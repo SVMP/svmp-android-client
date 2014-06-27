@@ -45,6 +45,7 @@
 
 package org.mitre.svmp.activities;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
@@ -63,7 +64,8 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.webrtc.*;
 
 /**
- * Main Activity of the SVMP Android client application.
+ * @author Joe Portner
+ * General purpose activity to display a video feed and allow the user to interact with a remote VM
  */
 public class AppRTCVideoActivity extends AppRTCActivity {
     private static final String TAG = AppRTCVideoActivity.class.getName();
@@ -74,9 +76,14 @@ public class AppRTCVideoActivity extends AppRTCActivity {
     private PCObserver pcObserver;
     private TouchHandler touchHandler;
     private RotationHandler rotationHandler;
+    private String pkgName; // what app we want to launch when we finish connecting
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Get info passed to Intent
+        final Intent intent = getIntent();
+        pkgName = intent.getStringExtra("pkgName");
+
         super.onCreate(savedInstanceState);
     }
 
@@ -251,6 +258,6 @@ public class AppRTCVideoActivity extends AppRTCActivity {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        return proxying && touchHandler.onTouchEvent(event);
+        return touchHandler.onTouchEvent(event);
     }
 }

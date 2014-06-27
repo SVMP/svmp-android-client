@@ -26,6 +26,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.*;
 
+import org.mitre.svmp.auth.module.PasswordModule;
 import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.services.SessionService;
 import org.mitre.svmp.client.R;
@@ -38,12 +39,15 @@ import java.util.List;
  */
 public class ConnectionList extends SvmpActivity {
     private static String TAG = ConnectionList.class.getName();
-    private static final int REQUEST_CONNECTIONDETAILS = 101;
-    private static final int REQUEST_CONNECTIONAPPLIST = 102;
+    private static final int REQUEST_CONNECTIONDETAILS = 100;
+    private static final int REQUEST_CONNECTIONAPPLIST = 101;
+    private static final int REQUEST_STARTVIDEO = 102;        // opens AppRTCVideoActivity
+    private static final int REQUEST_CHANGEPASSWORD = 103;    // opens AppRTCChangePasswordActivity
 
     private List<ConnectionInfo> connectionInfoList;
     private ListView listView;
     private BroadcastReceiver receiver;
+    private int sendRequestCode = REQUEST_STARTVIDEO; // used in the "afterStartAppRTC" method to determine what activity gets started
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState, R.layout.connection_list);
@@ -101,6 +105,7 @@ public class ConnectionList extends SvmpActivity {
     public void onClick_Item(View view) {
         try {
             int position = listView.getPositionForView(view);
+            this.sendRequestCode = REQUEST_STARTVIDEO;
             authPrompt((ConnectionInfo) listView.getItemAtPosition(position));
         } catch( Exception e ) {
             // don't care
@@ -140,26 +145,41 @@ public class ConnectionList extends SvmpActivity {
             for(int i = 0; i < menuItems.length; i++)
                 menu.add(Menu.NONE, i, i, menuItems[i]);
 
+            // if this uses password authentication, add an option to change the password
+            if ((connectionInfo.getAuthType() & PasswordModule.AUTH_MODULE_ID) == PasswordModule.AUTH_MODULE_ID)
+                menu.add(Menu.NONE, 99, 99, R.string.connectionList_context_changePassword_text);
+
             // if this connection is running, display the context option to close it
-            if (SessionService.getConnectionID() == connectionInfo.getConnectionID())
+            if (SessionService.isRunningForConn(connectionInfo.getConnectionID()))
                 menu.add(Menu.NONE, 100, 100, R.string.connectionList_context_stop_text);
         }
     }
     @Override
     public boolean onContextItemSelected(MenuItem item){
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo)item.getMenuInfo();
+        ConnectionInfo connectionInfo = connectionInfoList.get(info.position);
         switch(item.getItemId()){
             case 0: // Connect
-                authPrompt(connectionInfoList.get(info.position));
+                this.sendRequestCode = REQUEST_STARTVIDEO;
+                authPrompt(connectionInfo);
                 break;
             case 1: // Edit connection
                 // start a ConnectionDetails activity for editing an existing connection
-                startConnectionDetails( connectionInfoList.get(info.position).getConnectionID() );
+                startConnectionDetails( connectionInfo.getConnectionID() );
                 break;
             case 2: // Remove connection
-                dbHandler.deleteConnectionInfo(connectionInfoList.get(info.position).getConnectionID());
+                // find the connectionID; if that connection is running, stop the session service
+                int connectionID = connectionInfo.getConnectionID();
+                if (SessionService.isRunningForConn(connectionID))
+                    stopService(new Intent(ConnectionList.this, SessionService.class));
+                // delete the connection info and repopulate the layout to reflect changes
+                dbHandler.deleteConnectionInfo(connectionID);
                 populateLayout();
                 toastLong(R.string.connectionList_toast_removed);
+                break;
+            case 99: // Change password
+                this.sendRequestCode = REQUEST_CHANGEPASSWORD;
+                passwordChangePrompt(connectionInfo);
                 break;
             case 100: // Stop
                 stopService(new Intent(ConnectionList.this, SessionService.class)); // stop the service that's running
@@ -196,10 +216,27 @@ public class ConnectionList extends SvmpActivity {
         // after we have handled the auth prompt and made sure the service is started...
 
         // create explicit intent
-        Intent intent = new Intent(ConnectionList.this, AppRTCVideoActivity.class);
+        Intent intent = new Intent();
+        if (sendRequestCode == REQUEST_STARTVIDEO) {
+            intent.setClass(ConnectionList.this, AppRTCVideoActivity.class);
+        }
+        else if (sendRequestCode == REQUEST_CHANGEPASSWORD) {
+            intent.setClass(ConnectionList.this, AppRTCChangePasswordActivity.class);
+        }
         intent.putExtra("connectionID", connectionInfo.getConnectionID());
 
         // start the AppRTCActivity
-        startActivityForResult(intent, REQUEST_STARTVIDEO);
+        startActivityForResult(intent, sendRequestCode);
+    }
+
+    // activity returns
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        busy = false;
+        if (requestCode == REQUEST_CHANGEPASSWORD && resultCode == RESULT_OK) {
+            toastShort(R.string.connectionList_toast_passwordChange_success);
+        }
+        else // fall back to superclass method
+            super.onActivityResult(requestCode, resultCode, data);
     }
 }

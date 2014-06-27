@@ -21,12 +21,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.*;
-import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.widget.*;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.IAuthModule;
+import org.mitre.svmp.auth.module.PasswordChangeModule;
+import org.mitre.svmp.auth.module.PasswordModule;
 import org.mitre.svmp.auth.type.IAuthType;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.ConnectionInfo;
@@ -43,11 +43,11 @@ import java.util.Map;
  * @author Joe Portner
  */
 public class SvmpActivity extends Activity implements Constants {
-    public static final int REQUEST_STARTVIDEO = 100;
     public final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
     public final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
     public final static int RESULT_FINISH = 102; // finish the parent activity
     public final static int RESULT_NEEDAUTH = 103; // need to authenticate
+    public final static int RESULT_NEEDPASSWORDCHANGE = 104; // need to authenticate
 
     // database handler
     protected DatabaseHandler dbHandler;
@@ -153,6 +153,17 @@ public class SvmpActivity extends Activity implements Constants {
                     }
                 }
                 break;
+            case RESULT_NEEDPASSWORDCHANGE:
+                // either we need to change our password, or we tried to do so and that failed
+                if (data != null ) {
+                    int connectionID = data.getIntExtra("connectionID", 0);
+                    ConnectionInfo connectionInfo = dbHandler.getConnectionInfo(connectionID);
+
+                    // check to see if we found the ConnectionInfo we were connecting to
+                    if (connectionInfo != null)
+                        passwordChangePrompt(connectionInfo);
+                }
+                break;
         }
     }
 
@@ -179,7 +190,8 @@ public class SvmpActivity extends Activity implements Constants {
     protected void authPrompt(ConnectionInfo connectionInfo) {
         authPrompt(connectionInfo, false);
     }
-    // Dialog for entering a password when a connection is opened
+    // if necessary, generates a dialog for entering a password when a connection is opened
+    // if the background service is running, or if the user has a session token, the dialog is bypassed
     protected void authPrompt(final ConnectionInfo connectionInfo, boolean forceAuth) {
         // 'forceAuth' is used if we need to re-authenticate but the session service might not be fully shut down yet
 
@@ -189,8 +201,7 @@ public class SvmpActivity extends Activity implements Constants {
         busy = true;
 
         // if the service is already running for this connection, no need to prompt or authenticate
-        boolean serviceIsRunning = SessionService.getState() != STATE.NEW
-                && SessionService.getConnectionID() == connectionInfo.getConnectionID();
+        boolean serviceIsRunning = SessionService.isRunningForConn(connectionInfo.getConnectionID());
 
         // if we have a session token, try to authenticate with it
         String sessionToken = dbHandler.getSessionToken(connectionInfo);
@@ -207,29 +218,15 @@ public class SvmpActivity extends Activity implements Constants {
             TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
             message.setText(connectionInfo.getUsername());
 
-            IAuthModule[] authModules = AuthRegistry.getAuthModules();
             final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
-            boolean inputRequired = false;
-            // loop through the available Auth Modules;
-            for (IAuthModule module : authModules)
-                // if one should be used for this Connection, let it add a View to the UI and store it in a map
-                if ((connectionInfo.getAuthType() & module.getID()) == module.getID()) {
-                //if (module.isModuleUsed(connectionInfo.getAuthType())) {
-                    View view = module.generateUI(this);
-                    moduleViewMap.put(module, view);
-                    // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
-                    if (view != null) {
-                        inputContainer.addView(view);
-                        inputRequired = true;
-                    }
-                }
+            // populate module view map, add input views for each required auth module, and check whether input is required
+            boolean inputRequired = addAuthModuleViews(connectionInfo, moduleViewMap, inputContainer);
 
             if (inputRequired) {
                 // create a dialog
                 final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
                         .setCancelable(false)
-                        .setTitle( R.string.authPrompt_title)
-                                //                .setMessage(connectionInfo.domainUsername())
+                        .setTitle(R.string.authPrompt_title_normal)
                         .setView(inputContainer)
                         .setPositiveButton(R.string.authPrompt_button_positive_text,
                                 new DialogInterface.OnClickListener() {
@@ -255,24 +252,114 @@ public class SvmpActivity extends Activity implements Constants {
         }
     }
 
-    private void startAppRTCWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
-        // create an Intent to send for authorization
-        Request authRequest = buildAuthRequest(
-                connectionInfo.getAuthType(),
-                connectionInfo.getUsername(),
-                moduleViewMap);
-        // authorize user credentials
-        AuthData.setAuthRequest(connectionInfo, authRequest);
-        // legacy code (will change when Service is implemented)
-        startAppRTC(connectionInfo);
+    // generates a dialog for a password change prompt
+    protected void passwordChangePrompt(final ConnectionInfo connectionInfo) {
+        // if this connection uses password authentication, proceed
+        if ((connectionInfo.getAuthType() & PasswordModule.AUTH_MODULE_ID) == PasswordModule.AUTH_MODULE_ID) {
+
+            // the service is running for this connection, stop it so we can re-authenticate
+            if (SessionService.isRunningForConn(connectionInfo.getConnectionID()))
+                stopService(new Intent(SvmpActivity.this, SessionService.class));
+
+            // create the input container
+            final LinearLayout inputContainer = (LinearLayout) getLayoutInflater().inflate(R.layout.auth_prompt, null);
+
+            // set the message
+            TextView message = (TextView)inputContainer.findViewById(R.id.authPrompt_textView_message);
+            message.setText(connectionInfo.getUsername());
+
+            final HashMap<IAuthModule, View> moduleViewMap = new HashMap<IAuthModule, View>();
+            // populate module view map, add input views for each required auth module
+            // (we know at least password input is required)
+            addAuthModuleViews(connectionInfo, moduleViewMap, inputContainer);
+
+            // loop through the Auth module(s) to find the View for the old password input (needed for validation)
+            View oldPasswordView = null;
+            for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
+                if (entry.getKey().getID() == PasswordModule.AUTH_MODULE_ID) {
+                    oldPasswordView = entry.getValue();
+                    break;
+                }
+            }
+
+            // add "new password" and "confirm new password" views
+            final PasswordChangeModule module = new PasswordChangeModule(oldPasswordView);
+            View moduleView = module.generateUI(this);
+            moduleViewMap.put(module, moduleView);
+            inputContainer.addView(moduleView);
+
+            // create a dialog
+            final AlertDialog dialog = new AlertDialog.Builder(SvmpActivity.this)
+                    .setCancelable(false)
+                    .setTitle(R.string.authPrompt_title_passwordChange)
+                    .setView(inputContainer)
+                    .setPositiveButton(R.string.authPrompt_button_positive_text, null)
+                    .setNegativeButton(R.string.authPrompt_button_negative_text, new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int whichButton) {
+                            busy = false;
+                        }
+                    }).create();
+
+            // override positive button
+            dialog.setOnShowListener(new DialogInterface.OnShowListener() {
+                @Override
+                public void onShow(DialogInterface d) {
+                    Button positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                    if (positive != null) {
+                        positive.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                // before continuing, validate the new password inputs
+                                int resId = module.areInputsValid();
+                                if (resId == 0) {
+                                    dialog.dismiss(); // inputs are valid, dismiss the dialog
+                                    startAppRTCWithAuth(connectionInfo, moduleViewMap);
+                                }
+                                else {
+                                    // tell the user that the new password is not valid
+                                    toastShort(resId);
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+
+            // show the dialog
+            dialog.show();
+            // request keyboard
+            dialog.getWindow().setSoftInputMode (WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        }
     }
 
-    private Request buildAuthRequest(int authTypeID, String domainUsername, HashMap<IAuthModule, View> moduleViewMap) {
+    // populates module view map and adds input views for each required auth module
+    // returns true if any auth module(s) require input, otherwise returns false
+    private boolean addAuthModuleViews(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap, LinearLayout inputContainer) {
+        boolean inputRequired = false;
+
+        IAuthModule[] authModules = AuthRegistry.getAuthModules();
+        // loop through the available Auth Modules;
+        for (IAuthModule module : authModules)
+            // if one should be used for this Connection, let it add a View to the UI and store it in a map
+            if ((connectionInfo.getAuthType() & module.getID()) == module.getID()) {
+                View view = module.generateUI(this);
+                moduleViewMap.put(module, view);
+                // add the View to the UI if it's not null; it may be null if a module doesn't require UI interaction
+                if (view != null) {
+                    inputContainer.addView(view);
+                    inputRequired = true;
+                }
+            }
+
+        return inputRequired;
+    }
+
+    // prepares an AuthRequest using the auth dialog input, then starts the AppRTC connection
+    private void startAppRTCWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
         // create an Authentication protobuf
         AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
         aBuilder.setType(AuthRequest.AuthRequestType.AUTHENTICATION);
-        // the full domain username is used (i.e. "domain\\username", or "username" if domain is blank)
-        aBuilder.setUsername(domainUsername);
+        aBuilder.setUsername(connectionInfo.getUsername());
 
         // loop through the Auth module(s) we're using, get the values, & put them in the Intent
         for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
@@ -280,13 +367,18 @@ public class SvmpActivity extends Activity implements Constants {
             entry.getKey().addRequestData(aBuilder, entry.getValue());
         }
 
-        // package the Authentication protobuf in a Request wrapper and return it
+        // package the Authentication protobuf in a Request wrapper
         Request.Builder rBuilder = Request.newBuilder();
         rBuilder.setType(Request.RequestType.AUTH);
         rBuilder.setAuthRequest(aBuilder);
-        return rBuilder.build();
+
+        // store the user credentials to be used by the AppRTCClient
+        AuthData.setAuthRequest(connectionInfo, rBuilder.build());
+        // start the connection
+        startAppRTC(connectionInfo);
     }
 
+    // Start the AppRTC service and allow child to start correct AppRTC activity
     private void startAppRTC(ConnectionInfo connectionInfo) {
         // if the session service is running for a different connection, stop it
         boolean stopService = SessionService.getConnectionID() != connectionInfo.getConnectionID()
@@ -302,7 +394,7 @@ public class SvmpActivity extends Activity implements Constants {
         afterStartAppRTC(connectionInfo);
     }
 
-    // override this method in child classes
+    // override this method in child classes, this is where we start the appropriate AppRTC activity
     protected void afterStartAppRTC(ConnectionInfo connectionInfo) {
     }
 

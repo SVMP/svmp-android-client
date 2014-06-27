@@ -15,13 +15,7 @@
  */
 package org.mitre.svmp.auth.type;
 
-import android.content.Context;
-import android.text.InputType;
-import android.view.View;
-import android.widget.EditText;
-import org.mitre.svmp.auth.module.IAuthModule;
 import org.mitre.svmp.auth.module.PasswordModule;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
 
 /**
  * @author Joe Portner

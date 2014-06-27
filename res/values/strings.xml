@@ -60,6 +60,7 @@
     <string name="connectionList_button_new_text">New</string>
     <string name="connectionList_button_exit_text">Exit</string>
     <string name="connectionList_context_stop_text">Stop service</string>
+    <string name="connectionList_context_changePassword_text">Change password</string>
 
     <!-- ConnectionDetails layout resources -->
     <string name="connectionDetails_title">SVMP Connection Details</string>
@@ -87,6 +88,7 @@
     <string name="connectionList_toast_error">Error creating new connection</string>
     <string name="connectionList_toast_notFound">Connection not found</string>
     <string name="connectionList_toast_removed">Connection removed</string>
+    <string name="connectionList_toast_passwordChange_success">Password changed successfully</string>
 
     <!-- ConnectionDetails toast resources -->
     <string name="connectionDetails_toast_invalidPort">Invalid port number (must be 1 to 65535)</string>
@@ -100,6 +102,10 @@
     <!-- SvmpActivity toast resources -->
     <string name="svmpActivity_toast_sessionMaxTimeout">SVMP session reached max life timeout, please re-authenticate</string>
     <string name="svmpActivity_toast_sessionIdleTimeout">SVMP session reached idle timeout, please re-authenticate</string>
+    <string name="svmpActivity_toast_needPasswordChange">You must change your password before proceeding</string>
+    <string name="svmpActivity_toast_newPasswordFail_noMatch">New password and confirmation do not match!</string>
+    <string name="svmpActivity_toast_newPasswordFail_blank">New password cannot be blank!</string>
+    <string name="svmpActivity_toast_newPasswordFail_same">New password must be different from old password!</string>
 
     <!-- AppRTC toast resources -->
     <string name="appRTC_toast_connection_start">Connecting to room…</string>
@@ -113,6 +119,7 @@
     <string name="appRTC_toast_socketConnector_fail">Error connecting</string>
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
+    <string name="appRTC_toast_svmpAuthenticator_passwordChangeFail">Authentication failed, try again</string>
     <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
     <string name="appRTC_toast_svmpAuthenticator_success">Authenticated successfully</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
@@ -142,7 +149,8 @@
     <string name="sessionService_notification_action_exit">Exit</string>
 
     <!-- SvmpActivity dialog resources -->
-    <string name="authPrompt_title">Authentication required</string>
+    <string name="authPrompt_title_normal">Authentication required</string>
+    <string name="authPrompt_title_passwordChange">Change password</string>
     <string name="authPrompt_button_positive_text">Submit</string>
     <string name="authPrompt_button_negative_text">Cancel</string>
 

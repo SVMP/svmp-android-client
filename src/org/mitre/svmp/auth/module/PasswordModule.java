@@ -32,7 +32,7 @@ public class PasswordModule implements IAuthModule {
     }
 
     public View generateUI(Context context) {
-        // create the token input
+        // create the password input
         EditText input = new EditText(context);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
         input.setHint("Password");
