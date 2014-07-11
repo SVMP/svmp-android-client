@@ -46,6 +46,7 @@
 package org.mitre.svmp.activities;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.os.Bundle;
@@ -55,9 +56,8 @@ import org.appspot.apprtc.VideoStreamsView;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.apprtc.*;
-import org.mitre.svmp.client.R;
-import org.mitre.svmp.client.RotationHandler;
-import org.mitre.svmp.client.TouchHandler;
+import org.mitre.svmp.client.*;
+import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.AppsRequest;
 import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
@@ -77,6 +77,8 @@ public class AppRTCVideoActivity extends AppRTCActivity {
     private TouchHandler touchHandler;
     private RotationHandler rotationHandler;
     private String pkgName; // what app we want to launch when we finish connecting
+    private KeyHandler keyHandler;
+    private ConfigHandler configHandler;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -103,6 +105,8 @@ public class AppRTCVideoActivity extends AppRTCActivity {
 
         touchHandler = new TouchHandler(this, displaySize, performanceAdapter);
         rotationHandler = new RotationHandler(this);
+        keyHandler = new KeyHandler(this);
+        configHandler = new ConfigHandler(this);
 
         AppRTCHelper.abortUnless(PeerConnectionFactory.initializeAndroidGlobals(this),
                 "Failed to initializeAndroidGlobals");
@@ -118,6 +122,14 @@ public class AppRTCVideoActivity extends AppRTCActivity {
                 "OfferToReceiveVideo", "true"));
 
         super.connectToRoom();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+
+        // send the updated configuration to the VM (i.e. whether or not a hardware keyboard is plugged in)
+        configHandler.handleConfiguration(newConfig);
     }
 
     public VideoStreamsView getVSV() {
@@ -176,26 +188,41 @@ public class AppRTCVideoActivity extends AppRTCActivity {
         touchHandler.sendScreenInfoMessage();
         rotationHandler.initRotationUpdates();
 
+        // send the initial configuration to the VM
+        Configuration config = getResources().getConfiguration();
+        configHandler.handleConfiguration(config);
+
+        // tell the VM what app we want to start
+        sendAppsMessage();
+
         PeerConnection pc = pcObserver.getPC();
         if (pc != null)
             pc.createOffer(sdpObserver, sdpMediaConstraints);
+    }
 
+    // sends "APPS" request to VM; if pkgName is not null, start that app, otherwise go to the Launcher
+    private void sendAppsMessage() {
+        AppsRequest.Builder aBuilder = AppsRequest.newBuilder();
+        aBuilder.setType(AppsRequest.AppsRequestType.LAUNCH);
         // if we've been given a package name, start that app
-        if (pkgName != null) {
-            AppsRequest.Builder aBuilder = AppsRequest.newBuilder();
-            aBuilder.setType(AppsRequest.AppsRequestType.LAUNCH);
+        if (pkgName != null)
             aBuilder.setPkgName(pkgName);
-            Request.Builder rBuilder = Request.newBuilder();
-            rBuilder.setType(Request.RequestType.APPS);
-            rBuilder.setApps(aBuilder);
-            sendMessage(rBuilder.build());
-        }
+        Request.Builder rBuilder = Request.newBuilder();
+        rBuilder.setType(Request.RequestType.APPS);
+        rBuilder.setApps(aBuilder);
+        sendMessage(rBuilder.build());
     }
 
     // MessageHandler interface method
     // Called when a message is sent from the server, and the SessionService doesn't consume it
     public boolean onMessage(Response data) {
         switch (data.getType()) {
+            case APPS:
+                if (data.hasApps() && data.getApps().getType() == SVMPProtocol.AppsResponse.AppsResponseType.EXIT) {
+                    // we have exited a remote app; exit back to our parent activity and act accordingly
+                    disconnectAndExit();
+                }
+                break;
             case SCREENINFO:
                 handleScreenInfo(data);
                 break;
@@ -259,5 +286,11 @@ public class AppRTCVideoActivity extends AppRTCActivity {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         return touchHandler.onTouchEvent(event);
+    }
+
+    // intercept KeyEvent before it is dispatched to the window
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        return keyHandler.tryConsume(event) || super.dispatchKeyEvent(event);
     }
 }

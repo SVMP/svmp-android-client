@@ -85,7 +85,9 @@ public class AppRTCRefreshAppsActivity extends AppRTCActivity {
                 SVMPProtocol.AppInfo.Builder aiBuilder = SVMPProtocol.AppInfo.newBuilder();
                 aiBuilder.setAppName(appInfo.getAppName());
                 aiBuilder.setPkgName(appInfo.getPackageName());
-                aiBuilder.setIconHash(convertIconHash(appInfo));
+                ByteString iconHash = convertIconHash(appInfo);
+                if (iconHash != null)
+                    aiBuilder.setIconHash(iconHash);
                 arBuilder.addCurrent(aiBuilder);
             }
         }
@@ -97,9 +99,9 @@ public class AppRTCRefreshAppsActivity extends AppRTCActivity {
         sendMessage(rBuilder.build());
     }
 
-    // converts an app's icon hash to a ByteString; if the hash is null, returns an empty ByteString
+    // converts an app's icon hash to a ByteString; if the hash is null, returns null
     private ByteString convertIconHash(AppInfo appInfo) {
-        ByteString value = ByteString.EMPTY;
+        ByteString value = null;
         byte[] iconHash = appInfo.getIconHash();
         if (iconHash != null)
             value = ByteString.copyFrom(iconHash);
@@ -135,18 +137,17 @@ public class AppRTCRefreshAppsActivity extends AppRTCActivity {
 
         // loop through the list of new AppInfos that were returned from the VM and add them
         List<SVMPProtocol.AppInfo> newApps = appsResponse.getNewList();
-        List<SVMPProtocol.AppInfo> updatedApps = appsResponse.getUpdatedList();
         for (SVMPProtocol.AppInfo appInfo : newApps) {
             String packageName = appInfo.getPkgName(),
                     appName = appInfo.getAppName();
             byte[] icon = appInfo.hasIcon() ? appInfo.getIcon().toByteArray() : null,
                     iconHash = getIconHash(icon);
-            boolean favorite = false;
             AppInfo newAppInfo = new AppInfo(connectionID, packageName, appName, false, icon, iconHash);
             dbHandler.insertAppInfo(newAppInfo);
         }
 
         // loop through the list of updated AppInfos that were returned from the VM and update them
+        List<SVMPProtocol.AppInfo> updatedApps = appsResponse.getUpdatedList();
         for (SVMPProtocol.AppInfo appInfo : updatedApps) {
             String packageName = appInfo.getPkgName(),
                     appName = appInfo.getAppName();

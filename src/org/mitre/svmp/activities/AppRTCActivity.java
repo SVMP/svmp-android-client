@@ -45,7 +45,6 @@
 
 package org.mitre.svmp.activities;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.*;
@@ -94,9 +93,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        hideNavBar();
-
         // lock the application to the natural "up" orientation of the physical device
         //noinspection MagicConstant
         setRequestedOrientation(getDeviceDefaultOrientation());
@@ -131,38 +127,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        hideNavBar();
-    }
-
-    private void hideNavBar() {
-        // hide the nav and notification bars
-        View decorView = this.getWindow().getDecorView();
-        int uiOptions = 0;
-        if (API_19)
-            uiOptions = hideNavBarKitKat();
-        else if (API_14)
-            uiOptions = hideNavBarICS();
-
-        decorView.setSystemUiVisibility(uiOptions);
-    }
-
-    @TargetApi(19)
-    private int hideNavBarKitKat() {
-        // use the new immersive full-screen mode
-        // https://developer.android.com/training/system-ui/immersive.html
-        return View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                | View.SYSTEM_UI_FLAG_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
-    }
-
-    @TargetApi(14)
-    private int hideNavBarICS() {
-        // ICS nav bar dimming
-        // Notification bar is done in the manifest properties for this activity:
-        //    android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
-        return View.SYSTEM_UI_FLAG_LOW_PROFILE;
     }
 
     // returns what value we should request for screen orientation, either portrait or landscape

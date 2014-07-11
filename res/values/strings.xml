@@ -59,6 +59,9 @@
     <string name="connectionList_title">SVMP Connections</string>
     <string name="connectionList_button_new_text">New</string>
     <string name="connectionList_button_exit_text">Exit</string>
+    <string name="connectionList_context_connectToDesktop_text">Connect to desktop</string>
+    <string name="connectionList_context_editConnection_text">Edit connection</string>
+    <string name="connectionList_context_removeConnection_text">Remove connection</string>
     <string name="connectionList_context_stop_text">Stop service</string>
     <string name="connectionList_context_changePassword_text">Change password</string>
 
@@ -140,6 +143,10 @@
     <string name="appList_toast_notFound">Couldn\'t find requested app</string>
     <string name="appList_toast_refreshSuccess">Successfully refreshed apps</string>
     <string name="appList_toast_refreshFail">App refresh failed, please try again</string>
+
+    <!-- AppList toast resources -->
+    <string name="intentHandler_toast_noTelephonyCDMA">This device cannot make phone calls!</string>
+    <string name="intentHandler_toast_noTelephonyGSM">This device cannot make phone calls!\n(do you need to check your SIM card?)</string>
 
     <!-- SessionService notification resources -->
     <string name="sessionService_notification_contentTitle">SVMP Session Service</string>

@@ -28,6 +28,7 @@ import android.widget.*;
 
 import org.mitre.svmp.auth.module.PasswordModule;
 import org.mitre.svmp.common.ConnectionInfo;
+import org.mitre.svmp.common.Utility;
 import org.mitre.svmp.services.SessionService;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.widgets.ConnectionInfoArrayAdapter;
@@ -73,7 +74,17 @@ public class ConnectionList extends SvmpActivity {
         Intent intent = getIntent();
         if (intent.hasExtra("connectionID")) {
             int id = intent.getIntExtra("connectionID", 0);
-            authPrompt(dbHandler.getConnectionInfo(id));
+            ConnectionInfo connectionInfo = dbHandler.getConnectionInfo(id);
+            if (connectionInfo != null) {
+                // if we allow use of desktop mode, start the connection; otherwise take us to this connection's app list
+                if (Utility.getPrefBool(this, R.string.preferenceKey_connection_useDesktopMode, R.string.preferenceValue_connection_useDesktopMode)) {
+                    this.sendRequestCode = REQUEST_STARTVIDEO;
+                    authPrompt(connectionInfo);
+                }
+                else {
+                    startConnectionAppList(connectionInfo);
+                }
+            }
         }
     }
 
@@ -105,8 +116,15 @@ public class ConnectionList extends SvmpActivity {
     public void onClick_Item(View view) {
         try {
             int position = listView.getPositionForView(view);
-            this.sendRequestCode = REQUEST_STARTVIDEO;
-            authPrompt((ConnectionInfo) listView.getItemAtPosition(position));
+            ConnectionInfo connectionInfo = (ConnectionInfo)listView.getItemAtPosition(position);
+            // if we allow use of desktop mode, start the connection; otherwise take us to this connection's app list
+            if (Utility.getPrefBool(this, R.string.preferenceKey_connection_useDesktopMode, R.string.preferenceValue_connection_useDesktopMode)) {
+                this.sendRequestCode = REQUEST_STARTVIDEO;
+                authPrompt(connectionInfo);
+            }
+            else {
+                startConnectionAppList(connectionInfo);
+            }
         } catch( Exception e ) {
             // don't care
         }
@@ -141,9 +159,13 @@ public class ConnectionList extends SvmpActivity {
             AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
             ConnectionInfo connectionInfo = connectionInfoList.get(info.position);
             menu.setHeaderTitle(connectionInfo.getDescription());
-            String[] menuItems = getResources().getStringArray(R.array.connectionList_context_items);
-            for(int i = 0; i < menuItems.length; i++)
-                menu.add(Menu.NONE, i, i, menuItems[i]);
+
+            // if our preferences are set to allow use of "Desktop mode", enable that context button
+            if (Utility.getPrefBool(this, R.string.preferenceKey_connection_useDesktopMode, R.string.preferenceValue_connection_useDesktopMode))
+                menu.add(Menu.NONE, 0, 0, R.string.connectionList_context_connectToDesktop_text);
+
+            menu.add(Menu.NONE, 1, 1, R.string.connectionList_context_editConnection_text);
+            menu.add(Menu.NONE, 2, 2, R.string.connectionList_context_removeConnection_text);
 
             // if this uses password authentication, add an option to change the password
             if ((connectionInfo.getAuthType() & PasswordModule.AUTH_MODULE_ID) == PasswordModule.AUTH_MODULE_ID)
