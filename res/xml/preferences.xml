@@ -170,6 +170,12 @@
                         android:summary="@string/checkBoxPreference_connection_showEncryption_summary"
                         android:defaultValue="@string/preferenceValue_connection_showEncryption"
                         />
+                <CheckBoxPreference
+                        android:key="@string/preferenceKey_connection_useDesktopMode"
+                        android:title="@string/checkBoxPreference_connection_useDesktopMode_title"
+                        android:summary="@string/checkBoxPreference_connection_useDesktopMode_summary"
+                        android:defaultValue="@string/preferenceValue_connection_useDesktopMode"
+                        />
             </PreferenceCategory>
         </PreferenceScreen>
     </PreferenceCategory>

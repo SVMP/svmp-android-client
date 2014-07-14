@@ -15,7 +15,6 @@
  */
 package org.mitre.svmp.services;
 
-import android.annotation.TargetApi;
 import android.app.*;
 import android.content.Context;
 import android.content.Intent;
@@ -26,8 +25,9 @@ import android.widget.Toast;
 import org.mitre.svmp.activities.ConnectionList;
 import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.apprtc.MessageHandler;
+import org.mitre.svmp.client.IntentHandler;
 import org.mitre.svmp.client.LocationHandler;
-import org.mitre.svmp.client.NetIntentsHandler;
+import org.mitre.svmp.client.NotificationHandler;
 import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.*;
 import org.mitre.svmp.common.StateMachine.STATE;
@@ -174,7 +174,6 @@ public class SessionService extends Service implements StateObserver, MessageHan
             binder.disconnect();
     }
 
-    @TargetApi(16)
     private void showNotification(boolean connected) {
         Notification.Builder notice = new Notification.Builder(this);
         Resources resources = getResources();
@@ -197,34 +196,41 @@ public class SessionService extends Service implements StateObserver, MessageHan
         // Creates an explicit intent for the ConnectionList
         Intent resultIntent = new Intent(this, ConnectionList.class);
         resultIntent.putExtra("connectionID", connectionInfo.getConnectionID());
+        PendingIntent resultPendingIntent;
 
-        // The stack builder object will contain an artificial back stack for the
-        // started Activity.
-        // This ensures that navigating backward from the Activity leads out of
-        // your application to the Home screen.
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-        // Adds the back stack for the Intent (but not the Intent itself)
-        stackBuilder.addParentStack(ConnectionList.class);
-        // Adds the Intent that starts the Activity to the top of the stack
-        stackBuilder.addNextIntent(resultIntent);
-        PendingIntent resultPendingIntent =
-                stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            // The stack builder object will contain an artificial back stack for the
+            // started Activity.
+            // This ensures that navigating backward from the Activity leads out of
+            // your application to the Home screen.
+            TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+            // Adds the back stack for the Intent (but not the Intent itself)
+            stackBuilder.addParentStack(ConnectionList.class);
+            // Adds the Intent that starts the Activity to the top of the stack
+            stackBuilder.addNextIntent(resultIntent);
+            resultPendingIntent =  stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        }
+        else {
+            resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        }
         notice.setContentIntent(resultPendingIntent);
 
-        // add "Open" action
-        CharSequence openText = resources.getText(R.string.sessionService_notification_action_open);
-        notice.addAction(android.R.drawable.ic_media_play, openText, resultPendingIntent);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            // add "Open" action
+            CharSequence openText = resources.getText(R.string.sessionService_notification_action_open);
+            notice.addAction(android.R.drawable.ic_media_play, openText, resultPendingIntent);
 
-        // add "Exit" action
-        CharSequence exitText = resources.getText(R.string.sessionService_notification_action_exit);
-        Intent stopServiceIntent = new Intent(ACTION_STOP_SERVICE, null, this, SessionService.class);
-        PendingIntent stopServicePendingIntent = PendingIntent.getService(this, 0, stopServiceIntent, 0);
-        notice.addAction(android.R.drawable.ic_menu_close_clear_cancel, exitText, stopServicePendingIntent);
+            // add "Exit" action
+            CharSequence exitText = resources.getText(R.string.sessionService_notification_action_exit);
+            Intent stopServiceIntent = new Intent(ACTION_STOP_SERVICE, null, this, SessionService.class);
+            PendingIntent stopServicePendingIntent = PendingIntent.getService(this, 0, stopServiceIntent, 0);
+            notice.addAction(android.R.drawable.ic_menu_close_clear_cancel, exitText, stopServicePendingIntent);
 
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN)
             notificationManager.notify(NOTIFICATION_ID, notice.build());
-        else
+        }
+        else {
             notificationManager.notify(NOTIFICATION_ID, notice.getNotification());
+        }
     }
 
     private void hideNotification() {
@@ -283,9 +289,16 @@ public class SessionService extends Service implements StateObserver, MessageHan
                 break;
             // This is an ACK to the video STOP request.
             case INTENT:
+                // handler is needed, we might create a toast from a background thread
+                final Response finalData = data;
+                handler.post(new Runnable() {
+                    public void run() {
+                        IntentHandler.inspect(finalData, SessionService.this);
+                    }
+                });
+                break;
             case NOTIFICATION:
-                //Inspect this message to see if it's an intent or notification.
-                NetIntentsHandler.inspect(data, SessionService.this);
+                NotificationHandler.inspect(data, SessionService.this, getConnectionID());
                 break;
             case PING:
                 long endDate = System.currentTimeMillis(); // immediately get end date

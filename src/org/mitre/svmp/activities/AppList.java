@@ -185,6 +185,10 @@ public class AppList extends SvmpActivity {
                 toastShort(R.string.appList_toast_refreshSuccess);
                 super.onActivityResult(requestCode, RESULT_REPOPULATE, data);
             }
+            else {
+                // this is probably a result of an AUTH_FAIL, let superclass handle it
+                super.onActivityResult(requestCode, resultCode, data);
+            }
         }
         else if (resultCode == RESULT_CANCELED && requestCode == REQUEST_STARTAPP_FINISH) {
             // the user intentionally canceled the activity, and we are supposed to finish this activity after resuming

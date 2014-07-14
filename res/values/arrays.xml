@@ -15,11 +15,7 @@
    limitations under the License.
   -->
 <resources>
-    <string-array name="connectionList_context_items">
-        <item>Connect</item>
-        <item>Edit connection</item>
-        <item>Remove connection</item>
-    </string-array>
+    <!-- used in connection_details.xml layout -->
     <string-array name="connectionDetails_encryption_items">
         <item>No encryption</item>
         <item>SSL/TLS</item>
