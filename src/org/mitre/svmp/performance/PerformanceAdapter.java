@@ -33,6 +33,12 @@ public class PerformanceAdapter {
             spanPerformanceData.incrementTouchUpdates();
     }
 
+    // used by SensorHandler to record sensor updates
+    public void incrementSensorUpdates() {
+        if (spanPerformanceData != null)
+            spanPerformanceData.incrementSensorUpdates();
+    }
+
     // used by MessageHandler to record ping
     public void setPing(long startDate, long endDate) {
         if (pointPerformanceData != null)

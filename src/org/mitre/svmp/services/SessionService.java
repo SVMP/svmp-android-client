@@ -19,19 +19,20 @@ import android.app.*;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.os.*;
 import android.util.Log;
 import android.widget.Toast;
 import org.mitre.svmp.activities.ConnectionList;
 import org.mitre.svmp.apprtc.AppRTCClient;
 import org.mitre.svmp.apprtc.MessageHandler;
-import org.mitre.svmp.client.IntentHandler;
-import org.mitre.svmp.client.LocationHandler;
-import org.mitre.svmp.client.NotificationHandler;
-import org.mitre.svmp.client.R;
+import org.mitre.svmp.client.*;
 import org.mitre.svmp.common.*;
 import org.mitre.svmp.common.StateMachine.STATE;
 import org.mitre.svmp.performance.PerformanceAdapter;
+import org.mitre.svmp.protocol.SVMPProtocol;
 import org.mitre.svmp.protocol.SVMPProtocol.AuthResponse.AuthResponseType;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 
@@ -42,7 +43,7 @@ import org.mitre.svmp.protocol.SVMPProtocol.Response;
  * 2. Start the service (so it doesn't stop on unbind)
  * 3. Bind to the service
  */
-public class SessionService extends Service implements StateObserver, MessageHandler, Constants {
+public class SessionService extends Service implements StateObserver, MessageHandler, SensorEventListener, Constants {
     private static final String TAG = SessionService.class.getName();
     private static final int NOTIFICATION_ID = 0;
 
@@ -78,6 +79,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
 
     // client components
     private LocationHandler locationHandler;
+    private SensorHandler sensorHandler;
 
     @Override
     public void onCreate() {
@@ -142,7 +144,10 @@ public class SessionService extends Service implements StateObserver, MessageHan
         performanceAdapter.setPerformanceData(binder.getPerformance());
 
         // create a location handler object
-        locationHandler = new LocationHandler(this, binder);
+        locationHandler = new LocationHandler(this);
+
+        // create a sensor handler object
+        sensorHandler = new SensorHandler(this, performanceAdapter);
 
         // show notification
         showNotification(true);
@@ -165,13 +170,20 @@ public class SessionService extends Service implements StateObserver, MessageHan
         if (locationHandler != null)
             locationHandler.cleanupLocationUpdates();
 
+        // clean up sensor updates
+        if (sensorHandler != null)
+            sensorHandler.cleanupSensors();
+
         // disconnect from the database
         if (databaseHandler != null)
             databaseHandler.close();
 
         // try to disconnect the client object
-        if (binder != null)
+        performanceAdapter.clearPerformanceData();
+        if (binder != null) {
             binder.disconnect();
+            binder = null;
+        }
     }
 
     private void showNotification(boolean connected) {
@@ -248,6 +260,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
     @Override
     public void onOpen() {
         locationHandler.initLocationUpdates();
+        sensorHandler.initSensors(); // start forwarding sensor data
     }
 
     // Google AppEngine message handler method
@@ -312,6 +325,26 @@ public class SessionService extends Service implements StateObserver, MessageHan
                 Log.e(TAG, "Unexpected protocol message of type " + data.getType().name());
         }
         return consumed;
+    }
+
+    // used by LocationHandler and SensorHandler to send messages
+    public void sendMessage(SVMPProtocol.Request request) {
+        if (binder != null)
+            binder.sendMessage(request);
+    }
+
+    // Bridge the SensorEventListener callbacks to the SensorHandler
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        if (getState() == STATE.RUNNING)
+            sensorHandler.onAccuracyChanged(sensor, accuracy);
+    }
+
+    // Bridge the SensorEventListener callbacks to the SensorHandler
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        if (getState() == STATE.RUNNING)
+            sensorHandler.onSensorChanged(event);
     }
 
     private void doToast(final int resID) {

@@ -94,7 +94,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * call connectToRoom().  Once that's done call sendMessage() and wait for the
  * registered handler to be called with received messages.
  */
-public class AppRTCClient extends Binder implements SensorEventListener, Constants {
+public class AppRTCClient extends Binder implements Constants {
     private static final String TAG = AppRTCClient.class.getName();
 
     // service and activity objects
@@ -117,7 +117,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
     private PerformanceTimer performance;
 
     // client components
-    private SensorHandler sensorHandler;
 
     // variables for networking
     private Socket svmpSocket;
@@ -135,7 +134,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
 
         this.dbHandler = new DatabaseHandler(service);
         this.performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
-        this.sensorHandler = new SensorHandler(service, this);
 
         machine.setState(STATE.STARTED, 0);
     }
@@ -199,9 +197,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
         dbHandler.close();
 
         performance.cancel(); // stop taking performance measurements
-
-        // clean up client components
-        sensorHandler.cleanupSensors(); // stop forwarding sensor data
 
         // use a new thread to shut down sockets, to avoid running into a NetworkOnMainThreadException...
         Thread socketShutdown = new Thread() {
@@ -526,7 +521,6 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
                     activity.onOpen();
 
                 performance.start(); // start taking performance measurements
-                sensorHandler.initSensors(); // start forwarding sensor data
             }
             else {
                 machine.setState(STATE.ERROR, R.string.appRTC_toast_videoParameterGetter_fail); // READY -> ERROR
@@ -594,18 +588,5 @@ public class AppRTCClient extends Binder implements SensorEventListener, Constan
             }
             return null;
         }
-    }
-
-    // Bridge the SensorEventListener callbacks to the SensorHandler
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        if (proxying)
-            sensorHandler.onAccuracyChanged(sensor, accuracy);
-    }
-
-    @Override
-    public void onSensorChanged(SensorEvent event) {
-        if (proxying)
-            sensorHandler.onSensorChanged(event);
     }
 }

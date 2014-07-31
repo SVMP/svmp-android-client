@@ -107,7 +107,7 @@
     <string name="svmpActivity_toast_sessionIdleTimeout">SVMP session reached idle timeout, please re-authenticate</string>
     <string name="svmpActivity_toast_needPasswordChange">You must change your password before proceeding</string>
     <string name="svmpActivity_toast_newPasswordFail_noMatch">New password and confirmation do not match!</string>
-    <string name="svmpActivity_toast_newPasswordFail_blank">New password cannot be blank!</string>
+    <string name="svmpActivity_toast_newPasswordFail_tooShort">New password must be at least 8 characters!</string>
     <string name="svmpActivity_toast_newPasswordFail_same">New password must be different from old password!</string>
 
     <!-- AppRTC toast resources -->

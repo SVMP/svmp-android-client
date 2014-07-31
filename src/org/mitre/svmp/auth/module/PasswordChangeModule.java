@@ -79,8 +79,8 @@ public class PasswordChangeModule implements IAuthModule {
             String newPassword = input1.getEditableText().toString();
             if (!newPassword.equals(input2.getEditableText().toString()))
                 resId = R.string.svmpActivity_toast_newPasswordFail_noMatch;
-            else if (newPassword.length() == 0)
-                resId = R.string.svmpActivity_toast_newPasswordFail_blank;
+            else if (newPassword.length() < 8)
+                resId = R.string.svmpActivity_toast_newPasswordFail_tooShort;
             else if (oldPasswordInput != null && newPassword.equals(oldPasswordInput.getEditableText().toString()))
                 resId = R.string.svmpActivity_toast_newPasswordFail_same;
         }
