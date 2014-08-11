@@ -20,8 +20,11 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.*;
 import android.widget.*;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.mitre.svmp.auth.AuthData;
 import org.mitre.svmp.auth.AuthRegistry;
 import org.mitre.svmp.auth.module.IAuthModule;
@@ -43,6 +46,8 @@ import java.util.Map;
  * @author Joe Portner
  */
 public class SvmpActivity extends Activity implements Constants {
+    private static final String TAG = SvmpActivity.class.getName();
+
     public final static int RESULT_REPOPULATE = 100; // refresh the layout of the parent activity
     public final static int RESULT_REFRESHPREFS = 101; // preferences have changed, update the layout accordingly
     public final static int RESULT_FINISH = 102; // finish the parent activity
@@ -354,26 +359,26 @@ public class SvmpActivity extends Activity implements Constants {
         return inputRequired;
     }
 
-    // prepares an AuthRequest using the auth dialog input, then starts the AppRTC connection
+    // prepares a JSONObject using the auth dialog input, then starts the AppRTC connection
     private void startAppRTCWithAuth(ConnectionInfo connectionInfo, HashMap<IAuthModule, View> moduleViewMap) {
-        // create an Authentication protobuf
-        AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
-        aBuilder.setType(AuthRequest.AuthRequestType.AUTHENTICATION);
-        aBuilder.setUsername(connectionInfo.getUsername());
+        // create a JSON Object
+        String arg = String.format("{type: 'AUTHENTICATION', username: '%s'}", connectionInfo.getUsername());
+        JSONObject jsonObject = null;
+        try {
+            jsonObject = new JSONObject(arg);
+        } catch (JSONException e) {
+            Log.e(TAG, "startAppRTCWithAuth failed:", e);
+            return;
+        }
 
         // loop through the Auth module(s) we're using, get the values, & put them in the Intent
         for (Map.Entry<IAuthModule, View> entry : moduleViewMap.entrySet()) {
             // add the value from the AuthModule, which may use input from a View from the Authentication prompt
-            entry.getKey().addRequestData(aBuilder, entry.getValue());
+            entry.getKey().addRequestData(jsonObject, entry.getValue());
         }
 
-        // package the Authentication protobuf in a Request wrapper
-        Request.Builder rBuilder = Request.newBuilder();
-        rBuilder.setType(Request.RequestType.AUTH);
-        rBuilder.setAuthRequest(aBuilder);
-
         // store the user credentials to be used by the AppRTCClient
-        AuthData.setAuthRequest(connectionInfo, rBuilder.build());
+        AuthData.setAuthJSON(connectionInfo, jsonObject);
         // start the connection
         startAppRTC(connectionInfo);
     }

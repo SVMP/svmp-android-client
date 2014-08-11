@@ -17,17 +17,21 @@ package org.mitre.svmp.auth.module;
 
 import android.content.Context;
 import android.text.InputType;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import org.json.JSONException;
 import org.mitre.svmp.client.R;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
+import org.json.JSONObject;
 
 /**
  * @author Joe Portner
  * Special module to construct a password change dialog
  */
 public class PasswordChangeModule implements IAuthModule {
+    private static final String TAG = PasswordModule.class.getName();
+
     public static final int AUTH_MODULE_ID = 0; // This is a special module, not added to the AuthRegistry
 
     private EditText input1;
@@ -55,13 +59,20 @@ public class PasswordChangeModule implements IAuthModule {
         return view;
     }
 
-    public void addRequestData(AuthRequest.Builder builder, View view) {
-        if (input1 != null && input2 != null) {
+    public void addRequestData(JSONObject jsonObject, View view) {
+        if (input1 != null && input1.getEditableText() != null) {
             String text = input1.getEditableText().toString();
-            builder.setNewPassword(text);
 
-            // by default, auth request type is "AUTHENTICATION"... change it
-            builder.setType(AuthRequest.AuthRequestType.PASSWORD_CHANGE);
+            try {
+                jsonObject.put("newPassword", text);
+                // by default, object type is "AUTHENTICATION"... change it
+                jsonObject.put("type", "PASSWORD_CHANGE");
+            } catch (JSONException e) {
+                Log.e(TAG, "addRequestData failed:", e);
+            }
+        }
+        else {
+            Log.e(TAG, "addRequestData failed: input is null");
         }
     }
 
@@ -75,7 +86,9 @@ public class PasswordChangeModule implements IAuthModule {
     // should only be called after "generateUI"!
     public int areInputsValid() {
         int resId = 0;
-        if (input1 != null && input2 != null) {
+        if (input1 != null && input1.getEditableText() != null
+                && input2 != null  && input2.getEditableText() != null
+                && oldPasswordInput != null && oldPasswordInput.getEditableText() != null) {
             String newPassword = input1.getEditableText().toString();
             if (!newPassword.equals(input2.getEditableText().toString()))
                 resId = R.string.svmpActivity_toast_newPasswordFail_noMatch;

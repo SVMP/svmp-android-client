@@ -127,13 +127,10 @@
     <string name="appRTC_toast_svmpAuthenticator_success">Authenticated successfully</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
     <string name="appRTC_toast_svmpReadyWait_success">VM is ready, querying for WebRTC channel info</string>
-    <string name="appRTC_toast_videoParameterGetter_fail">Failed to get channel info</string>
-    <string name="appRTC_toast_videoParameterGetter_success">Got channel info</string>
     <string name="appRTC_toast_getIceServers_start">Waiting for ICE candidates…</string>
     <string name="appRTC_toast_clientHandler_start">Creating offer…</string>
     <string name="appRTC_toast_clientHandler_finish">Remote end hung up; dropping PeerConnection</string>
     <string name="appRTC_toast_sdpObserver_sendOffer">Sending offer</string>
-    <string name="appRTC_toast_sdpObserver_createAnswer">Creating answer</string>
 
     <!-- AppList toast resources -->
     <string name="appList_toast_addedFavorite">Added app to favorites</string>

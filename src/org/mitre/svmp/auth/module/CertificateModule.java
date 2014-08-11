@@ -17,7 +17,7 @@ package org.mitre.svmp.auth.module;
 
 import android.content.Context;
 import android.view.View;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
+import org.json.JSONObject;
 
 /**
  * @author Joe Portner
@@ -34,7 +34,7 @@ public class CertificateModule implements IAuthModule {
         return null;
     }
 
-    public void addRequestData(AuthRequest.Builder builder, View view) {
+    public void addRequestData(JSONObject jsonObject, View view) {
         // we don't need to add request data for the certificate, it's handled over the SSL handshake
     }
 }

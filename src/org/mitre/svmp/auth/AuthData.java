@@ -15,9 +15,10 @@ limitations under the License.
 */
 package org.mitre.svmp.auth;
 
+import android.util.Log;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.mitre.svmp.common.ConnectionInfo;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
-import org.mitre.svmp.protocol.SVMPProtocol.Request;
 
 import java.util.HashMap;
 
@@ -28,34 +29,36 @@ import java.util.HashMap;
  * If we do NOT have a session token (e.g. we have a password, security token, it is cleared after being accessed
  */
 public final class AuthData {
+    private static final String TAG = AuthData.class.getName();
+
     // maps ConnectionID to Request objects that contain auth info (password, etc)
-    private static HashMap<Integer, Request> authDataMap = new HashMap<Integer, Request>();
+    private static HashMap<Integer, JSONObject> authDataMap = new HashMap<Integer, JSONObject>();
 
     // no public instantiations
     private AuthData() {}
 
     // used to add auth data (password, security token, etc)
-    public static void setAuthRequest(ConnectionInfo connectionInfo, Request authRequest) {
+    public static void setAuthJSON(ConnectionInfo connectionInfo, JSONObject jsonObject) {
         // store this auth data
-        authDataMap.put(connectionInfo.getConnectionID(), authRequest);
+        authDataMap.put(connectionInfo.getConnectionID(), jsonObject);
     }
 
-    public static Request getRequest(ConnectionInfo connectionInfo) {
-        // get the request and remove it from the map (returns null value if it doesn't exist)
+    public static JSONObject getJSON(ConnectionInfo connectionInfo) {
+        // get the JSON and remove it from the map (returns null value if it doesn't exist)
         return authDataMap.remove(connectionInfo.getConnectionID());
     }
 
-    public static Request makeRequest(ConnectionInfo connectionInfo, String sessionToken) {
-        // create an Authentication protobuf
-        AuthRequest.Builder aBuilder = AuthRequest.newBuilder();
-        aBuilder.setType(AuthRequest.AuthRequestType.SESSION_TOKEN);
-        aBuilder.setUsername(connectionInfo.getUsername());
-        aBuilder.setSessionToken(sessionToken);
+    public static JSONObject makeJSON(ConnectionInfo connectionInfo, String sessionToken) {
+        JSONObject value = null;
 
-        // package the Authentication protobuf in a Request wrapper and store it
-        Request.Builder rBuilder = Request.newBuilder();
-        rBuilder.setType(Request.RequestType.AUTH);
-        rBuilder.setAuthRequest(aBuilder);
-        return rBuilder.build();
+        // create a JSON object
+        String arg = String.format("{username: '%s', sessionToken: '%s'}", connectionInfo.getUsername(), sessionToken);
+        try {
+            value = new JSONObject(arg);
+        } catch (JSONException e) {
+            Log.e(TAG, "makeJSON failed:", e);
+        }
+
+        return value;
     }
 }

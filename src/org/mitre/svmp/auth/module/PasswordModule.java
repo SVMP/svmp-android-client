@@ -17,14 +17,18 @@ package org.mitre.svmp.auth.module;
 
 import android.content.Context;
 import android.text.InputType;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 /**
  * @author Joe Portner
  */
 public class PasswordModule implements IAuthModule {
+    private static final String TAG = PasswordModule.class.getName();
+
     public static final int AUTH_MODULE_ID = 1 << 0; // 1
 
     public int getID() {
@@ -39,9 +43,18 @@ public class PasswordModule implements IAuthModule {
         return input;
     }
 
-    public void addRequestData(AuthRequest.Builder builder, View view) {
+    public void addRequestData(JSONObject jsonObject, View view) {
         EditText input = (EditText)view;
-        String text = input.getEditableText().toString();
-        builder.setPassword(text);
+        if (input != null && input.getEditableText() != null) {
+            String text = input.getEditableText().toString();
+            try {
+                jsonObject.put("password", text);
+            } catch (JSONException e) {
+                Log.e(TAG, "addRequestData failed:", e);
+            }
+        }
+        else {
+            Log.e(TAG, "addRequestData failed: input is null");
+        }
     }
 }
