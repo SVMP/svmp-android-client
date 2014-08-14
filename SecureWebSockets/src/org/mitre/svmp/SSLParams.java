@@ -18,6 +18,7 @@ package org.mitre.svmp;
 import javax.net.ssl.SSLContext;
 
 /**
+ * This stores SSL parameters to be used in various WebSocket files
  * @author Joe Portner
  */
 public class SSLParams {

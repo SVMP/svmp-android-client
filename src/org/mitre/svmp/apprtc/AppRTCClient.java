@@ -26,10 +26,17 @@ import de.tavendo.autobahn.WebSocketConnection;
 import de.tavendo.autobahn.WebSocketException;
 import de.tavendo.autobahn.WebSocketOptions;
 import org.apache.http.*;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.HTTP;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -43,7 +50,7 @@ import org.mitre.svmp.common.*;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.common.StateMachine.STATE;
 
-import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -183,12 +190,25 @@ public class AppRTCClient extends Binder implements Constants {
             JSONObject jsonRequest = jsonObjects[0];
 
             passwordChange = jsonRequest.has("newPassword");
+            int rPort = connectionInfo.getPort();
             String proto = useSSL ? "https" : "http",
+                    rHost = connectionInfo.getHost(),
                     // if we're changing our password, use a different API
                     api = passwordChange ? "api/user/passwd" : "login",
-                    uri = String.format("%s://%s:%d/%s", proto, connectionInfo.getHost(), connectionInfo.getPort(), api);
+                    uri = String.format("%s://%s:%d/%s", proto, rHost, rPort, api);
 
-            HttpClient httpclient = new DefaultHttpClient();
+            // set up HttpParams
+            HttpParams params = new BasicHttpParams();
+            HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+            HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+
+            // set up ConnectionManager
+            SchemeRegistry registry = new SchemeRegistry();
+            registry.register(new Scheme(proto, useSSL ? sslConfig.getSocketFactory() : PlainSocketFactory.getSocketFactory(), rPort));
+            ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);
+
+            // create HttpClient
+            DefaultHttpClient httpclient = new DefaultHttpClient(ccm, params);
             HttpPost post = new HttpPost(uri);
             post.setHeader(HTTP.CONTENT_TYPE, "application/json");
 
@@ -236,10 +256,15 @@ public class AppRTCClient extends Binder implements Constants {
                 }
             } catch (JSONException e) {
                 Log.e(TAG, "Failed to parse JSON response:", e);
-            } catch (SSLPeerUnverifiedException e) {
-                // error case: the server expects TLS off but we have it on
-                Log.e(TAG, "Client encryption is on but server encryption is off:", e);
-                returnVal = R.string.appRTC_toast_socketConnector_failSSL;
+            } catch (SSLException e) {
+                if (e.getMessage().equals("Connection closed by peer")) {
+                    // connection failed, we tried to connect using SSL but REST API's SSL is turned off
+                    Log.e(TAG, "Client encryption is on but server encryption is off:", e);
+                    returnVal = R.string.appRTC_toast_socketConnector_failSSL;
+                }
+                else {
+                    Log.e(TAG, "SSL error:", e);
+                }
             } catch (IOException e) {
                 Log.e(TAG, "HTTP request failed:", e);
                 // TODO: error case: the server expects TLS on but we have it off

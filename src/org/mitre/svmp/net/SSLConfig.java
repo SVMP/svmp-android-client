@@ -21,6 +21,7 @@ import android.util.Log;
 import com.google.PRNGFixes;
 import de.duenndns.ssl.MemorizingTrustManager;
 import de.tavendo.autobahn.WebSocketOptions;
+import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.mitre.svmp.SSLParams;
 import org.mitre.svmp.auth.SVMPKeyManager;
 import org.mitre.svmp.auth.module.CertificateModule;
@@ -29,7 +30,10 @@ import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.Utility;
 
-import javax.net.ssl.*;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
@@ -61,23 +65,40 @@ public class SSLConfig implements Constants {
             doConfigure();
             value = 0;
         } catch (KeyStoreException e) {
-            Log.e(TAG, "SslConfig threw an exception:", e);
+            Log.e(TAG, "SSLConfig failed:", e);
         } catch (NoSuchAlgorithmException e) {
-            Log.e(TAG, "SslConfig threw an exception:", e);
+            Log.e(TAG, "SSLConfig failed:", e);
         } catch (CertificateException e) {
-            Log.e(TAG, "SslConfig threw an exception:", e);
+            Log.e(TAG, "SSLConfig failed:", e);
         } catch (IOException e) {
-            Log.e(TAG, "SslConfig threw an exception:", e);
+            Log.e(TAG, "SSLConfig failed:", e);
         } catch (KeyManagementException e) {
-            Log.e(TAG, "SslConfig threw an exception:", e);
+            Log.e(TAG, "SSLConfig failed:", e);
         }
         return value;
     }
 
-    // only apply settings after it has been configured
+    // only apply settings for WebSocket after it has been configured
     public void apply(WebSocketOptions options) {
         SSLParams params = new SSLParams(sslContext, ENABLED_CIPHERS, ENABLED_PROTOCOLS);
         options.setSSLParams(params);
+    }
+
+    // only get SSLSocketFactory for HttpClient after it has been configured
+    public SSLSocketFactory getSocketFactory() {
+        SSLSocketFactory factory = null;
+        try {
+            factory = new SvmpSSLSocketFactory(sslContext, ENABLED_CIPHERS, ENABLED_PROTOCOLS);
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(TAG, "getSocketFactory failed:", e);
+        } catch (KeyManagementException e) {
+            Log.e(TAG, "getSocketFactory failed:", e);
+        } catch (KeyStoreException e) {
+            Log.e(TAG, "getSocketFactory failed:", e);
+        } catch (UnrecoverableKeyException e) {
+            Log.e(TAG, "getSocketFactory failed:", e);
+        }
+        return factory;
     }
 
     @SuppressLint("TrulyRandom")
