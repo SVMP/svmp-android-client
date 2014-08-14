@@ -42,8 +42,8 @@ public interface Constants {
     // Enabled ciphers (in order from most to least preferred)
     // Taken from: http://op-co.de/blog/posts/android_ssl_downgrade/
     public static final String[] ENABLED_CIPHERS = {
-            "TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", // note: not supported by node 0.10.x
-            "TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", // note: not supported by node 0.10.x
+            //"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA", // note: not supported by node 0.10.x or Android?
+            //"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA", // note: not supported by node 0.10.x or Android?
             "TLS_DHE_RSA_WITH_AES_256_CBC_SHA",   // note: not supported by node 0.10.x, should use at least 2048-bit DH
             "TLS_DHE_RSA_WITH_AES_128_CBC_SHA",   // note: not supported by node 0.10.x, should use at least 2048-bit DH
             "TLS_RSA_WITH_AES_256_CBC_SHA",

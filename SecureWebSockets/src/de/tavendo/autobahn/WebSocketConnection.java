@@ -24,6 +24,7 @@ import java.net.Socket;
 import java.net.URI;
 
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocket;
 
 import android.net.SSLCertificateSocketFactory;
 import android.os.Handler;
@@ -32,6 +33,7 @@ import android.os.Message;
 import android.util.Log;
 import de.tavendo.autobahn.WebSocket.WebSocketConnectionObserver.WebSocketCloseNotification;
 import de.tavendo.autobahn.WebSocketMessage.WebSocketCloseCode;
+import org.mitre.svmp.SSLParams;
 
 public class WebSocketConnection implements WebSocket {
 	private static final String TAG = WebSocketConnection.class.getName();
@@ -434,6 +436,7 @@ public class WebSocketConnection implements WebSocket {
 		private static final String WS_CONNECTOR = "WebSocketConnector";
 
 		private final URI mWebSocketURI;
+        private final WebSocketOptions mOptions; // SVMP addition
 
 		private Socket mSocket = null;
 		private String mFailureMessage = null;
@@ -446,6 +449,7 @@ public class WebSocketConnection implements WebSocket {
 			this.setName(WS_CONNECTOR);
 			
 			this.mWebSocketURI = uri;
+            this.mOptions = options; // SVMP addition
 		}
 
 
@@ -476,16 +480,27 @@ public class WebSocketConnection implements WebSocket {
 						port = 80;
 					}
 				}
-				
+
+                final SSLParams params = mOptions.getSSLParams(); // SVMP addition
+
 				SocketFactory factory = null;
 				if (mWebSocketURI.getScheme().equalsIgnoreCase(WSS_URI_SCHEME)) {
-					factory = SSLCertificateSocketFactory.getDefault();
+					//factory = SSLCertificateSocketFactory.getDefault();
+                    factory = params.getSslContext().getSocketFactory(); // SVMP addition
 				} else {
 					factory = SocketFactory.getDefault();
 				}
 
 				// Do not replace host string with InetAddress or you lose automatic host name verification
 				this.mSocket = factory.createSocket(host, port);
+
+                // SVMP addition
+                if (mWebSocketURI.getScheme().equalsIgnoreCase(WSS_URI_SCHEME)) {
+                    SSLSocket sslSocket = (SSLSocket)this.mSocket;
+                    sslSocket.setEnabledProtocols(params.getEnabledProtocols());
+                    sslSocket.setEnabledCipherSuites(params.getEnabledCiphers());
+                    sslSocket.startHandshake(); // starts the handshake to verify the server cert before continuing
+                }
 			} catch (IOException e) {
 				this.mFailureMessage = e.getLocalizedMessage();
 			}

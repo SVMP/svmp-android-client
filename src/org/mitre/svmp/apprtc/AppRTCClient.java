@@ -16,20 +16,21 @@
 
 package org.mitre.svmp.apprtc;
 
-import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Binder;
 import android.util.Log;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.koushikdutta.async.ByteBufferList;
-import com.koushikdutta.async.DataEmitter;
-import com.koushikdutta.async.callback.CompletedCallback;
-import com.koushikdutta.async.callback.DataCallback;
-import com.koushikdutta.async.http.AsyncHttpClient;
-import com.koushikdutta.async.http.AsyncHttpRequest;
-import com.koushikdutta.async.http.AsyncHttpResponse;
-import com.koushikdutta.async.http.WebSocket;
-import com.koushikdutta.async.http.body.JSONObjectBody;
 
+import de.tavendo.autobahn.WebSocket;
+import de.tavendo.autobahn.WebSocketConnection;
+import de.tavendo.autobahn.WebSocketException;
+import de.tavendo.autobahn.WebSocketOptions;
+import org.apache.http.*;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.protocol.HTTP;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.net.SSLConfig;
@@ -42,8 +43,12 @@ import org.mitre.svmp.common.*;
 import org.mitre.svmp.protocol.SVMPProtocol.*;
 import org.mitre.svmp.common.StateMachine.STATE;
 
+import javax.net.ssl.SSLPeerUnverifiedException;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.util.Date;
+import java.util.HashMap;
 
 /**
  * @author Joe Portner
@@ -71,14 +76,17 @@ public class AppRTCClient extends Binder implements Constants {
     private boolean init = false; // switched to 'true' when activity first binds
     private boolean proxying = false; // switched to 'true' upon state machine change
     private AppRTCSignalingParameters signalingParams;
+    private String host;
+    private String port;
+    private String token;
 
     // performance instrumentation
     private PerformanceTimer performance;
 
     // variables for networking
     private boolean useSSL;
-    private AsyncHttpClient ahClient;
-    private WebSocket webSocket;
+    private SSLConfig sslConfig;
+    private WebSocketConnection webSocket;
 
     // STEP 0: NEW -> STARTED
     public AppRTCClient(SessionService service, StateMachine machine, ConnectionInfo connectionInfo) {
@@ -89,7 +97,6 @@ public class AppRTCClient extends Binder implements Constants {
 
         this.dbHandler = new DatabaseHandler(service);
         this.performance = new PerformanceTimer(service, this, connectionInfo.getConnectionID());
-        this.ahClient = AsyncHttpClient.getDefaultInstance();
 
         machine.setState(STATE.STARTED, 0);
     }
@@ -108,13 +115,14 @@ public class AppRTCClient extends Binder implements Constants {
             useSSL = connectionInfo.getEncryptionType() == Constants.ENCRYPTION_SSLTLS;
 
             if (useSSL) {
-                error = new SSLConfig(connectionInfo, service).apply(ahClient.getSSLSocketMiddleware());
+                sslConfig = new SSLConfig(connectionInfo, service);
+                error = sslConfig.configure();
             }
 
-            if (error != 0)
-                machine.setState(STATE.ERROR, error);
-            else
+            if (error == 0)
                 login();
+            else
+                machine.setState(STATE.ERROR, error);
         }
         // if the state is already running, we are reconnecting
         else if (machine.getState() == STATE.RUNNING) {
@@ -155,17 +163,106 @@ public class AppRTCClient extends Binder implements Constants {
         performance.cancel(); // stop taking performance measurements
 
         // shut down the WebSocket if it's open
-        if (webSocket != null)
-            webSocket.close(); // TODO: is this right, or should we use end()?
+        if (webSocket != null && webSocket.isConnected())
+            webSocket.disconnect();
     }
 
     public synchronized void sendMessage(Request msg) {
         if (proxying) {
-            webSocket.send(msg.toByteArray());
+            webSocket.sendBinaryMessage(msg.toByteArray());
         }
     }
 
     // STEP 1: STARTED -> AUTH, Authenticate with the SVMP login REST service
+    private class SVMPAuthenticator extends AsyncTask<JSONObject, Void, Integer> {
+        private boolean passwordChange;
+
+        @Override
+        protected Integer doInBackground(JSONObject... jsonObjects) {
+            int returnVal = R.string.appRTC_toast_socketConnector_fail; // generic error message
+            JSONObject jsonRequest = jsonObjects[0];
+
+            passwordChange = jsonRequest.has("newPassword");
+            String proto = useSSL ? "https" : "http",
+                    // if we're changing our password, use a different API
+                    api = passwordChange ? "api/user/passwd" : "login",
+                    uri = String.format("%s://%s:%d/%s", proto, connectionInfo.getHost(), connectionInfo.getPort(), api);
+
+            HttpClient httpclient = new DefaultHttpClient();
+            HttpPost post = new HttpPost(uri);
+            post.setHeader(HTTP.CONTENT_TYPE, "application/json");
+
+            try {
+                StringEntity entity = new StringEntity(jsonRequest.toString());
+                post.setEntity(entity);
+                HttpResponse response = httpclient.execute(post);
+                int responseCode = response.getStatusLine().getStatusCode();
+
+                if (responseCode == 200) { // "OK", code for AUTH_OK
+                    // get JSON object
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    response.getEntity().writeTo(out);
+                    out.close();
+                    JSONObject jsonResponse = new JSONObject(out.toString());
+
+                    // get session info
+                    JSONObject sessionInfo = jsonResponse.getJSONObject("sessionInfo");
+                    token = sessionInfo.getString("token");
+                    long expires = new Date().getTime() + (1000 * sessionInfo.getInt("maxLength"));
+                    int gracePeriod = sessionInfo.getInt("gracePeriod");
+                    dbHandler.updateSessionInfo(connectionInfo, token, expires, gracePeriod);
+
+                    // get server info
+                    host = jsonResponse.getJSONObject("server").getString("host");
+                    port = jsonResponse.getJSONObject("server").getString("port");
+
+                    // get webrtc info
+                    signalingParams = AppRTCHelper.getParametersForRoom(jsonResponse.getJSONObject("webrtc"));
+
+                    if (signalingParams != null)
+                        returnVal = 0; // success
+                }
+                else if (responseCode == 403) { // "Forbidden", code for NEED_PASSWORD_CHANGE
+                    returnVal = R.string.svmpActivity_toast_needPasswordChange;
+                }
+                else if ((responseCode == 400 || responseCode == 401) && !passwordChange) { // "Unauthorized", code for AUTH_FAIL
+                    returnVal = R.string.appRTC_toast_svmpAuthenticator_fail;
+                }
+                else if (responseCode == 400 || responseCode == 401) { // "Unauthorized", code for PASSWORD_CHANGE_FAIL
+                    returnVal = R.string.appRTC_toast_svmpAuthenticator_passwordChangeFail;
+                }
+                else if (responseCode == 404) { // "Not Found"
+                    returnVal = R.string.appRTC_toast_socketConnector_404;
+                }
+            } catch (JSONException e) {
+                Log.e(TAG, "Failed to parse JSON response:", e);
+            } catch (SSLPeerUnverifiedException e) {
+                // error case: the server expects TLS off but we have it on
+                Log.e(TAG, "Client encryption is on but server encryption is off:", e);
+                returnVal = R.string.appRTC_toast_socketConnector_failSSL;
+            } catch (IOException e) {
+                Log.e(TAG, "HTTP request failed:", e);
+                // TODO: error case: the server expects TLS on but we have it off
+                // TODO: error case: the server's certificate isn't in our trust store
+                // TODO: error case: the server expects a certificate but we didn't provide one
+                // TODO: error case: our client certificate isn't in the server's trust store
+            }
+            return returnVal;
+        }
+
+        @Override
+        protected void onPostExecute(Integer result) {
+            if (result == 0) { // success, start the next phase and connect to the SVMP proxy server
+                machine.setState(STATE.AUTH, R.string.appRTC_toast_svmpAuthenticator_success); // STARTED -> AUTH
+                connect();
+            } else {
+                // authentication failed, handle appropriately
+                machine.setState(STATE.ERROR, result); // STARTED -> ERROR
+            }
+        }
+    }
+
+
     public void login() {
         // attempt to get any existing auth data JSONObject that's in memory (e.g. made of user input such as password)
         JSONObject jsonObject = AuthData.getJSON(connectionInfo);
@@ -183,126 +280,85 @@ public class AppRTCClient extends Binder implements Constants {
             return;
         }
 
-        String proto = useSSL ? "https" : "http",
-                // if we're changing our password, use a different API
-                api = jsonObject.has("newPassword") ? "login" : "changePassword";
-        Uri uri = Uri.parse(String.format("%s://%s:%d/%s",
-                proto, connectionInfo.getHost(), connectionInfo.getPort(), api));
-        AsyncHttpRequest loginReq = new AsyncHttpRequest(uri, "POST");
-        loginReq.setBody(new JSONObjectBody(jsonObject));
-        ahClient.executeJSONObject(loginReq, new AsyncHttpClient.JSONObjectCallback() {
-            @Override
-            public void onCompleted(Exception e, AsyncHttpResponse resp, JSONObject json) {
-                int error = R.string.appRTC_toast_socketConnector_fail; // generic error message
-
-                // generate a status code
-                String host, port, token;
-                host = port = token = null;
-                if (e == null) {
-                    try {
-                        String type = json.getString("type");
-                        if (type.equals("AUTH_OK")) {
-                            // get session info
-                            JSONObject sessionInfo = json.getJSONObject("sessionInfo");
-                            token = sessionInfo.getString("token");
-                            long expires = new Date().getTime() + (1000 * sessionInfo.getInt("maxLength"));
-                            int gracePeriod = sessionInfo.getInt("gracePeriod");
-                            dbHandler.updateSessionInfo(connectionInfo, token, expires, gracePeriod);
-
-                            // get server info
-                            host = json.getJSONObject("server").getString("host");
-                            port = json.getJSONObject("server").getString("port");
-
-                            // get webrtc info
-                            signalingParams = AppRTCHelper.getParametersForRoom(json.getJSONObject("webrtc"));
-
-                            if (signalingParams != null)
-                                error = 0; // success
-                        }
-                        else if (type.equals("NEED_PASSWORD_CHANGE")) {
-                            error = R.string.svmpActivity_toast_needPasswordChange;
-                        }
-                        else if (type.equals("AUTH_FAIL")) {
-                            error = R.string.appRTC_toast_svmpAuthenticator_fail;
-                        }
-                        else if (type.equals("PASSWORD_CHANGE_FAIL")) {
-                            error = R.string.appRTC_toast_svmpAuthenticator_passwordChangeFail;
-                        }
-                    } catch (JSONException ex) {
-                        Log.e(TAG, "login received invalid response:", ex);
-                        // TODO: specific error message
-                    }
-                }
-                else {
-                    Log.e(TAG, "login failed:", e);
-                    // TODO: error case: the server expects TLS on but we have it off
-                    // TODO: error case: the server expects TLS off but we have it on
-                    // TODO: error case: the server's certificate isn't in our trust store
-                    // TODO: error case: the server expects a certificate but we didn't provide one
-                    // TODO: error case: our client certificate isn't in the server's trust store
-                }
-
-                // act on the status code
-                if (error == 0) // success, start the next phase and connect to the SVMP proxy server
-                    connect(host, port, token);
-                else // fail with the appropriate error message
-                    machine.setState(STATE.ERROR, error);
-            }
-        });
+        // execute async HTTP request to the REST auth API
+        (new SVMPAuthenticator()).execute(jsonObject);
     }
 
     // STEP 2: AUTH -> CONNECTED, Connect to the SVMP proxy service
-    public void connect(String host, String port, String token) {
+    public void connect() {
         Log.d(TAG, "Socket connecting to " + connectionInfo.getHost() + ":" + connectionInfo.getPort());
 
         String proto = useSSL ? "wss" : "ws";
+        URI uri = URI.create(String.format("%s://%s:%s", proto, host, port));
+        WebSocketOptions options = new WebSocketOptions();
+        if (useSSL)
+            sslConfig.apply(options);
+        HashMap<String, String> headers = new HashMap<String, String>();
+        headers.put("x-access-token", token);
+        options.setHeaders(headers);
 
-        Uri uri = Uri.parse(String.format("%s://%s:%s", proto, host, port));
-        AsyncHttpRequest wsReq = new AsyncHttpRequest(uri, "GET"); // FIXME: is this supposed to be GET or POST?
-        wsReq.addHeader("x-access-token", token);
-
-        ahClient.websocket(wsReq, "svmp", new AsyncHttpClient.WebSocketConnectCallback() {
-            @Override
-            public void onCompleted(Exception e, WebSocket socket) {
-                if (e != null) {
-                    Log.e(TAG, "Failed to connect to SVMP proxy:", e);
-                    machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
-                    return;
-                }
-
-//                socket.setStringCallback(new WebSocket.StringCallback() {
-//                    public void onStringAvailable(String s) {
-//                        // don't need this
-//                    }
-//                });
-
-                Log.i(TAG, "WebSocket connected.");
-                webSocket = socket;
-                socket.setEndCallback(completedCallback);
-                socket.setDataCallback(connectedCallback); // changes after receiving VMREADY
-                machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // AUTH -> CONNECTED
-            }
-        });
+        webSocket = new WebSocketConnection();
+        try {
+            webSocket.connect(uri, new String[]{"svmp"}, observer, options);
+        } catch (WebSocketException e) {
+            Log.e(TAG, "Failed to connect to SVMP proxy:", e);
+            machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
+        }
     }
-    CompletedCallback completedCallback = new CompletedCallback() {
+    WebSocket.WebSocketConnectionObserver observer = new WebSocket.WebSocketConnectionObserver() {
+        private boolean hasVMREADY;
         @Override
-        public void onCompleted(Exception e) {
-            if (e != null) {
-                if (proxying) {
-                    // we haven't called disconnect(), this was an error; log this as an Error message and change state
-                    changeToErrorState();
-                    Log.e(TAG, "WebSocket disconnected:", e);
-                }
-                else // we called disconnect(), this was intentional; log this as an Info message
-                    Log.i(TAG, "WebSocket disconnected.");
+        public void onOpen() {
+            Log.i(TAG, "WebSocket connected.");
+            machine.setState(STATE.CONNECTED, R.string.appRTC_toast_socketConnector_success); // AUTH -> CONNECTED
+            // wait for VMREADY
+        }
+
+        @Override
+        public void onClose(WebSocketCloseNotification code, String reason) {
+            if (proxying || machine.getState() == STATE.AUTH) {
+                // either we were disconnected unexpectedly, or the connection was never successfully established
+                // we haven't called disconnect(), this was an error; log this as an Error message and change state
+                changeToErrorState();
+                Log.e(TAG, "WebSocket disconnected: " +  code.toString());
+            }
+            else // we called disconnect(), this was intentional; log this as an Info message
+                Log.i(TAG, "WebSocket disconnected.");
+        }
+
+        @Override
+        public void onTextMessage(String payload) {}
+
+        @Override
+        public void onRawTextMessage(byte[] payload) {}
+
+        @Override
+        public void onBinaryMessage(byte[] payload) {
+            try {
+                Response data = Response.parseFrom(payload);
+                Log.d(TAG, "Received incoming message object of type " + data.getType().name());
+                onResponse(data);
+            } catch (InvalidProtocolBufferException e) {
+                Log.e(TAG, "Unable to parse protobuf:", e);
+                changeToErrorState();
             }
         }
-    };
 
-    // STEP 3: CONNECTED -> RUNNING, Receive VMREADY message
-    DataCallback connectedCallback = new ProtobufDataCallback() {
-        @Override
-        public void onResponse(Response data) {
+        private void onResponse(Response data) {
+            if (data.getType() == Response.ResponseType.ERROR) {
+                String message = data.hasMessage() ? data.getMessage() : "";
+                Log.e(TAG, "Received ERROR message: " + message);
+                int error = hasVMREADY ? R.string.appRTC_toast_connection_finish : R.string.appRTC_toast_svmpReadyWait_fail;
+                machine.setState(STATE.ERROR, error);
+            }
+            else if (!hasVMREADY) // we are in the CONNECTED state, waiting for VMREADY
+                onResponseCONNECTED(data);
+            else // we are in the RUNNING state
+                onResponseRUNNING(data);
+        }
+
+        // STEP 3: CONNECTED -> RUNNING, Receive VMREADY message
+        private void onResponseCONNECTED(Response data) {
             int error = R.string.appRTC_toast_connection_finish; // generic error message
 
             // generate a status code
@@ -311,12 +367,10 @@ public class AppRTCClient extends Binder implements Constants {
                 error = 0;
             else if (type == Response.ResponseType.AUTH && data.getAuthResponse().getType() == AuthResponse.AuthResponseType.AUTH_FAIL)
                 error = R.string.appRTC_toast_svmpAuthenticator_fail;
-            else if (type == Response.ResponseType.ERROR)
-                error = R.string.appRTC_toast_svmpReadyWait_fail;
 
             // act on the status code
             if (error == 0) { // success
-                webSocket.setDataCallback(runningCallback);
+                hasVMREADY = true;
                 machine.setState(STATE.RUNNING, R.string.appRTC_toast_svmpReadyWait_success); // CONNECTED -> RUNNING
                 proxying = true;
 
@@ -331,12 +385,9 @@ public class AppRTCClient extends Binder implements Constants {
             else // fail with the appropriate error message
                 machine.setState(STATE.ERROR, error);
         }
-    };
 
-    // we switch to this callback while we are in proxying mode (STATE: RUNNING)
-    DataCallback runningCallback = new ProtobufDataCallback() {
-        @Override
-        public void onResponse(final Response data) {
+        // STEP 4: RUNNING
+        private void onResponseRUNNING(final Response data) {
             boolean consumed = service.onMessage(data);
             if (!consumed && isBound()) {
                 activity.runOnUiThread(new Runnable() {
@@ -347,23 +398,4 @@ public class AppRTCClient extends Binder implements Constants {
             }
         }
     };
-
-    // specialized DataCallback class for receiving and parsing Protobuf messages
-    private class ProtobufDataCallback implements DataCallback {
-        @Override
-        public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-            try {
-                Response data = Response.parseFrom(byteBufferList.getAllByteArray());
-                Log.d(TAG, "Received incoming message object of type " + data.getType().name());
-                onResponse(data);
-            } catch (InvalidProtocolBufferException e) {
-                Log.e(TAG, "Unable to parse protobuf:", e);
-                changeToErrorState();
-            }
-        }
-
-        public void onResponse(Response data) {
-            // override in child class
-        }
-    }
 }

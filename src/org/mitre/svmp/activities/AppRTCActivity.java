@@ -339,11 +339,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 // we are in an error state, check the previous state and act appropriately
                 switch(oldState) {
                     case STARTED: // failed to authenticate and transition to AUTH
-                        break;
-                    case AUTH: // failed to connect the WebSocket and transition to CONNECTED
-                        // the socket connection failed, display the failure message and return to the connection list
-                        break;
-                    case CONNECTED: // failed to receive ready message and transition to RUNNING
                         if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
                             // our authentication was rejected, exit and bring up the auth prompt when the connection list resumes
                             needAuth(resID, false);
@@ -352,6 +347,11 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                             needAuth(resID, true);
                         }
                         // otherwise, we had an SSL error, display the failure message and return to the connection list
+                        break;
+                    case AUTH: // failed to connect the WebSocket and transition to CONNECTED
+                        // the socket connection failed, display the failure message and return to the connection list
+                        break;
+                    case CONNECTED: // failed to receive ready message and transition to RUNNING
                         break;
                     case RUNNING: // failed after already running
                         break;

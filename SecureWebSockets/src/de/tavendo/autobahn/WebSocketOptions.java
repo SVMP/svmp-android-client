@@ -19,6 +19,9 @@
 package de.tavendo.autobahn;
 
 
+import org.mitre.svmp.SSLParams;
+
+import java.util.Map;
 
 /**
  * WebSockets connection options. This can be supplied to WebSocketConnection in connect().
@@ -37,6 +40,9 @@ public class WebSocketOptions {
    private boolean mMaskClientFrames;
    private int mReconnectInterval;
 
+    // SVMP additions
+    private SSLParams mSSLParams;
+    private Map<String, String> mHeaders;
 
    /**
     * Construct default options.
@@ -70,6 +76,10 @@ public class WebSocketOptions {
       mValidateIncomingUtf8 = other.mValidateIncomingUtf8;
       mMaskClientFrames = other.mMaskClientFrames;
       mReconnectInterval = other.mReconnectInterval;
+
+       // SVMP additions
+       mSSLParams = other.mSSLParams;
+       mHeaders = other.mHeaders;
    }
 
    /**
@@ -270,4 +280,21 @@ public class WebSocketOptions {
    public int getReconnectInterval() {
 	   return mReconnectInterval;
    }
+
+    // SVMP additions
+    public SSLParams getSSLParams() {
+        return mSSLParams;
+    }
+
+    public void setSSLParams(SSLParams mSSLParams) {
+        this.mSSLParams = mSSLParams;
+    }
+
+    public Map<String, String> getHeaders() {
+        return mHeaders;
+    }
+
+    public void setHeaders(Map<String, String> mHeaders) {
+        this.mHeaders = mHeaders;
+    }
 }

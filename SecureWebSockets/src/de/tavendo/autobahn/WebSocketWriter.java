@@ -24,6 +24,7 @@ import java.lang.ref.WeakReference;
 import java.net.Socket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Random;
 
 import android.os.Handler;
@@ -150,6 +151,12 @@ public class WebSocketWriter extends Thread {
 		mApplicationBuffer.put(("Upgrade: WebSocket" + CRLF).getBytes());
 		mApplicationBuffer.put(("Connection: Upgrade" + CRLF).getBytes());
 		mApplicationBuffer.put(("Sec-WebSocket-Key: " + newHandshakeKey() + CRLF).getBytes());
+
+        // SVMP addition
+        for (Map.Entry<String, String> entry : mWebSocketOptions.getHeaders().entrySet()) {
+            String header = String.format("%s: %s%s", entry.getKey(), entry.getValue(), CRLF);
+            mApplicationBuffer.put(header.getBytes());
+        }
 
 		if (message.getOrigin() != null) {
 			mApplicationBuffer.put(("Origin: " + message.getOrigin().toString() + CRLF).getBytes());

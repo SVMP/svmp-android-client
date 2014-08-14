@@ -19,9 +19,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.util.Log;
 import com.google.PRNGFixes;
-import com.koushikdutta.async.http.AsyncSSLEngineConfigurator;
-import com.koushikdutta.async.http.AsyncSSLSocketMiddleware;
 import de.duenndns.ssl.MemorizingTrustManager;
+import de.tavendo.autobahn.WebSocketOptions;
+import org.mitre.svmp.SSLParams;
 import org.mitre.svmp.auth.SVMPKeyManager;
 import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.client.R;
@@ -38,24 +38,27 @@ import java.security.cert.CertificateException;
 /**
  * @author Joe Portner, Dave Keppler
  */
-public class SSLConfig {
+public class SSLConfig implements Constants {
     private static final String TAG = SSLConfig.class.getName();
 
     private ConnectionInfo connectionInfo;
     private Context context;
+
+    private SSLContext sslContext;
 
     public SSLConfig(ConnectionInfo connectionInfo, Context context) {
         this.connectionInfo = connectionInfo;
         this.context = context;
     }
 
-    public int apply(AsyncSSLSocketMiddleware middleware) {
+    // returns 0 if successful, otherwise returns resId for an error message
+    public int configure() {
         // default return value is a generic SSL-related error
         int value = R.string.appRTC_toast_socketConnector_failSSL;
 
         // TODO: specific error messages?
         try {
-            configure(middleware);
+            doConfigure();
             value = 0;
         } catch (KeyStoreException e) {
             Log.e(TAG, "SslConfig threw an exception:", e);
@@ -71,9 +74,14 @@ public class SSLConfig {
         return value;
     }
 
-    // returns 0 if successful, otherwise returns resId for an error message
+    // only apply settings after it has been configured
+    public void apply(WebSocketOptions options) {
+        SSLParams params = new SSLParams(sslContext, ENABLED_CIPHERS, ENABLED_PROTOCOLS);
+        options.setSSLParams(params);
+    }
+
     @SuppressLint("TrulyRandom")
-    public void configure(AsyncSSLSocketMiddleware middleware) throws KeyStoreException, CertificateException,
+    private void doConfigure() throws KeyStoreException, CertificateException,
             NoSuchAlgorithmException, IOException, KeyManagementException {
         // find out if we should use the MemorizingTrustManager instead of the system trust store (set in Preferences)
         boolean useMTM = Utility.getPrefBool(context,
@@ -119,20 +127,8 @@ public class SSLConfig {
         }
 
         PRNGFixes.apply(); // fix Android SecureRandom issue on pre-KitKat platforms
-        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagers, trustManagers, new SecureRandom());
-
-        AsyncSSLEngineConfigurator configurator = new AsyncSSLEngineConfigurator() {
-            @Override
-            public void configureEngine(SSLEngine engine, String host, int port) {
-                engine.setEnabledCipherSuites(Constants.ENABLED_CIPHERS);
-                engine.setEnabledProtocols(Constants.ENABLED_PROTOCOLS);
-            }
-        };
-
-        middleware.setSSLContext(sslContext);
-        middleware.setTrustManagers(trustManagers);
-        //middleware.setHostnameVerifier(hostnameVerifier); // TODO
-        middleware.addEngineConfigurator(configurator);
+        // TODO: hostname verifier?
     }
 }

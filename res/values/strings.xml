@@ -119,6 +119,7 @@
     <string name="appRTC_toast_socketConnector_failClientCertRequired">Error connecting (server requires client certificate)</string>
     <string name="appRTC_toast_socketConnector_failSSLHandshake">Error during SSL handshake</string>
     <string name="appRTC_toast_socketConnector_failSSL">Error connecting (check your encryption settings)</string>
+    <string name="appRTC_toast_socketConnector_404">Error connecting (server not found)</string>
     <string name="appRTC_toast_socketConnector_fail">Error connecting</string>
     <string name="appRTC_toast_socketConnector_success">Connected to host</string>
     <string name="appRTC_toast_svmpAuthenticator_fail">Authentication failed, try again</string>
