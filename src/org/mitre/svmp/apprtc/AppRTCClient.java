@@ -194,7 +194,7 @@ public class AppRTCClient extends Binder implements Constants {
             String proto = useSSL ? "https" : "http",
                     rHost = connectionInfo.getHost(),
                     // if we're changing our password, use a different API
-                    api = passwordChange ? "api/user/passwd" : "login",
+                    api = passwordChange ? "api/user/changePasswd" : "login",
                     uri = String.format("%s://%s:%d/%s", proto, rHost, rPort, api);
 
             // set up HttpParams
@@ -311,7 +311,7 @@ public class AppRTCClient extends Binder implements Constants {
 
     // STEP 2: AUTH -> CONNECTED, Connect to the SVMP proxy service
     public void connect() {
-        Log.d(TAG, "Socket connecting to " + connectionInfo.getHost() + ":" + connectionInfo.getPort());
+        Log.d(TAG, "Socket connecting to " + host + ":" + port);
 
         String proto = useSSL ? "wss" : "ws";
         URI uri = URI.create(String.format("%s://%s:%s", proto, host, port));
@@ -392,6 +392,7 @@ public class AppRTCClient extends Binder implements Constants {
                 error = 0;
             else if (type == Response.ResponseType.AUTH && data.getAuthResponse().getType() == AuthResponse.AuthResponseType.AUTH_FAIL)
                 error = R.string.appRTC_toast_svmpAuthenticator_fail;
+            // any other message type throws us into an error state
 
             // act on the status code
             if (error == 0) { // success
