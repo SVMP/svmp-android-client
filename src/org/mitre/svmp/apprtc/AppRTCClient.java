@@ -202,7 +202,7 @@ public class AppRTCClient extends Binder implements Constants {
             String proto = useSSL ? "https" : "http",
                     rHost = connectionInfo.getHost(),
                     // if we're changing our password, use a different API
-                    api = passwordChange ? "api/user/changePasswd" : "login",
+                    api = passwordChange ? "changePassword" : "login",
                     uri = String.format("%s://%s:%d/%s", proto, rHost, rPort, api);
 
             // set up HttpParams
@@ -237,8 +237,7 @@ public class AppRTCClient extends Binder implements Constants {
                     JSONObject sessionInfo = jsonResponse.getJSONObject("sessionInfo");
                     token = sessionInfo.getString("token");
                     long expires = new Date().getTime() + (1000 * sessionInfo.getInt("maxLength"));
-                    int gracePeriod = sessionInfo.getInt("gracePeriod");
-                    dbHandler.updateSessionInfo(connectionInfo, token, expires, gracePeriod);
+                    dbHandler.updateSessionInfo(connectionInfo, token, expires);
 
                     // get server info
                     host = jsonResponse.getJSONObject("server").getString("host");
