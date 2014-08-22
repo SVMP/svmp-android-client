@@ -176,7 +176,15 @@ public class AppRTCClient extends Binder implements Constants {
 
     public synchronized void sendMessage(Request msg) {
         if (proxying) {
-            webSocket.sendBinaryMessage(msg.toByteArray());
+            //webSocket.sendBinaryMessage(msg.toByteArray());
+            // VM is expecting a message delimiter (varint prefix) so write a delimited message instead
+            try {
+                ByteArrayOutputStream stream = new ByteArrayOutputStream();
+                msg.writeDelimitedTo(stream);
+                webSocket.sendBinaryMessage(stream.toByteArray());
+            } catch (IOException e) {
+                Log.e(TAG, "Error writing delimited byte output:", e);
+            }
         }
     }
 
@@ -341,7 +349,7 @@ public class AppRTCClient extends Binder implements Constants {
 
         @Override
         public void onClose(WebSocketCloseNotification code, String reason) {
-            if (proxying || machine.getState() == STATE.AUTH) {
+            if (proxying || machine.getState() == STATE.AUTH || machine.getState() == STATE.CONNECTED) {
                 // either we were disconnected unexpectedly, or the connection was never successfully established
                 // we haven't called disconnect(), this was an error; log this as an Error message and change state
                 changeToErrorState();
