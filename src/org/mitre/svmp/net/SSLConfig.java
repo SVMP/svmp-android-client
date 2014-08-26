@@ -16,6 +16,7 @@
 package org.mitre.svmp.net;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.util.Log;
 import com.google.PRNGFixes;
@@ -30,10 +31,7 @@ import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.Utility;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
@@ -46,13 +44,16 @@ public class SSLConfig implements Constants {
     private static final String TAG = SSLConfig.class.getName();
 
     private ConnectionInfo connectionInfo;
+    private Activity activity;
     private Context context;
 
     private SSLContext sslContext;
+    private MemorizingTrustManager mtm;
 
-    public SSLConfig(ConnectionInfo connectionInfo, Context context) {
+    public SSLConfig(ConnectionInfo connectionInfo, Activity activity) {
         this.connectionInfo = connectionInfo;
-        this.context = context;
+        this.activity = activity;
+        this.context = activity.getApplicationContext();
     }
 
     // returns 0 if successful, otherwise returns resId for an error message
@@ -137,11 +138,14 @@ public class SSLConfig implements Constants {
             // we will use that "pinned" store to check server certificate trust
             Log.d(TAG, "SSLConfig: Using static BKS trust store to check server cert trust");
             trustManagers = trustManagerFactory.getTrustManagers();
-        } else if (useMTM) {
-            // by default useMTM is false ("Show certificate dialog" in developer preferences)
-            // this creates a certificate dialog to decide what to do with untrusted certificates, instead of flat-out rejecting them
-            Log.d(TAG, "SSLConfig: Static BKS trust store is empty but MTM is enabled, using MTM to check server cert trust");
-            trustManagers = MemorizingTrustManager.getInstanceList(context);
+        // After switching to WebSockets, MTM causes the app to freeze; removed for now
+//        } else if (useMTM) {
+//            // by default useMTM is false ("Show certificate dialog" in developer preferences)
+//            // this creates a certificate dialog to decide what to do with untrusted certificates, instead of flat-out rejecting them
+//            Log.d(TAG, "SSLConfig: Static BKS trust store is empty but MTM is enabled, using MTM to check server cert trust");
+//            mtm = new MemorizingTrustManager(context);
+//            mtm.bindDisplayActivity(activity);
+//            trustManagers = new X509TrustManager[] {mtm};
         } else {
             Log.d(TAG, "SSLConfig: Static BKS trust store is empty and MTM is disabled, using system trust store to check server cert trust");
             // leaving trustManagers null accomplishes this
@@ -150,6 +154,5 @@ public class SSLConfig implements Constants {
         PRNGFixes.apply(); // fix Android SecureRandom issue on pre-KitKat platforms
         sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagers, trustManagers, new SecureRandom());
-        // TODO: hostname verifier?
     }
 }

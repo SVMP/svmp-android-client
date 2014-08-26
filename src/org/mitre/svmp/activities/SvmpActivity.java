@@ -35,7 +35,7 @@ import org.mitre.svmp.client.R;
 import org.mitre.svmp.common.ConnectionInfo;
 import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.DatabaseHandler;
-import org.mitre.svmp.protocol.SVMPProtocol.*;
+import org.mitre.svmp.common.SessionInfo;
 import org.mitre.svmp.common.StateMachine.STATE;
 import org.mitre.svmp.services.SessionService;
 
@@ -139,9 +139,9 @@ public class SvmpActivity extends Activity implements Constants {
                     // check to see if we found the ConnectionInfo we were connecting to
                     if (connectionInfo != null) {
                         // find out if we previously used a session token to authenticate
-                        String sessionToken = dbHandler.getSessionToken(connectionInfo);
+                        SessionInfo sessionInfo = dbHandler.getSessionInfo(connectionInfo);
 
-                        if (sessionToken.length() > 0) {
+                        if (sessionInfo != null) {
                             // we used session token authentication and it failed
                             // discard it and retry normal authentication
                             dbHandler.clearSessionInfo(connectionInfo);
@@ -209,9 +209,9 @@ public class SvmpActivity extends Activity implements Constants {
         boolean serviceIsRunning = SessionService.isRunningForConn(connectionInfo.getConnectionID());
 
         // if we have a session token, try to authenticate with it
-        String sessionToken = dbHandler.getSessionToken(connectionInfo);
+        SessionInfo sessionInfo = dbHandler.getSessionInfo(connectionInfo);
 
-        if (!forceAuth && (serviceIsRunning || sessionToken.length() > 0)) {
+        if (!forceAuth && (serviceIsRunning || sessionInfo != null)) {
             startAppRTC(connectionInfo);
         }
         // we don't have a session token, so prompt for authentication input

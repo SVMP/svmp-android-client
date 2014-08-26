@@ -15,8 +15,6 @@ limitations under the License.
 */
 package org.mitre.svmp.auth;
 
-import android.util.Log;
-import org.json.JSONException;
 import org.json.JSONObject;
 import org.mitre.svmp.common.ConnectionInfo;
 
@@ -29,8 +27,6 @@ import java.util.HashMap;
  * If we do NOT have a session token (e.g. we have a password, security token, it is cleared after being accessed
  */
 public final class AuthData {
-    private static final String TAG = AuthData.class.getName();
-
     // maps ConnectionID to Request objects that contain auth info (password, etc)
     private static HashMap<Integer, JSONObject> authDataMap = new HashMap<Integer, JSONObject>();
 
@@ -46,19 +42,5 @@ public final class AuthData {
     public static JSONObject getJSON(ConnectionInfo connectionInfo) {
         // get the JSON and remove it from the map (returns null value if it doesn't exist)
         return authDataMap.remove(connectionInfo.getConnectionID());
-    }
-
-    public static JSONObject makeJSON(ConnectionInfo connectionInfo, String sessionToken) {
-        JSONObject value = null;
-
-        // create a JSON object
-        String arg = String.format("{username: '%s', sessionToken: '%s'}", connectionInfo.getUsername(), sessionToken);
-        try {
-            value = new JSONObject(arg);
-        } catch (JSONException e) {
-            Log.e(TAG, "makeJSON failed:", e);
-        }
-
-        return value;
     }
 }

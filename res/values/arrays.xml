@@ -18,6 +18,6 @@
     <!-- used in connection_details.xml layout -->
     <string-array name="connectionDetails_encryption_items">
         <item>No encryption</item>
-        <item>SSL/TLS</item>
+        <item>TLSv1.2</item>
     </string-array>
 </resources>

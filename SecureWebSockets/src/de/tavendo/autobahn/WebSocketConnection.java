@@ -24,6 +24,7 @@ import java.net.Socket;
 import java.net.URI;
 
 import javax.net.SocketFactory;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 
 import android.net.SSLCertificateSocketFactory;
@@ -499,7 +500,7 @@ public class WebSocketConnection implements WebSocket {
                     SSLSocket sslSocket = (SSLSocket)this.mSocket;
                     sslSocket.setEnabledProtocols(params.getEnabledProtocols());
                     sslSocket.setEnabledCipherSuites(params.getEnabledCiphers());
-                    sslSocket.startHandshake(); // starts the handshake to verify the server cert before continuing
+//                    sslSocket.startHandshake(); // starts the handshake to verify the server cert before continuing
                 }
 			} catch (IOException e) {
 				this.mFailureMessage = e.getLocalizedMessage();

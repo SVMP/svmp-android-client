@@ -114,9 +114,7 @@
     <string name="appRTC_toast_connection_start">Connecting to room…</string>
     <string name="appRTC_toast_connection_notFound">Connection info not found!</string>
     <string name="appRTC_toast_connection_finish">Error, connection has been closed</string>
-    <string name="appRTC_toast_socketConnector_failUntrustedClient">Error connecting (untrusted client certificate)</string>
     <string name="appRTC_toast_socketConnector_failUntrustedServer">Error connecting (untrusted server certificate)</string>
-    <string name="appRTC_toast_socketConnector_failClientCertRequired">Error connecting (server requires client certificate)</string>
     <string name="appRTC_toast_socketConnector_failSSLHandshake">Error during SSL handshake</string>
     <string name="appRTC_toast_socketConnector_failSSL">Error connecting (check your encryption settings)</string>
     <string name="appRTC_toast_socketConnector_404">Error connecting (server not found)</string>
@@ -126,6 +124,7 @@
     <string name="appRTC_toast_svmpAuthenticator_passwordChangeFail">Authentication failed, try again</string>
     <string name="appRTC_toast_svmpAuthenticator_interrupted">Connection interrupted</string>
     <string name="appRTC_toast_svmpAuthenticator_success">Authenticated successfully</string>
+    <string name="appRTC_toast_svmpAuthenticator_bypassed">Found stored session information</string>
     <string name="appRTC_toast_svmpReadyWait_fail">Server failed to initialize VM.</string>
     <string name="appRTC_toast_svmpReadyWait_success">VM is ready, querying for WebRTC channel info</string>
     <string name="appRTC_toast_getIceServers_start">Waiting for ICE candidates…</string>
