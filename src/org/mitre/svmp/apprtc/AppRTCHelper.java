@@ -100,13 +100,13 @@ public class AppRTCHelper {
         AppRTCSignalingParameters value = null;
 
         try {
-            MediaConstraints pcConstraints = constraintsFromJSON(jsonObject.getJSONObject("pcConstraints"));
-            Log.d(TAG, "pcConstraints: " + pcConstraints);
+            MediaConstraints pcConstraints = constraintsFromJSON(jsonObject.getJSONObject("pc"));
+            Log.d(TAG, "pc constraints: " + pcConstraints);
 
-            MediaConstraints videoConstraints = constraintsFromJSON(jsonObject.getJSONObject("videoConstraints"));
-            Log.d(TAG, "videoConstraints: " + videoConstraints);
+            MediaConstraints videoConstraints = constraintsFromJSON(jsonObject.getJSONObject("video"));
+            Log.d(TAG, "video constraints: " + videoConstraints);
 
-            LinkedList<IceServer> iceServers = iceServersFromPCConfigJSON(jsonObject.getJSONArray("iceServers"));
+            LinkedList<IceServer> iceServers = iceServersFromPCConfigJSON(jsonObject.getJSONArray("ice_servers"));
             value = new AppRTCSignalingParameters(iceServers, true, pcConstraints, videoConstraints);
         } catch (JSONException e) {
             Log.e(TAG, "getParametersForRoom failed:", e);
