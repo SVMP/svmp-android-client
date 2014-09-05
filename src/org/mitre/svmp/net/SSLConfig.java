@@ -21,9 +21,7 @@ import android.content.Context;
 import android.util.Log;
 import com.google.PRNGFixes;
 import de.duenndns.ssl.MemorizingTrustManager;
-import de.tavendo.autobahn.WebSocketOptions;
 import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.mitre.svmp.SSLParams;
 import org.mitre.svmp.auth.SVMPKeyManager;
 import org.mitre.svmp.auth.module.CertificateModule;
 import org.mitre.svmp.client.R;
@@ -79,13 +77,12 @@ public class SSLConfig implements Constants {
         return value;
     }
 
-    // only apply settings for WebSocket after it has been configured
-    public void apply(WebSocketOptions options) {
-        SSLParams params = new SSLParams(sslContext, ENABLED_CIPHERS, ENABLED_PROTOCOLS);
-        options.setSSLParams(params);
+    // only get SSLContext for Socket after it has been configured
+    public SSLContext getSSLContext() {
+        return sslContext;
     }
 
-    // only get SSLSocketFactory for HttpClient after it has been configured
+    // only get Apache SSLSocketFactory for HttpClient after it has been configured
     public SSLSocketFactory getSocketFactory() {
         SSLSocketFactory factory = null;
         try {

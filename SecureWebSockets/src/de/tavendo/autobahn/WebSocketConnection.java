@@ -24,8 +24,6 @@ import java.net.Socket;
 import java.net.URI;
 
 import javax.net.SocketFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocket;
 
 import android.net.SSLCertificateSocketFactory;
 import android.os.Handler;
@@ -34,7 +32,6 @@ import android.os.Message;
 import android.util.Log;
 import de.tavendo.autobahn.WebSocket.WebSocketConnectionObserver.WebSocketCloseNotification;
 import de.tavendo.autobahn.WebSocketMessage.WebSocketCloseCode;
-import org.mitre.svmp.SSLParams;
 
 public class WebSocketConnection implements WebSocket {
 	private static final String TAG = WebSocketConnection.class.getName();
@@ -140,6 +137,19 @@ public class WebSocketConnection implements WebSocket {
 					Looper.myLooper().quit();
 				}
 			});
+		// SVMP addition
+		} else if (mSocket != null) {
+			try {
+				mSocket.close();
+				this.mSocket = null;
+			} catch (IOException e) {
+				Log.d(TAG, "Failed to close socket:", e);
+			}
+			try {
+				Looper.myLooper().quit();
+			} catch (Exception e) {
+				// don't care
+			}
 		} else {
 			Log.d(TAG, "mSocketThread already NULL");
 		}
@@ -149,7 +159,27 @@ public class WebSocketConnection implements WebSocket {
 		Log.d(TAG, "worker threads stopped");
 	}
 
+	// SVMP addition
+	public void connect(Socket socket, URI webSocketURI, String[] subprotocols, WebSocketConnectionObserver connectionObserver, WebSocketOptions options) throws WebSocketException {
+		if (isConnected()) {
+			throw new WebSocketException("already connected");
+		}
+		else if (socket == null) {
+			throw new WebSocketException("socket parameter is null");
+		}
+		else if (webSocketURI == null) {
+			throw new WebSocketException("WebSockets URI null.");
+		}
+		else if (!webSocketURI.getScheme().equals(WS_URI_SCHEME) && !webSocketURI.getScheme().equals(WSS_URI_SCHEME)) {
+			throw new WebSocketException("unsupported scheme for WebSockets URI");
+		}
 
+		this.mWebSocketURI = webSocketURI;
+		this.mWebSocketSubprotocols = subprotocols;
+		this.mWebSocketConnectionObserver = new WeakReference<WebSocket.WebSocketConnectionObserver>(connectionObserver);
+		this.mWebSocketOptions = new WebSocketOptions(options);
+		connect(socket);
+	}
 
 	public void connect(URI webSocketURI, WebSocket.WebSocketConnectionObserver connectionObserver) throws WebSocketException {
 		connect(webSocketURI, connectionObserver, new WebSocketOptions());
@@ -227,7 +257,13 @@ public class WebSocketConnection implements WebSocket {
 			}
 		}
 
-		this.mSocket = mSocketThread.getSocket();
+		//this.mSocket = mSocketThread.getSocket();
+		// SVMP change
+		connect(mSocketThread.getSocket());
+	}
+
+	private void connect(Socket socket) {
+		this.mSocket = socket;
 		
 		if (mSocket == null) {
 			onClose(WebSocketCloseNotification.CANNOT_CONNECT, mSocketThread.getFailureMessage());
@@ -482,26 +518,15 @@ public class WebSocketConnection implements WebSocket {
 					}
 				}
 
-                final SSLParams params = mOptions.getSSLParams(); // SVMP addition
-
 				SocketFactory factory = null;
 				if (mWebSocketURI.getScheme().equalsIgnoreCase(WSS_URI_SCHEME)) {
-					//factory = SSLCertificateSocketFactory.getDefault();
-                    factory = params.getSslContext().getSocketFactory(); // SVMP addition
+					factory = SSLCertificateSocketFactory.getDefault();
 				} else {
 					factory = SocketFactory.getDefault();
 				}
 
 				// Do not replace host string with InetAddress or you lose automatic host name verification
 				this.mSocket = factory.createSocket(host, port);
-
-                // SVMP addition
-                if (mWebSocketURI.getScheme().equalsIgnoreCase(WSS_URI_SCHEME)) {
-                    SSLSocket sslSocket = (SSLSocket)this.mSocket;
-                    sslSocket.setEnabledProtocols(params.getEnabledProtocols());
-                    sslSocket.setEnabledCipherSuites(params.getEnabledCiphers());
-//                    sslSocket.startHandshake(); // starts the handshake to verify the server cert before continuing
-                }
 			} catch (IOException e) {
 				this.mFailureMessage = e.getLocalizedMessage();
 			}

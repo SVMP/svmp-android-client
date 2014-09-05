@@ -18,6 +18,7 @@ package org.mitre.svmp.apprtc;
 
 import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.Looper;
 import android.util.Log;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -53,10 +54,11 @@ import org.mitre.svmp.common.StateMachine.STATE;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLSocket;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 import java.net.URI;
-import java.security.cert.CertPathValidatorException;
 import java.util.Date;
 import java.util.HashMap;
 
@@ -93,6 +95,7 @@ public class AppRTCClient extends Binder implements Constants {
     // variables for networking
     private boolean useSSL;
     private SSLConfig sslConfig;
+    private Socket socket;
     private WebSocketConnection webSocket;
 
     // STEP 0: NEW -> STARTED
@@ -279,7 +282,7 @@ public class AppRTCClient extends Binder implements Constants {
             } catch (NoHttpResponseException e) {
                 if ("The target server failed to respond".equals(e.getMessage())) {
                     // connection failed, we tried to connect without using SSL but REST API's SSL is turned on
-                    Log.e(TAG, "Client encryption is on but server encryption is off:", e);
+                    Log.e(TAG, "Client encryption is off but server encryption is on:", e);
                     returnVal = R.string.appRTC_toast_socketConnector_failSSL;
                 }
                 else {
@@ -328,23 +331,87 @@ public class AppRTCClient extends Binder implements Constants {
 
     // STEP 2: AUTH -> CONNECTED, Connect to the SVMP proxy service
     public void connect() {
-        String proto = useSSL ? "wss" : "ws";
-        URI uri = URI.create(String.format("%s://%s:%s", proto, sessionInfo.getHost(), sessionInfo.getPort()));
-        Log.d(TAG, "Socket connecting to " + uri.toString());
+        new SocketConnector().execute();
+    }
+    private class SocketConnector extends AsyncTask<Void, Void, Integer> {
+        @Override
+        protected Integer doInBackground(Void... params) {
+            int returnVal = R.string.appRTC_toast_socketConnector_fail; // resID for return message
 
-        WebSocketOptions options = new WebSocketOptions();
-        if (useSSL)
-            sslConfig.apply(options);
-        HashMap<String, String> headers = new HashMap<String, String>();
-        headers.put("x-access-token", sessionInfo.getToken());
-        options.setHeaders(headers);
+            // set up the WebSocket URI for the svmp-server
+            String proto = useSSL ? "wss" : "ws";
+            URI uri = URI.create(String.format("%s://%s:%s", proto, sessionInfo.getHost(), sessionInfo.getPort()));
+            Log.d(TAG, "Socket connecting to " + uri.toString());
 
-        webSocket = new WebSocketConnection();
-        try {
-            webSocket.connect(uri, new String[]{"svmp"}, observer, options);
-        } catch (WebSocketException e) {
-            Log.e(TAG, "Failed to connect to SVMP proxy:", e);
-            machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
+            // set up the WebSocket options for the svmp-server
+            WebSocketOptions options = new WebSocketOptions();
+            HashMap<String, String> headers = new HashMap<String, String>();
+            headers.put("x-access-token", sessionInfo.getToken());
+            options.setHeaders(headers);
+
+            try {
+                // create the socket for the WebSocketConnection to use
+                // we do this here because the Looping and Handling that takes place in the WebSocket code causes
+                // the app to freeze when any other processes are launched (such as KeyChain or MemorizingTrustManager)
+                javax.net.SocketFactory factory;
+                if (useSSL) {
+                    factory = sslConfig.getSSLContext().getSocketFactory();
+                }
+                else {
+                    factory = javax.net.SocketFactory.getDefault();
+                }
+                socket = factory.createSocket(uri.getHost(), uri.getPort());
+                if (useSSL) {
+                    SSLSocket sslSocket = (SSLSocket)socket;
+                    sslSocket.setEnabledProtocols(ENABLED_PROTOCOLS);
+                    sslSocket.setEnabledCipherSuites(ENABLED_CIPHERS);
+                    sslSocket.startHandshake(); // starts the handshake to verify the cert before continuing
+                }
+                //socket.setTcpNoDelay(true);
+
+                // we have the socket and the SSL handshake has completed
+                // now establish a WebSocketConnection
+                Looper.prepare(); // required for Handlers that WebSocket uses
+                webSocket = new WebSocketConnection();
+                webSocket.connect(socket, uri, new String[]{"svmp"}, observer, options);
+                Looper.loop(); // required for Handlers that WebSocket uses
+
+                // if we made it to this point, return a success message
+                returnVal = 0;
+            } catch (SSLHandshakeException e) {
+                String msg = e.getMessage();
+                if (msg.contains("java.security.cert.CertPathValidatorException")) {
+                    // the server's certificate isn't in our trust store
+                    Log.e(TAG, "Untrusted server certificate!");
+                    returnVal = R.string.appRTC_toast_socketConnector_failUntrustedServer;
+                } else {
+                    Log.e(TAG, "Error during SSL handshake: " + e.getMessage());
+                    returnVal = R.string.appRTC_toast_socketConnector_failSSLHandshake;
+                }
+            } catch (SSLException e) {
+                if ("Connection closed by peer".equals(e.getMessage())) {
+                    // connection failed, we tried to connect using SSL but REST API's SSL is turned off
+                    Log.e(TAG, "Client encryption is on but server encryption is off:", e);
+                    returnVal = R.string.appRTC_toast_socketConnector_failSSL;
+                }
+                else {
+                    Log.e(TAG, "SSL error:", e);
+                }
+            } catch (WebSocketException e) {
+                Log.e(TAG, "Failed to connect to SVMP proxy:", e);
+                returnVal = R.string.appRTC_toast_socketConnector_fail;
+            } catch (Exception e) {
+                Log.e(TAG, "Exception: " + e.getMessage());
+                e.printStackTrace();
+            }
+            return returnVal;
+        }
+
+        @Override
+        protected void onPostExecute(Integer result) {
+            if (result != 0) {
+                machine.setState(STATE.ERROR, result); // STARTED -> ERROR
+            }
         }
     }
     WebSocket.WebSocketConnectionObserver observer = new WebSocket.WebSocketConnectionObserver() {
