@@ -146,9 +146,10 @@ public class WebSocketConnection implements WebSocket {
 				Log.d(TAG, "Failed to close socket:", e);
 			}
 			try {
+				Log.v(TAG, "Quitting Looper...");
 				Looper.myLooper().quit();
 			} catch (Exception e) {
-				// don't care
+				Log.e(TAG, "Looper failed to quit:", e);
 			}
 		} else {
 			Log.d(TAG, "mSocketThread already NULL");

@@ -345,6 +345,7 @@ public class AppRTCClient extends Binder implements Constants {
 
             // set up the WebSocket options for the svmp-server
             WebSocketOptions options = new WebSocketOptions();
+            options.setMaxFramePayloadSize(8 * 128 * 1024); // increase max frame size to handle high-res icons
             HashMap<String, String> headers = new HashMap<String, String>();
             headers.put("x-access-token", sessionInfo.getToken());
             options.setHeaders(headers);
@@ -371,7 +372,11 @@ public class AppRTCClient extends Binder implements Constants {
 
                 // we have the socket and the SSL handshake has completed
                 // now establish a WebSocketConnection
-                Looper.prepare(); // required for Handlers that WebSocket uses
+                try {
+                    Looper.prepare(); // required for Handlers that WebSocket uses
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to prepare Looper:", e);
+                }
                 webSocket = new WebSocketConnection();
                 webSocket.connect(socket, uri, new String[]{"svmp"}, observer, options);
                 Looper.loop(); // required for Handlers that WebSocket uses
