@@ -136,13 +136,13 @@ public class SSLConfig implements Constants {
             Log.d(TAG, "SSLConfig: Using static BKS trust store to check server cert trust");
             trustManagers = trustManagerFactory.getTrustManagers();
         // After switching to WebSockets, MTM causes the app to freeze; removed for now
-//        } else if (useMTM) {
-//            // by default useMTM is false ("Show certificate dialog" in developer preferences)
-//            // this creates a certificate dialog to decide what to do with untrusted certificates, instead of flat-out rejecting them
-//            Log.d(TAG, "SSLConfig: Static BKS trust store is empty but MTM is enabled, using MTM to check server cert trust");
-//            mtm = new MemorizingTrustManager(context);
-//            mtm.bindDisplayActivity(activity);
-//            trustManagers = new X509TrustManager[] {mtm};
+        } else if (useMTM) {
+            // by default useMTM is false ("Show certificate dialog" in developer preferences)
+            // this creates a certificate dialog to decide what to do with untrusted certificates, instead of flat-out rejecting them
+            Log.d(TAG, "SSLConfig: Static BKS trust store is empty but MTM is enabled, using MTM to check server cert trust");
+            mtm = new MemorizingTrustManager(context);
+            mtm.bindDisplayActivity(activity);
+            trustManagers = new X509TrustManager[] {mtm};
         } else {
             Log.d(TAG, "SSLConfig: Static BKS trust store is empty and MTM is disabled, using system trust store to check server cert trust");
             // leaving trustManagers null accomplishes this

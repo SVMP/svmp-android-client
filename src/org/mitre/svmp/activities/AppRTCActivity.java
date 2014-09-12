@@ -207,7 +207,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onPause() {
         super.onPause();
-        disconnectAndExit();
+        if (proxying)
+            disconnectAndExit();
     }
 
     // Log |msg| and Toast about it.
