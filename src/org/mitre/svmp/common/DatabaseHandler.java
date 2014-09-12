@@ -22,6 +22,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.util.Log;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.mitre.svmp.performance.MeasurementInfo;
 import org.mitre.svmp.performance.PointPerformanceData;
 import org.mitre.svmp.performance.SpanPerformanceData;
@@ -38,7 +40,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static final String TAG = DatabaseHandler.class.getName();
 
     public static final String DB_NAME = "org.mitre.svmp.db";
-    public static final int DB_VERSION = 10;
+    public static final int DB_VERSION = 12;
 
     public static final int TABLE_CONNECTIONS = 0;
     public static final int TABLE_MEASUREMENT_INFO = 1; // groups together performance data
@@ -68,8 +70,11 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             {"SessionToken", "TEXT DEFAULT ''"},
             {"CertificateAlias", "TEXT DEFAULT ''"},
             {"SessionExpires", "INTEGER DEFAULT 0"},
-            {"SessionGracePeriod", "INTEGER DEFAULT 0"},
-            {"LastDisconnected", "INTEGER DEFAULT 0"} // what time the client disconnected (used to find if session token is still good)
+            {"SessionGracePeriod", "INTEGER DEFAULT 0"}, // UNUSED/OBSOLETE
+            {"LastDisconnected", "INTEGER DEFAULT 0"}, // UNUSED/OBSOLETE
+            {"SessionHost", "TEXT DEFAULT ''"},
+            {"SessionPort", "TEXT DEFAULT ''"},
+            {"SessionWebrtc", "TEXT DEFAULT ''"}
         }, {
             {"StartDate", "INTEGER", "PRIMARY KEY"},
             {"ConnectionID", "INTEGER"}, // foreign key
@@ -157,6 +162,24 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             case 9:
                 // added Apps table, no need to change existing data
                 createTable(TABLE_APPS, db);
+            case 10:
+                // we don't use the Connections table's SessionGracePeriod column anymore, but there's no way to drop it
+            case 11:
+                // we don't use the Connections table's LastDisconnected column anymore, but there's no way to drop it
+                // added session info columns
+                addTableColumn(TABLE_CONNECTIONS, 13, "''", db); // SessionHost column added
+                addTableColumn(TABLE_CONNECTIONS, 14, "''", db); // SessionPort column added
+                addTableColumn(TABLE_CONNECTIONS, 15, "''", db); // SessionWebrtc column added
+                // clear any existing session info
+                ContentValues values = new ContentValues();
+                values.put("SessionToken", "");
+                // attempt update
+                try {
+                    db.update(Tables[TABLE_CONNECTIONS], values, null, null);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                updateRecord(TABLE_CONNECTIONS, values, null);
             default:
                 break;
         }
@@ -340,12 +363,12 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
     }
 
-    // returns an empty string if the connection doesn't have a valid session token
-    public String getSessionToken(ConnectionInfo connectionInfo) {
+    // returns null if the connection doesn't have a valid session token
+    public SessionInfo getSessionInfo(ConnectionInfo connectionInfo) {
         // run the query
         Cursor cursor = getDb().query(
                 Tables[TABLE_CONNECTIONS], // table
-                new String[] {"SessionToken", "SessionExpires", "SessionGracePeriod", "LastDisconnected"}, // columns (null == "*")
+                new String[] {"SessionToken", "SessionExpires", "SessionHost", "SessionPort", "SessionWebrtc"}, // columns (null == "*")
                 "ConnectionID=?", // selection ('where' clause)
                 new String[] {String.valueOf(connectionInfo.getConnectionID())}, // selection args
                 null, // group by
@@ -354,30 +377,30 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
 
         // try to get results and find a Session Token to return
-        String sessionToken = "";
+        SessionInfo value = null;
         if (cursor.moveToFirst()) {
             String token = cursor.getString(0);
 
             if (token != null && token.length() > 0) {
                 // we have a token, check to see if it's valid
                 long expires = cursor.getLong(1); // the longest the session is valid before it expires
-                int gracePeriod = cursor.getInt(2); // the grace period, in seconds, the client has to reconnect
-                long disconnected = cursor.getLong(3); // the time the client last disconnected
+                String host = cursor.getString(2);
+                String port = cursor.getString(3);
+                String webrtc = cursor.getString(4);
+                Date expireDate = new Date(expires);
 
                 SimpleDateFormat sdf = new SimpleDateFormat("h:mm:ss a");
-                Log.v(TAG, String.format("Found session info, [token: '%s', expires: '%s', gracePeriod: '%d' seconds, disconnected: '%s']",
-                        token, sdf.format(new Date(expires)), gracePeriod, sdf.format(new Date(disconnected))
-                ));
-
-                // find the earliest date this session is no longer valid, either by expiring or exceeding the grace period)
-                long time = disconnected + (1000 * gracePeriod);
-                if (disconnected == 0 || expires < time)
-                    time = expires;
-                Date expireDate = new Date(time);
+                Log.v(TAG, String.format("Found session info, [token: '%s', expires: '%s', host: '%s', port: '%s']",
+                        token, sdf.format(expireDate), host, port));
 
                 if (expireDate.after(new Date())) {
-                    // the session hasn't expired yet, get the token
-                    sessionToken = token;
+                    // the session hasn't expired yet, try to make a webrtc JSON object
+                    try {
+                        JSONObject jsonObject = new JSONObject(webrtc);
+                        value = new SessionInfo(token, expires, host, port, jsonObject);
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Session info contained invalid webrtc JSON string:", e);
+                    }
                 }
                 else {
                     // we have session info, but it's expired; clear it
@@ -386,7 +409,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             }
         }
 
-        return sessionToken;
+        return value;
     }
 
     public List<MeasurementInfo> getAllMeasurementInfo() {
@@ -696,12 +719,14 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         );
     }
 
-    public long updateSessionInfo(ConnectionInfo connectionInfo, String token, long expires, int gracePeriod) {
+    public long updateSessionInfo(ConnectionInfo connectionInfo, SessionInfo sessionInfo) {
         // create content values
         ContentValues contentValues = new ContentValues();
-        contentValues.put("SessionToken", token);
-        contentValues.put("SessionExpires", expires); // when max length from initial connect time is reached, session expires
-        contentValues.put("SessionGracePeriod", gracePeriod);
+        contentValues.put("SessionToken", sessionInfo.getToken());
+        contentValues.put("SessionExpires", sessionInfo.getExpires());
+        contentValues.put("SessionHost", sessionInfo.getHost());
+        contentValues.put("SessionPort", sessionInfo.getPort());
+        contentValues.put("SessionWebrtc", sessionInfo.getWebrtc().toString());
 
         // attempt update
         return updateRecord(
@@ -713,14 +738,9 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     }
 
     public long clearSessionInfo(ConnectionInfo connectionInfo) {
-        return updateSessionInfo(connectionInfo, "", 0, 0);
-    }
-
-    // when the client disconnects, we store the timestamp
-    public long updateLastDisconnected(ConnectionInfo connectionInfo, long disconnected) {
         // create content values
         ContentValues contentValues = new ContentValues();
-        contentValues.put("LastDisconnected", disconnected);
+        contentValues.put("SessionToken", "");
 
         // attempt update
         return updateRecord(

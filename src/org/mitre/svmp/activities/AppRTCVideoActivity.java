@@ -63,6 +63,8 @@ import org.mitre.svmp.protocol.SVMPProtocol.Request;
 import org.mitre.svmp.protocol.SVMPProtocol.Response;
 import org.webrtc.*;
 
+import java.util.TimeZone;
+
 /**
  * @author Joe Portner
  * General purpose activity to display a video feed and allow the user to interact with a remote VM
@@ -154,7 +156,7 @@ public class AppRTCVideoActivity extends AppRTCActivity {
     public MediaConstraints getPCConstraints() {
         MediaConstraints value = null;
         if (appRtcClient != null)
-            value = appRtcClient.pcConstraints();
+            value = appRtcClient.getSignalingParams().pcConstraints;
         return value;
     }
 
@@ -184,6 +186,12 @@ public class AppRTCVideoActivity extends AppRTCActivity {
 
         // set up ICE servers
         pcObserver.onIceServers(appRtcClient.getSignalingParams().iceServers);
+
+        // send timezone information
+        Request.Builder request = Request.newBuilder();
+        request.setType(Request.RequestType.TIMEZONE);
+        request.setTimezoneId(TimeZone.getDefault().getID());
+        sendMessage(request.build());
 
         touchHandler.sendScreenInfoMessage();
         rotationHandler.initRotationUpdates();

@@ -17,7 +17,7 @@ package org.mitre.svmp.auth.module;
 
 import android.content.Context;
 import android.view.View;
-import org.mitre.svmp.protocol.SVMPProtocol.AuthRequest;
+import org.json.JSONObject;
 
 /**
  * @author Joe Portner
@@ -30,5 +30,5 @@ public interface IAuthModule {
     View generateUI(Context context);
 
     // method used to add the correct input to an Intent, may use input from a View if necessary
-    void addRequestData(AuthRequest.Builder builder, View view);
+    void addRequestData(JSONObject jsonObject, View view);
 }

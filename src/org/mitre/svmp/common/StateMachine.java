@@ -15,10 +15,9 @@ public class StateMachine {
     public static enum STATE {
         NEW,       // before the service has been started
         STARTED,   // after the service has been started
-        CONNECTED, // after the socket has been connected
         AUTH,      // after we have authenticated
-        READY,     // after the VM is ready
-        RUNNING,   // after we've started proxying
+        CONNECTED, // after the WebSocket has been connected
+        RUNNING,   // after the VM is ready and we've started proxying
         ERROR      // any other state can change to an error state
     }
 

@@ -15,6 +15,7 @@ dependencies {
     //compile files('libs/libjingle_peerconnection.jar', '../svmp-protocol-def/protobuf-2.5.0/protobuf-java-2.5.0.jar')
 
     compile project(':MemorizingTrustManager')
+    compile project(':SecureWebSockets')
     compile project(':svmp-protocol-def')
     compile files('libs/libjingle_peerconnection.jar')
 }

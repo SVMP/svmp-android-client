@@ -75,7 +75,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     private static final String TAG = AppRTCActivity.class.getName();
 
     protected AppRTCClient appRtcClient;
-    protected SessionService service;
     protected PerformanceAdapter performanceAdapter;
     private boolean bound = false;
 
@@ -149,7 +148,7 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     public MediaConstraints getPCConstraints() {
         MediaConstraints value = null;
         if (appRtcClient != null)
-            value = appRtcClient.pcConstraints();
+            value = appRtcClient.getSignalingParams().pcConstraints;
         return value;
     }
 
@@ -171,7 +170,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
         public void onServiceConnected(ComponentName className, IBinder iBinder) {
             // We've bound to SessionService, cast the IBinder and get SessionService instance
             appRtcClient = (AppRTCClient) iBinder;
-            service = appRtcClient.getService();
             performanceAdapter.setPerformanceData(appRtcClient.getPerformance());
             bound = true;
 
@@ -209,7 +207,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
     @Override
     public void onPause() {
         super.onPause();
-        disconnectAndExit();
+        if (proxying)
+            disconnectAndExit();
     }
 
     // Log |msg| and Toast about it.
@@ -304,7 +303,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 bound = false;
                 appRtcClient.disconnectFromRoom();
                 appRtcClient = null;
-                service = null;
                 performanceAdapter.clearPerformanceData();
             }
 
@@ -336,17 +334,13 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                 break;
             case AUTH:
                 break;
-            case READY:
-                break;
             case RUNNING:
                 break;
             case ERROR:
                 // we are in an error state, check the previous state and act appropriately
                 switch(oldState) {
-                    case STARTED: // failed to connect the socket and transition to CONNECTED
-                        // the socket connection failed, display the failure message and return to the connection list
-                        break;
-                    case CONNECTED: // failed to authenticate and transition to AUTH
+                    case STARTED: // failed to authenticate and transition to AUTH
+                    case CONNECTED: // failed to receive ready message and transition to RUNNING (can fail auth to proxy)
                         if (resID == R.string.appRTC_toast_svmpAuthenticator_fail) {
                             // our authentication was rejected, exit and bring up the auth prompt when the connection list resumes
                             needAuth(resID, false);
@@ -356,9 +350,8 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                         }
                         // otherwise, we had an SSL error, display the failure message and return to the connection list
                         break;
-                    case AUTH: // failed to receive ready message and transition to READY
-                        break;
-                    case READY: // failed to receive video parameters and transition to RUNNING
+                    case AUTH: // failed to connect the WebSocket and transition to CONNECTED
+                        // the socket connection failed, display the failure message and return to the connection list
                         break;
                     case RUNNING: // failed after already running
                         break;
