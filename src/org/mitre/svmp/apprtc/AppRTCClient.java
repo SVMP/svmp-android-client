@@ -460,8 +460,7 @@ public class AppRTCClient extends Binder implements Constants {
 
         private void onResponse(Response data) {
             if (data.getType() == Response.ResponseType.ERROR) {
-                String message = data.hasMessage() ? data.getMessage() : "";
-                Log.e(TAG, "Received ERROR message: " + message);
+                Log.e(TAG, "Received ERROR message");
                 int error = hasVMREADY ? R.string.appRTC_toast_connection_finish : R.string.appRTC_toast_svmpReadyWait_fail;
                 machine.setState(STATE.ERROR, error);
             }

@@ -137,7 +137,7 @@ public class SensorHandler implements SensorEventListener, Constants {
 
         return Request.newBuilder()
                 .setType(RequestType.SENSOREVENT)
-                .setSensor(e)
+                .addSensor(e) // TODO: batch sensor events
                 .build();
     }
 }

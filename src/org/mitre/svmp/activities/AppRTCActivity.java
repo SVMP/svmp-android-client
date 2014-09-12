@@ -248,9 +248,6 @@ public class AppRTCActivity extends Activity implements StateObserver, MessageHa
                         case SESSION_MAX_TIMEOUT:
                             needAuth(R.string.svmpActivity_toast_sessionMaxTimeout, false);
                             break;
-                        case SESSION_IDLE_TIMEOUT:
-                            needAuth(R.string.svmpActivity_toast_sessionIdleTimeout, false);
-                            break;
                     }
                 }
                 break;

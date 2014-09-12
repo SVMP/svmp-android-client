@@ -115,7 +115,7 @@ public class TouchHandler implements Constants {
         }
 
         msg.setType(RequestType.TOUCHEVENT);
-        msg.setTouch(eventmsg);
+        msg.addTouch(eventmsg); // TODO: batch touch events
 
         activity.sendMessage(msg.build());
 

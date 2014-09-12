@@ -272,7 +272,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
         switch (data.getType()) {
             case AUTH:
                 AuthResponseType type = data.getAuthResponse().getType();
-                if (type == AuthResponseType.SESSION_MAX_TIMEOUT || type == AuthResponseType.SESSION_IDLE_TIMEOUT) {
+                if (type == AuthResponseType.SESSION_MAX_TIMEOUT) {
 
                     // if we are using the background service preference, change the notification icon to indicate that the connection has been halted
                     boolean useBackground = Utility.getPrefBool(this, R.string.preferenceKey_connection_useBackground, R.string.preferenceValue_connection_useBackground);
@@ -287,10 +287,7 @@ public class SessionService extends Service implements StateObserver, MessageHan
                         databaseHandler.clearSessionInfo(connectionInfo);
 
                         // create a toast
-                        if (type == AuthResponseType.SESSION_MAX_TIMEOUT)
-                            doToast(R.string.svmpActivity_toast_sessionMaxTimeout);
-                        else //if (type == AuthResponseType.SESSION_IDLE_TIMEOUT)
-                            doToast(R.string.svmpActivity_toast_sessionIdleTimeout);
+                        doToast(R.string.svmpActivity_toast_sessionMaxTimeout);
                     }
                 }
             case SCREENINFO:
