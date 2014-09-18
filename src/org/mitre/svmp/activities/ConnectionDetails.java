@@ -138,14 +138,10 @@ public class ConnectionDetails extends SvmpActivity {
     // called onResume so preference changes take effect in the layout
     @Override
     protected void refreshPreferences() {
-        if (Utility.getPrefBool(this, R.string.preferenceKey_connection_showEncryption, R.string.preferenceValue_connection_showEncryption)) {
-            findViewById(R.id.connectionDetails_textView_encryption).setVisibility(View.VISIBLE);
-            encryptionView.setVisibility(View.VISIBLE);
-        }
-        else {
-            findViewById(R.id.connectionDetails_textView_encryption).setVisibility(View.GONE);
-            encryptionView.setVisibility(View.GONE);
-        }
+        // only allow changing the encryption type if the correct Preference is set
+        encryptionView.setEnabled(Utility.getPrefBool(this,
+                R.string.preferenceKey_connection_showEncryption,
+                R.string.preferenceValue_connection_showEncryption));
     }
 
     // save button is clicked

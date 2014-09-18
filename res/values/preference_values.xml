@@ -128,7 +128,7 @@
 
     <string name="checkBoxPreference_connection_useMTM_title">Show certificate dialog</string>
     <string name="checkBoxPreference_connection_useMTM_summary">Allows accepting untrusted certificates</string>
-    <string name="checkBoxPreference_connection_showEncryption_title">Show encryption options</string>
+    <string name="checkBoxPreference_connection_showEncryption_title">Unlock encryption options</string>
     <string name="checkBoxPreference_connection_showEncryption_summary">Allows setting encryption type for connections</string>
     <string name="checkBoxPreference_connection_useDesktopMode_title">Use desktop mode</string>
     <string name="checkBoxPreference_connection_useDesktopMode_summary">Allows use of whole virtual desktop, not just apps</string>
