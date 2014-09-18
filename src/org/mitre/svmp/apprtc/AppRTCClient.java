@@ -347,7 +347,9 @@ public class AppRTCClient extends Binder implements Constants {
             WebSocketOptions options = new WebSocketOptions();
             options.setMaxFramePayloadSize(8 * 128 * 1024); // increase max frame size to handle high-res icons
             HashMap<String, String> headers = new HashMap<String, String>();
-            headers.put("x-access-token", sessionInfo.getToken());
+            // HACK: JavaScript WebSocket API doesn't allow for custom headers, so we repurpose this header instead
+            // We set it here instead of the constructor because this doesn't append a comma suffix
+            headers.put("Sec-WebSocket-Protocol", sessionInfo.getToken());
             options.setHeaders(headers);
 
             try {
@@ -378,7 +380,7 @@ public class AppRTCClient extends Binder implements Constants {
                     Log.e(TAG, "Failed to prepare Looper:", e);
                 }
                 webSocket = new WebSocketConnection();
-                webSocket.connect(socket, uri, new String[]{"svmp"}, observer, options);
+                webSocket.connect(socket, uri, null, observer, options);
                 Looper.loop(); // required for Handlers that WebSocket uses
 
                 // if we made it to this point, return a success message
