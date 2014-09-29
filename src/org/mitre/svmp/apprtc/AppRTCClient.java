@@ -20,12 +20,14 @@ import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Looper;
 import android.util.Log;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import de.tavendo.autobahn.WebSocket;
 import de.tavendo.autobahn.WebSocketConnection;
 import de.tavendo.autobahn.WebSocketException;
 import de.tavendo.autobahn.WebSocketOptions;
+
 import org.apache.http.*;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ClientConnectionManager;
@@ -55,6 +57,7 @@ import org.mitre.svmp.common.StateMachine.STATE;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.Socket;
@@ -375,7 +378,12 @@ public class AppRTCClient extends Binder implements Constants {
                 // we have the socket and the SSL handshake has completed
                 // now establish a WebSocketConnection
                 try {
-                    Looper.prepare(); // required for Handlers that WebSocket uses
+                    if (Looper.myLooper() == null) {
+                        Log.d(TAG, "Starting Looper. Thread = " + Thread.currentThread());
+                        Looper.prepare(); // required for Handlers that WebSocket uses
+                    } else {
+                        Log.d(TAG, "Looper already prepared on thread " + Thread.currentThread());
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, "Failed to prepare Looper:", e);
                 }
