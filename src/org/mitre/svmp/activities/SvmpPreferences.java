@@ -21,19 +21,20 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 import org.mitre.svmp.client.R;
+import org.mitre.svmp.common.Constants;
 import org.mitre.svmp.common.DatabaseHandler;
 import org.mitre.svmp.performance.MeasurementInfo;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.*;
+import java.security.KeyStore;
 import java.text.SimpleDateFormat;
 import java.util.List;
 
@@ -48,6 +49,25 @@ public class SvmpPreferences extends PreferenceActivity {
 
         // deprecated in API 11
         addPreferencesFromResource(R.xml.preferences);
+
+        // hide Memorizing Trust Manager if trust store is not empty
+        boolean hideMTM = false;
+        try {
+            KeyStore localTrustStore = KeyStore.getInstance("BKS");
+            InputStream in = this.getResources().openRawResource(R.raw.client_truststore);
+            localTrustStore.load(in, Constants.TRUSTSTORE_PASSWORD.toCharArray());
+            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init(localTrustStore);
+            hideMTM = localTrustStore.size() > 0;
+        } catch (Exception e) {
+            // don't care
+        }
+        if (hideMTM) {
+            // deprecated in API 11
+            Preference pref = findPreference(this.getResources().getString(R.string.preferenceKey_connection_useMTM));
+            if (pref != null)
+                pref.setEnabled(false);
+        }
     }
 
     @Override
