@@ -12,15 +12,19 @@
 
 1. Check out the SVMP client and protocol to a directory of your choice
 
-        cd ${SVMP}
-        git clone https://github.com/SVMP/svmp-protocol-def.git -b svmp-1.1
-        git clone https://github.com/SVMP/svmp-android-client.git -b svmp-1.1
-2.  Build the client using ant. For example:
+ ```sh
+ $ cd ${SVMP}
+ $ git clone https://github.com/SVMP/svmp-protocol-def.git
+ $ git clone https://github.com/SVMP/svmp-android-client.git
+ ```
 
-        cd ${SVMP}/svmp-android-client
-        ant debug
+2. Build the client using ant. For example:
 
-    See <http://developer.android.com/tools/building/building-cmdline.html> for additional commands.
+ ```sh
+ $ cd ${SVMP}/svmp-android-client
+ $ ant release
+ ```
+ See [Building and Running from the Command Line](http://developer.android.com/tools/building/building-cmdline.html) for additional commands.
 
 ### Configuration
 
@@ -65,31 +69,44 @@ In the *"Sensors"* preferences, you can adjust what sensors are polled to send d
 
 ## IDEs
 
+First, check out the code as above.
+If you plan on using self-signed certificates for your SVMP servers, you should create a Pinned Trust Store to compile into the client.
+To do this, generate a Bouncy Castle trust store:
+
+1. Check out the code as above.
+2. Navigate into the code directory.
+3. Copy any *.pem* certificate files (for your CA, or preferably for individual servers) into the `server_certs/` directory.
+4. Run the following command to generate the trust store:
+
+ ```sh
+ $ ant import_client_truststore_certs
+ ```
+
+Now, Proceed to build the client with the IDE of your choice.
+
 ### Eclipse with the ADT:
 
-1. Check out the code as above
-2. In Eclipse, select *File* -> *New* -> *Project* -> *Android Project from Existing Code*
-3. Set the Root Directory to where the client code is checked out (`${SVMP}/svmp-android-client`).
-4. The project list should now populate. Ensure the *svmp-android-client* and *MemorizingTrustManager* entries are checked. Edit the 'New Project Name' to your liking.
-5. Click *Finish*.
-6. Add `${SVMP}/svmp-protocol-def/protobuf-2.5.0/protobuf-java-2.5.0.jar` to the project as an external library
-7. Add `${SVMP}/svmp-protocol-def/src` as an addtional source path to the project
-8. Under *Build Path* -> *Order and Export*, check the box next to the *protobuf-java-2.5.0.jar* entry
+1. In Eclipse, select *File* -> *New* -> *Project* -> *Android Project from Existing Code*
+2. Set the Root Directory to where the client code is checked out (`${SVMP}/svmp-android-client`).
+3. The project list should now populate. Ensure the *svmp-android-client* and *MemorizingTrustManager* entries are checked. Edit the 'New Project Name' to your liking.
+4. Click *Finish*.
+5. Add `${SVMP}/svmp-protocol-def/protobuf-2.5.0/protobuf-java-2.5.0.jar` to the project as an external library
+6. Add `${SVMP}/svmp-protocol-def/src` as an addtional source path to the project
+7. Under *Build Path* -> *Order and Export*, check the box next to the *protobuf-java-2.5.0.jar* entry
 
 ### IntelliJ IDEA:
 
-1. Check out the code as above
-2. In IDEA, select *File* -> *Import Project* (or, from the Welcome Screen, select *Import Project*)
-3. Set the Root Directory to where the client code is checked out (`${SVMP}/svmp-android-client`)
-4. Select *Create project from existing sources* -> *Next*
-5. Edit the *Project name* to your liking, then select *Next*
-6. Ensure that the project directory and src directories are checked, then select *Next*
-7. Select *Next* at the prompts for the libraries and module structure
-8. Select an Android platform for your SDK, then select *Next* (or, if you don't have one listed, select *+* to add a new SDK)
-9. Ensure that both *AndroidManifest.xml* files are checked, then select *Finish*
-10. Select *File* -> *Project Structure...*, then select *Modules* -> *svmp-protocol-def*, then select the *Dependencies* tab, then select *+* -> *Library...* -> *protobuf-java-2.5.0* -> *Add Selected*
-11. Select *Modules* -> *svmp-android-client*, then select the *Dependencies* tab, then select *+* -> *Library...* -> *protobuf-java-2.5.0* -> *Add Selected*, then select *OK*
-12. Select *Run* -> *Edit Configurations...*, under *Target Device* select *Show chooser dialog* to allow for target device selection, then select *OK*
+1. In IDEA, select *File* -> *Import Project* (or, from the Welcome Screen, select *Import Project*)
+2. Set the Root Directory to where the client code is checked out (`${SVMP}/svmp-android-client`)
+3. Select *Create project from existing sources* -> *Next*
+4. Edit the *Project name* to your liking, then select *Next*
+5. Ensure that the project directory and src directories are checked, then select *Next*
+6. Select *Next* at the prompts for the libraries and module structure
+7. Select an Android platform for your SDK, then select *Next* (or, if you don't have one listed, select *+* to add a new SDK)
+8. Ensure that both *AndroidManifest.xml* files are checked, then select *Finish*
+9. Select *File* -> *Project Structure...*, then select *Modules* -> *svmp-protocol-def*, then select the *Dependencies* tab, then select *+* -> *Library...* -> *protobuf-java-2.5.0* -> *Add Selected*
+10. Select *Modules* -> *svmp-android-client*, then select the *Dependencies* tab, then select *+* -> *Library...* -> *protobuf-java-2.5.0* -> *Add Selected*, then select *OK*
+11. Select *Run* -> *Edit Configurations...*, under *Target Device* select *Show chooser dialog* to allow for target device selection, then select *OK*
 
 ## License
 

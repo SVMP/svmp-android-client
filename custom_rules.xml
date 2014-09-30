@@ -27,7 +27,7 @@
 
     <target name="get_bouncycastle">
        <mkdir dir="${build.libs.dir}" />
-       <get src="http://bouncycastle.org/download/bcprov-jdk15on-151.jar"
+       <get src="http://central.maven.org/maven2/org/bouncycastle/bcprov-jdk15on/1.51/bcprov-jdk15on-1.51.jar"
             dest="${build.libs.dir}/bcprov.jar"
             verbose="true"
             usetimestamp="true" />
