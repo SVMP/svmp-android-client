@@ -18,6 +18,7 @@ package org.mitre.svmp.apprtc;
 
 import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
 
@@ -99,6 +100,7 @@ public class AppRTCClient extends Binder implements Constants {
     private boolean useSSL;
     private SSLConfig sslConfig;
     private Socket socket;
+    private SocketHandlerThread socketHandlerThread;
     private WebSocketConnection webSocket;
 
     // STEP 0: NEW -> STARTED
@@ -177,6 +179,8 @@ public class AppRTCClient extends Binder implements Constants {
         // shut down the WebSocket if it's open
         if (webSocket != null && webSocket.isConnected())
             webSocket.disconnect();
+        if (socketHandlerThread != null)
+            socketHandlerThread.quitSafely();
     }
 
     public synchronized void sendMessage(Request msg) {
@@ -341,7 +345,6 @@ public class AppRTCClient extends Binder implements Constants {
         protected Integer doInBackground(Void... params) {
             int returnVal = R.string.appRTC_toast_socketConnector_fail; // resID for return message
 
-
             try {
                 // create the socket for the WebSocketConnection to use
                 // we do this here because the Looping and Handling that takes place in the WebSocket code causes
@@ -395,44 +398,47 @@ public class AppRTCClient extends Binder implements Constants {
             if (result != 0) {
                 machine.setState(STATE.ERROR, result); // STARTED -> ERROR
             } else {
-                // set up the WebSocket URI for the svmp-server
-                String proto = useSSL ? "wss" : "ws";
-                URI uri = URI.create(String.format("%s://%s:%s", proto, sessionInfo.getHost(), sessionInfo.getPort()));
-                Log.d(TAG, "Socket connecting to " + uri.toString());
-    
-                // set up the WebSocket options for the svmp-server
-                WebSocketOptions options = new WebSocketOptions();
-                options.setMaxFramePayloadSize(8 * 128 * 1024); // increase max frame size to handle high-res icons
-                HashMap<String, String> headers = new HashMap<String, String>();
-                // HACK: JavaScript WebSocket API doesn't allow for custom headers, so we repurpose this header instead
-                // We set it here instead of the constructor because this doesn't append a comma suffix
-                headers.put("Sec-WebSocket-Protocol", sessionInfo.getToken());
-                options.setHeaders(headers);
-                
-                // we have the socket and the SSL handshake has completed
-                // now establish a WebSocketConnection
-                try {
-                    if (Looper.myLooper() == null) {
-                        Log.d(TAG, "Starting Looper. Thread = " + Thread.currentThread());
-                        Looper.prepare(); // required for Handlers that WebSocket uses
-
-                    } else {
-                        Log.d(TAG, "Looper already prepared on thread " + Thread.currentThread());
-                    }
-                    webSocket = new WebSocketConnection();
-                    webSocket.connect(socket, uri, null, observer, options);
-                    Looper.loop(); // required for Handlers that WebSocket uses
-                } catch (WebSocketException e) {
-                    Log.e(TAG, "Failed to connect to SVMP proxy:", e);
-                    machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
-                }
-//                catch (Exception e) {
-//                    Log.e(TAG, "Failed to prepare Looper:", e);
-//                    machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
-//                }
+                // we have to run the WebSocket connection in a HandlerThread to ensure that Looper is prepared
+                // properly and that the MemorizingTrustManager doesn't execute on the main UI thread
+                socketHandlerThread = new SocketHandlerThread("svmp-websocket-" + new Date().getTime());
+                socketHandlerThread.start();
             }
         }
     }
+    private class SocketHandlerThread extends HandlerThread {
+
+        public SocketHandlerThread(String name) {
+            super(name);
+        }
+
+        @Override
+        protected void onLooperPrepared() {
+            // set up the WebSocket URI for the svmp-server
+            String proto = useSSL ? "wss" : "ws";
+            URI uri = URI.create(String.format("%s://%s:%s", proto, sessionInfo.getHost(), sessionInfo.getPort()));
+            Log.d(TAG, "Socket connecting to " + uri.toString());
+
+            // set up the WebSocket options for the svmp-server
+            WebSocketOptions options = new WebSocketOptions();
+            options.setMaxFramePayloadSize(8 * 128 * 1024); // increase max frame size to handle high-res icons
+            HashMap<String, String> headers = new HashMap<String, String>();
+            // HACK: JavaScript WebSocket API doesn't allow for custom headers, so we repurpose this header instead
+            // We set it here instead of the constructor because this doesn't append a comma suffix
+            headers.put("Sec-WebSocket-Protocol", sessionInfo.getToken());
+            options.setHeaders(headers);
+
+            // we have the socket and the SSL handshake has completed
+            // now establish a WebSocketConnection
+            try {
+                webSocket = new WebSocketConnection();
+                webSocket.connect(socket, uri, null, observer, options);
+            } catch (WebSocketException e) {
+                Log.e(TAG, "Failed to connect to SVMP proxy:", e);
+                machine.setState(STATE.ERROR, R.string.appRTC_toast_socketConnector_fail);
+            }
+        }
+    }
+
     WebSocket.WebSocketConnectionObserver observer = new WebSocket.WebSocketConnectionObserver() {
         private boolean hasVMREADY;
         @Override
